@@ -37,11 +37,27 @@
     body {
       margin: 0;
       min-height: 100%;
-      /* Matches AppColors.blue (lib/theme/colors.dart) — the same
-         background the in-app splash screen uses, so there's no color
-         flash between this raw HTML boot splash and Flutter's own. */
+      background-size: 100% 100%;
+    }
+
+    /* Fills the viewport behind the centered splash image (see #splash
+       below) so the letterboxing around it reads as one seamless blue
+       screen instead of exposing whatever body's own background is.
+       Deliberately a separate element removed from the DOM by
+       removeSplashFromWeb() — NOT body's own background-color — because
+       Flutter's generated bootstrap script re-applies its own inline
+       styles to <body> once it takes over layout (position: fixed,
+       overflow: hidden, etc.), which silently wiped out the
+       `body.style.background = "transparent"` this used to rely on and
+       left the whole page permanently tinted blue, showing as a stray
+       strip any time mobile Chrome's chrome (address bar) resized the
+       viewport. An element that's actually removed from the DOM can't be
+       revived by something else's later style writes.
+     */
+    #splash-backdrop {
+      position: fixed;
+      inset: 0;
       background-color: #0A2FFF;
-          background-size: 100% 100%;
     }
 
     .center {
@@ -94,6 +110,7 @@
     function removeSplashFromWeb() {
       document.getElementById("splash")?.remove();
       document.getElementById("splash-branding")?.remove();
+      document.getElementById("splash-backdrop")?.remove();
       document.body.style.background = "transparent";
     }
   </script>
@@ -113,6 +130,7 @@
   </script>
 </head>
 <body>
+  <div id="splash-backdrop"></div>
   <picture id="splash">
       <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">
       <source srcset="splash/img/dark-1x.png 1x, splash/img/dark-2x.png 2x, splash/img/dark-3x.png 3x, splash/img/dark-4x.png 4x" media="(prefers-color-scheme: dark)">

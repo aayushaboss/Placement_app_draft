@@ -16,9 +16,10 @@ import '../widgets/responsive_body.dart';
 /// Mirrors frontend/app/index.tsx (Splash). Same content as before (mark,
 /// wordmark, a brief pause while the session bootstraps) — just staged as a
 /// proper brand moment instead of a bare logo floating on a flat fill:
-/// a soft gradient backdrop, ambient blurred shapes for depth, the mark in
-/// an app-icon-style card with a gentle overshoot on entry, and a small
-/// loading cue that only appears once bootstrap is actually taking a beat.
+/// a solid blue backdrop matching the real brand reference, ambient
+/// blurred shapes for depth, the mark in an app-icon-style card with a
+/// gentle overshoot on entry, and a small loading cue that only appears
+/// once bootstrap is actually taking a beat.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -76,13 +77,10 @@ class _SplashScreenState extends State<SplashScreen> {
         key: const ValueKey('splash-screen'),
         backgroundColor: AppColors.blue,
         body: ResponsiveBody(child: DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [AppColors.blue, AppColors.blueDeep],
-            ),
-          ),
+          // Solid fill, not a gradient down to blueDeep — matches the
+          // actual Aerostar Edge brand reference, which is a flat blue
+          // field behind the mark, not a gradient.
+          decoration: const BoxDecoration(color: AppColors.blue),
           child: Stack(
             fit: StackFit.expand,
             children: [
