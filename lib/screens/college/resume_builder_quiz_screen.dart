@@ -1,0 +1,2482 @@
+import 'dart:async';
+import 'dart:io' show File;
+
+import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_vector_icons/flutter_vector_icons.dart';
+import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
+
+import '../../mockData/course_fields.dart';
+import '../../mockData/mock_applications.dart';
+import '../../mockData/mock_profile_options.dart';
+import '../../models/language_entry.dart';
+import '../../models/parsed_resume.dart';
+import '../../models/user.dart';
+import '../../state/app_state.dart';
+import '../../theme/colors.dart';
+import '../../theme/spacing.dart';
+import '../../theme/text_styles.dart';
+import '../../utils/no_orphan.dart';
+import '../../widgets/app_chip.dart';
+import '../../widgets/autocomplete_field.dart';
+import '../../widgets/date_picker_field.dart';
+import '../../widgets/expandable_text.dart';
+import '../../widgets/field_label.dart';
+import '../../widgets/pill_button.dart';
+import '../../widgets/pill_input.dart';
+import '../../widgets/resume_ready_view.dart';
+import '../../widgets/responsive_body.dart';
+
+/// Quick-pick chips shown above the Language step's search field — the
+/// handful most students in this app's audience actually need one tap for;
+/// anything else is a few keystrokes away in the search box right below.
+const _quickLanguages = ['Hindi', 'English', 'Bengali', 'Tamil', 'Marathi'];
+
+/// Adjacent-skill recommendations — adding a skill surfaces a few related
+/// ones alongside it, the same "pick one, get more" pattern as the Goals
+/// screen's interested-roles picker, instead of the suggestion list staying
+/// static after the first tap.
+const _relatedSkills = {
+  'Python': ['Java', 'SQL', 'Data Structures', 'Git'],
+  'Java': ['Python', 'Data Structures', 'SQL', 'Git'],
+  'JavaScript': ['React', 'Git', 'SQL', 'Python'],
+  'SQL': ['Python', 'Data Analysis', 'Excel', 'Data Structures'],
+  'React': ['JavaScript', 'Git', 'UI Design', 'Prototyping'],
+  'Git': ['Python', 'Java', 'JavaScript', 'Data Structures'],
+  'C++': ['Data Structures', 'Java', 'Python', 'Git'],
+  'Data Structures': ['Python', 'Java', 'C++', 'Git'],
+  'Excel': ['Financial Analysis', 'PowerPoint', 'Data Analysis', 'Accounting'],
+  'Financial Analysis': ['Excel', 'Accounting', 'Market Research', 'PowerPoint'],
+  'PowerPoint': ['Excel', 'Communication', 'Public Speaking', 'Market Research'],
+  'Market Research': ['Financial Analysis', 'Excel', 'Data Analysis', 'Communication'],
+  'Accounting': ['Excel', 'Financial Analysis', 'Data Analysis', 'MS Office'],
+  'Communication': ['Public Speaking', 'Teamwork', 'MS Office', 'Content Writing'],
+  'Content Writing': ['Communication', 'Research', 'Social Media', 'Public Speaking'],
+  'Research': ['Data Analysis', 'Report Writing', 'Communication', 'MS Office'],
+  'MS Office': ['Excel', 'PowerPoint', 'Communication', 'Report Writing'],
+  'Public Speaking': ['Communication', 'Content Writing', 'Teamwork', 'PowerPoint'],
+  'Figma': ['Adobe XD', 'UI Design', 'Prototyping', 'Illustrator'],
+  'Adobe XD': ['Figma', 'UI Design', 'Prototyping', 'Photoshop'],
+  'Photoshop': ['Illustrator', 'Adobe XD', 'UI Design', 'Figma'],
+  'Illustrator': ['Photoshop', 'Adobe XD', 'UI Design', 'Figma'],
+  'UI Design': ['Figma', 'Adobe XD', 'Prototyping', 'Illustrator'],
+  'Prototyping': ['Figma', 'UI Design', 'Adobe XD', 'Photoshop'],
+  'Data Analysis': ['Excel', 'SQL', 'Research', 'Report Writing'],
+  'Lab Techniques': ['Research', 'Data Analysis', 'Report Writing', 'MS Office'],
+  'Report Writing': ['Research', 'MS Office', 'Data Analysis', 'Communication'],
+  'Legal Research': ['Drafting', 'Case Analysis', 'Communication', 'MS Office'],
+  'Drafting': ['Legal Research', 'Case Analysis', 'Communication', 'MS Office'],
+  'Case Analysis': ['Legal Research', 'Drafting', 'Research', 'Communication'],
+  'Clinical Skills': ['Patient Care', 'Research', 'Communication', 'Data Analysis'],
+  'Patient Care': ['Clinical Skills', 'Communication', 'Research', 'Teamwork'],
+  'Video Editing': ['Content Writing', 'Social Media', 'Journalism', 'Photoshop'],
+  'Social Media': ['Content Writing', 'Video Editing', 'Journalism', 'Communication'],
+  'Journalism': ['Content Writing', 'Social Media', 'Research', 'Communication'],
+  'Customer Service': ['Communication', 'Operations', 'Event Management', 'Teamwork'],
+  'Event Management': ['Customer Service', 'Operations', 'Communication', 'Teamwork'],
+  'Operations': ['Event Management', 'Customer Service', 'Teamwork', 'Time Management'],
+  'Problem Solving': ['Teamwork', 'Time Management', 'Communication', 'Research'],
+  'Teamwork': ['Communication', 'Problem Solving', 'Time Management', 'Public Speaking'],
+  'Time Management': ['Teamwork', 'Problem Solving', 'Operations', 'Communication'],
+};
+
+/// Reverses the `'$start'` / `'$start - $end'` / `'$start - Present'`
+/// strings `_addEducation`/`_addWorkExperience` build, so tapping an
+/// existing entry back into the form can re-populate the year picker
+/// fields it came from. Falls back to all-nulls for anything that doesn't
+/// match (e.g. an entry from the PDF-upload path, which never went through
+/// this format) — the user just re-picks the years in that case.
+({int? start, int? end, bool isCurrent}) _parseDurationRange(String duration) {
+  final parts = duration.split('-').map((s) => s.trim()).toList();
+  if (parts.isEmpty || parts.first.isEmpty) return (start: null, end: null, isCurrent: false);
+  final start = int.tryParse(parts.first);
+  if (parts.length == 1) return (start: start, end: null, isCurrent: false);
+  if (parts[1].toLowerCase() == 'present') return (start: start, end: null, isCurrent: true);
+  return (start: start, end: int.tryParse(parts[1]), isCurrent: false);
+}
+
+/// What a typed number in the education step's grade field means — CGPA is
+/// out of 10, Percentage/Percentile are out of 100. Without this, a bare
+/// number like "79" is ambiguous (79% vs 79th percentile vs a typo for a
+/// CGPA), and nothing stops an out-of-range value like "799" from being
+/// typed in the first place. See _gpaUnitMax/_composeGpa/_parseGpa below.
+enum GpaUnit { cgpa, percentage, percentile }
+
+double _gpaUnitMax(GpaUnit unit) => unit == GpaUnit.cgpa ? 10 : 100;
+
+String _gpaPlaceholder(GpaUnit unit) => switch (unit) {
+      GpaUnit.cgpa => 'e.g. 8.5',
+      GpaUnit.percentage => 'e.g. 85',
+      GpaUnit.percentile => 'e.g. 79',
+    };
+
+String _gpaUnitLabel(GpaUnit unit) => switch (unit) {
+      GpaUnit.cgpa => 'CGPA',
+      GpaUnit.percentage => 'Percentage',
+      GpaUnit.percentile => 'Percentile',
+    };
+
+/// Appends the right suffix so the stored value is never just a bare,
+/// ambiguous number — mirrors _parseDurationRange's "build a display string
+/// once, parse it back on edit" approach.
+String? _composeGpa(String rawValue, GpaUnit unit) {
+  final v = rawValue.trim();
+  if (v.isEmpty) return null;
+  return switch (unit) {
+    GpaUnit.cgpa => '$v CGPA',
+    GpaUnit.percentage => '$v%',
+    GpaUnit.percentile => '$v percentile',
+  };
+}
+
+/// Reverses [_composeGpa] for editing an existing entry. Falls back to
+/// treating the whole string as CGPA with no recognized suffix — covers a
+/// PDF-parsed resume's freehand `gpa` value, which never went through this
+/// flow in the first place.
+({String value, GpaUnit unit}) _parseGpa(String raw) {
+  final t = raw.trim();
+  if (t.toUpperCase().endsWith('CGPA')) return (value: t.substring(0, t.length - 4).trim(), unit: GpaUnit.cgpa);
+  if (t.endsWith('%')) return (value: t.substring(0, t.length - 1).trim(), unit: GpaUnit.percentage);
+  if (t.toLowerCase().endsWith('percentile')) return (value: t.substring(0, t.length - 10).trim(), unit: GpaUnit.percentile);
+  return (value: t, unit: GpaUnit.cgpa);
+}
+
+/// Validates a submitted grade value against the selected unit's range —
+/// called once when "Add education"/"Save changes" is tapped, not on every
+/// keystroke. An earlier version blocked out-of-range keystrokes live as
+/// they were typed, which silently ate legitimate input (typing a second
+/// digit onto a CGPA value, or a decimal point in some cases) with no
+/// feedback — this validates on submit instead and surfaces a real error
+/// message via PillInput's own `error` prop, so the field behaves like
+/// plain text entry the rest of the time.
+String? _gpaValidationError(String rawValue, GpaUnit unit) {
+  final v = rawValue.trim();
+  if (v.isEmpty) return null;
+  final parsed = double.tryParse(v);
+  final max = _gpaUnitMax(unit);
+  if (parsed == null || parsed < 0 || parsed > max) {
+    return 'Enter a value between 0 and ${max.toStringAsFixed(0)}';
+  }
+  return null;
+}
+
+const _monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+String _formatMonthYear(DateTime d) => '${_monthShort[d.month - 1]} ${d.year}';
+
+/// Reverses _formatMonthYear-built duration strings for work experience —
+/// same split-on-'-' shape as _parseDurationRange, but each side is a
+/// "Mon YYYY" token instead of a bare year, since experience (unlike
+/// education) can be as short as a few months. Falls back to all-nulls for
+/// anything that doesn't match (e.g. a PDF-parsed entry, or an entry saved
+/// before this format existed) — the user just re-picks the dates.
+({DateTime? start, DateTime? end, bool isCurrent}) _parseMonthYearDurationRange(String duration) {
+  DateTime? parseToken(String token) {
+    final parts = token.trim().split(RegExp(r'\s+'));
+    if (parts.length != 2) return null;
+    final monthIndex = _monthShort.indexOf(parts[0]);
+    final year = int.tryParse(parts[1]);
+    if (monthIndex == -1 || year == null) return null;
+    return DateTime(year, monthIndex + 1);
+  }
+
+  final parts = duration.split('-').map((s) => s.trim()).toList();
+  if (parts.isEmpty || parts.first.isEmpty) return (start: null, end: null, isCurrent: false);
+  final start = parseToken(parts.first);
+  if (parts.length == 1) return (start: start, end: null, isCurrent: false);
+  if (parts[1].toLowerCase() == 'present') return (start: start, end: null, isCurrent: true);
+  return (start: start, end: parseToken(parts[1]), isCurrent: false);
+}
+
+const _buildingSteps = [
+  'Structuring your experience…',
+  'Formatting sections…',
+  'Polishing the language…',
+  'Almost done…',
+];
+
+/// One-question-at-a-time resume builder (mirrors the aptitude quiz's
+/// tap-to-advance pattern) instead of one long form. Anything already
+/// captured during onboarding (name, college, course, year) is shown once
+/// as a read-only confirmation instead of being asked again, and the flow
+/// ends by "generating" a resume doc so applying never blocks on an
+/// incomplete profile mid-session.
+class ResumeBuilderQuizScreen extends StatefulWidget {
+  /// Set when this screen was reached from an apply-gate on a specific
+  /// opportunity — finishing the build here submits that application
+  /// automatically instead of dropping the user on a generic screen.
+  final String? applyForOpportunityId;
+
+  /// Which page to open on — set when reached from Profile's "Add details"
+  /// menu for one specific section (work experience, skills, etc.) so
+  /// jumping there doesn't mean re-clicking through the whole quiz first.
+  final int initialStep;
+
+  const ResumeBuilderQuizScreen({super.key, this.applyForOpportunityId, this.initialStep = 0});
+
+  @override
+  State<ResumeBuilderQuizScreen> createState() => _ResumeBuilderQuizScreenState();
+}
+
+enum _Phase { quiz, building, ready }
+
+class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
+  static const _totalSteps = 7;
+
+  late final PageController _pageController;
+  int _index = 0;
+  _Phase _phase = _Phase.quiz;
+  int _buildingStep = 0;
+  Timer? _buildingTimer;
+
+  // Intro extras — headline + phone, appended to the existing read-only
+  // confirmation instead of their own steps, to keep the total step count down.
+  final _headlineController = TextEditingController();
+  final _phoneController = TextEditingController();
+
+  // Education — multi-entry, pre-seeded (in the *form*, not the list) from
+  // onboarding's college/course so the first entry isn't typed from scratch.
+  List<ResumeEducation> _educationEntries = [];
+  final _eduInstitutionController = TextEditingController();
+  final _eduDegreeController = TextEditingController();
+  final _eduGpaController = TextEditingController();
+  GpaUnit _eduGpaUnit = GpaUnit.cgpa;
+  // Set only when "Add education"/"Save changes" is tapped with an
+  // out-of-range grade value — see _gpaValidationError. Cleared as soon as
+  // the field is edited again or the unit is switched.
+  String? _eduGpaError;
+  int? _eduStartYear;
+  int? _eduEndYear;
+  bool _eduCurrentlyStudying = false;
+  // Non-null while an existing entry is loaded into the form above for
+  // editing — set on tapping a card, cleared on save/cancel. The tapped
+  // entry is pulled out of _educationEntries while this is set (so it
+  // doesn't show twice) and re-inserted at the same index on save/cancel.
+  int? _editingEducationIndex;
+  // The entry pulled out of the list while editing — restored on cancel.
+  ResumeEducation? _editingEducationOriginal;
+
+  // Experience — gated behind a yes/no question; "no" skips the detailed
+  // form entirely instead of showing an empty multi-field form for freshers.
+  bool? _hasWorkExperience;
+  List<WorkExperience> _workExperience = [];
+  final _expCompanyController = TextEditingController();
+  final _expRoleController = TextEditingController();
+  final _expDescController = TextEditingController();
+  // Month + year, not just year — internships/short roles need finer
+  // granularity than education's plain year-range does. Only the
+  // year/month fields of these DateTimes are ever read.
+  DateTime? _expStartDate;
+  DateTime? _expEndDate;
+  bool _expCurrentlyWorking = false;
+  // Same editing pattern as education, see _editingEducationIndex.
+  int? _editingExperienceIndex;
+  WorkExperience? _editingExperienceOriginal;
+
+  // Certifications — same yes/no gate + multi-entry shape as Experience.
+  bool? _hasCertifications;
+  List<ResumeCertification> _certifications = [];
+  final _certNameController = TextEditingController();
+  final _certLinkController = TextEditingController();
+  DateTime? _certStartDate;
+  DateTime? _certEndDate;
+  bool _certOngoing = false;
+  int? _editingCertificationIndex;
+  ResumeCertification? _editingCertificationOriginal;
+  // Optional proof-of-certificate image — picked straight from the gallery
+  // (no camera option, unlike the profile-photo picker: a certificate is
+  // realistically always a screenshot/download, not a live photo).
+  XFile? _certImageFile;
+  String? _certImagePath;
+
+  final _skillInputController = TextEditingController();
+  List<String> _skills = [];
+  // Never actually populated by any wired step (no UI ever asked for this)
+  // — kept only so an existing resume's value round-trips through this
+  // quiz's save/load instead of silently getting wiped.
+  List<String> _specializations = [];
+  // Set only when Continue is tapped on an empty Skills step — cleared as
+  // soon as a skill is added. Same "block on submit, not while typing"
+  // shape as _eduGpaError.
+  String? _skillsError;
+
+  List<LanguageEntry> _languages = [];
+  String? _languagesError;
+
+  final _summaryController = TextEditingController();
+  String? _summaryError;
+  // Which of the 2 phrasings per tier _summaryForVariant is currently on;
+  // advances only on a genuine "Regenerate" tap (see _useSuggestedSummary).
+  int _summaryVariant = 0;
+  // The exact text the button last wrote into the field — as long as the
+  // field still holds this verbatim, the button reads "Regenerate" and a
+  // tap advances the variant; any hand-edit (even one character) makes
+  // this stop matching, so the button reverts to "Tap to autofill" and a
+  // tap starts the cycle over rather than clobbering what was typed.
+  String? _lastGeneratedSummary;
+
+  User? get _user => context.read<AppState>().user;
+  bool get _postOnboarding => _user?.onboardingComplete == true;
+  CourseField get _field => courseFieldFor(_user?.course);
+
+  @override
+  void initState() {
+    super.initState();
+    final start = widget.initialStep.clamp(0, _totalSteps - 1);
+    _index = start;
+    _pageController = PageController(initialPage: start);
+    _hydrateFromExisting();
+  }
+
+  /// If a resume already exists (built here before, or PDF-uploaded), this
+  /// screen doubles as its editor — reachable any time from the Profile
+  /// tab, not just once during onboarding. Without this, revisiting always
+  /// started from a blank quiz and silently overwrote whatever was there.
+  void _hydrateFromExisting() {
+    _languages = List.of(_user?.languages ?? const []);
+    final resume = _user?.resume;
+    if (resume == null) {
+      _eduInstitutionController.text = _user?.college ?? '';
+      _eduDegreeController.text = _user?.course ?? '';
+      return;
+    }
+    _headlineController.text = resume.headline ?? '';
+    _phoneController.text = resume.phone ?? '';
+    _educationEntries = List.of(resume.education);
+    if (_educationEntries.isEmpty) {
+      _eduInstitutionController.text = _user?.college ?? '';
+      _eduDegreeController.text = _user?.course ?? '';
+    }
+    _workExperience = List.of(resume.workExperience);
+    _hasWorkExperience = _workExperience.isNotEmpty ? true : (resume.experienceLevel == 'Fresher' ? false : null);
+    _certifications = List.of(resume.certifications);
+    _hasCertifications = _certifications.isNotEmpty ? true : null;
+    _skills = List.of(resume.skills);
+    _specializations = List.of(resume.specializations);
+    _summaryController.text = resume.summary ?? '';
+  }
+
+  @override
+  void dispose() {
+    _buildingTimer?.cancel();
+    _pageController.dispose();
+    _headlineController.dispose();
+    _phoneController.dispose();
+    _eduInstitutionController.dispose();
+    _eduDegreeController.dispose();
+    _eduGpaController.dispose();
+    _expCompanyController.dispose();
+    _expRoleController.dispose();
+    _expDescController.dispose();
+    _certNameController.dispose();
+    _certLinkController.dispose();
+    _skillInputController.dispose();
+    _summaryController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _goTo(int page) async {
+    if (page == _index || page < 0 || page >= _totalSteps) return;
+    await _pageController.animateToPage(page, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
+    if (!mounted) return;
+    setState(() => _index = page);
+    // Autosave on every step advance — abandoning the quiz partway (back
+    // button, closing the tab) used to discard everything since nothing
+    // persisted until the very last step. This reuses the same
+    // `resume` field + `_hydrateFromExisting()` that already restores a
+    // previously-*finished* resume, so a partial one restores the same way.
+    unawaited(_saveDraft());
+  }
+
+  ParsedResume _resumeFromState() => ParsedResume(
+        name: _user?.name ?? '',
+        headline: _headlineController.text.trim().isEmpty ? null : _headlineController.text.trim(),
+        phone: _phoneController.text.trim().isEmpty ? null : _phoneController.text.trim(),
+        education: _educationEntries,
+        skills: _skills,
+        projects: const [],
+        links: const [],
+        experienceLevel: _hasWorkExperience == false ? 'Fresher' : null,
+        specializations: _specializations,
+        summary: _summaryController.text.trim().isEmpty ? null : _summaryController.text.trim(),
+        workExperience: _workExperience,
+        certifications: _certifications,
+      );
+
+  /// Whether there's genuinely something from *this* quiz worth saving —
+  /// deliberately not the pre-seeded Education form text, since that comes
+  /// from the profile the user already filled in, not from an answer given
+  /// here. Autosaving before this is true would flip `hasResume` on from
+  /// pre-existing profile data alone and make the router think the resume
+  /// step is done while `onboardingComplete` is still false.
+  bool get _hasDraftContent =>
+      _skills.isNotEmpty ||
+      _workExperience.isNotEmpty ||
+      _certifications.isNotEmpty ||
+      _educationEntries.isNotEmpty ||
+      _languages.isNotEmpty ||
+      _summaryController.text.trim().isNotEmpty ||
+      _headlineController.text.trim().isNotEmpty ||
+      _phoneController.text.trim().isNotEmpty;
+
+  Future<void> _saveDraft() async {
+    if (!mounted || !_hasDraftContent) return;
+    await context.read<AppState>().updateProfile((current) => current.copyWith(resume: _resumeFromState(), languages: _languages));
+  }
+
+  void _back() {
+    if (_index > 0) {
+      _goTo(_index - 1);
+    } else if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go(_postOnboarding ? '/tabs' : '/college/resume');
+    }
+  }
+
+  void _addSkill() {
+    final s = _skillInputController.text.trim();
+    _addSkillValue(s);
+    _skillInputController.clear();
+  }
+
+  void _addSkillValue(String s) {
+    final alreadyAdded = _skills.any((existing) => existing.toLowerCase() == s.toLowerCase());
+    if (s.isNotEmpty && !alreadyAdded) {
+      HapticFeedback.selectionClick();
+      setState(() {
+        _skills = [..._skills, s];
+        _skillsError = null;
+      });
+    }
+  }
+
+  void _continueFromSkills() {
+    if (_skills.isEmpty) {
+      HapticFeedback.selectionClick();
+      setState(() => _skillsError = 'Add at least one skill to continue.');
+      return;
+    }
+    _goTo(5);
+  }
+
+  Future<void> _pickEduStartYear() async {
+    final year = await showYearPickerSheet(context, minYear: 1990, maxYear: DateTime.now().year, initialYear: _eduStartYear, title: 'Start year');
+    if (year == null) return;
+    setState(() {
+      _eduStartYear = year;
+      // End year is only ever valid within start..start+6 now — clear it if
+      // picking a new start pushes the existing end outside that window in
+      // either direction (previously only checked the "too early" side).
+      if (_eduEndYear != null && (_eduEndYear! < year || _eduEndYear! > year + 6)) _eduEndYear = null;
+    });
+  }
+
+  Future<void> _pickEduEndYear() async {
+    final start = _eduStartYear;
+    final year = await showYearPickerSheet(
+      context,
+      minYear: start ?? 1990,
+      // Most degrees run 4-6 years — capping the wheel at start+6 instead of
+      // "current year + 10" (which let a 2026 start scroll to an unrealistic
+      // 2036) keeps every reachable value plausible.
+      maxYear: (start ?? DateTime.now().year) + 6,
+      // Defaults the wheel to start+4 (a typical degree length) instead of
+      // landing on an arbitrary first entry — only when there's no existing
+      // end year to preserve (e.g. editing a saved entry).
+      initialYear: _eduEndYear ?? (start != null ? start + 4 : null),
+      title: 'End year',
+    );
+    if (year == null) return;
+    setState(() => _eduEndYear = year);
+  }
+
+  void _setEduCurrentlyStudying(bool value) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _eduCurrentlyStudying = value;
+      if (value) _eduEndYear = null;
+    });
+  }
+
+  void _setEduGpaUnit(GpaUnit unit) {
+    if (unit == _eduGpaUnit) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _eduGpaUnit = unit;
+      // A value valid for the old unit (e.g. "85" as a Percentage) can be
+      // out of range for the new one (85 > 10 for CGPA) — clearing avoids
+      // silently carrying over a now-invalid number.
+      _eduGpaController.clear();
+      _eduGpaError = null;
+    });
+  }
+
+  void _onEduGpaChanged(String _) {
+    if (_eduGpaError != null) setState(() => _eduGpaError = null);
+  }
+
+  void _addEducation() {
+    final institution = _eduInstitutionController.text.trim();
+    final degree = _eduDegreeController.text.trim();
+    final start = _eduStartYear;
+    if (institution.isEmpty || degree.isEmpty || start == null) return;
+    final gpaError = _gpaValidationError(_eduGpaController.text, _eduGpaUnit);
+    if (gpaError != null) {
+      setState(() => _eduGpaError = gpaError);
+      return;
+    }
+    final duration = _eduCurrentlyStudying ? '$start - Present' : (_eduEndYear != null ? '$start - $_eduEndYear' : '$start');
+    final entry = ResumeEducation(
+      degree: degree,
+      institution: institution,
+      duration: duration,
+      gpa: _composeGpa(_eduGpaController.text, _eduGpaUnit),
+    );
+    HapticFeedback.selectionClick();
+    setState(() {
+      final editingAt = _editingEducationIndex;
+      if (editingAt != null) {
+        _educationEntries = [..._educationEntries]..insert(editingAt.clamp(0, _educationEntries.length), entry);
+        _editingEducationIndex = null;
+        _editingEducationOriginal = null;
+      } else {
+        _educationEntries = [..._educationEntries, entry];
+      }
+      _eduInstitutionController.clear();
+      _eduDegreeController.clear();
+      _eduGpaController.clear();
+      _eduGpaUnit = GpaUnit.cgpa;
+      _eduGpaError = null;
+      _eduStartYear = null;
+      _eduEndYear = null;
+      _eduCurrentlyStudying = false;
+    });
+  }
+
+  void _removeEducation(ResumeEducation e) {
+    HapticFeedback.selectionClick();
+    setState(() => _educationEntries = _educationEntries.where((x) => x != e).toList());
+  }
+
+  /// Pulls an existing entry out of the list and back into the form above
+  /// for editing — the list index is remembered so `_addEducation` can
+  /// re-insert it in the same spot instead of appending it at the end.
+  void _editEducation(int index) {
+    final entry = _educationEntries[index];
+    final parsed = _parseDurationRange(entry.duration);
+    HapticFeedback.selectionClick();
+    setState(() {
+      _educationEntries = [..._educationEntries]..removeAt(index);
+      _editingEducationIndex = index;
+      _editingEducationOriginal = entry;
+      _eduInstitutionController.text = entry.institution;
+      _eduDegreeController.text = entry.degree;
+      _eduGpaError = null;
+      final gpa = entry.gpa;
+      if (gpa == null || gpa.isEmpty) {
+        _eduGpaController.clear();
+        _eduGpaUnit = GpaUnit.cgpa;
+      } else {
+        final parsedGpa = _parseGpa(gpa);
+        _eduGpaController.text = parsedGpa.value;
+        _eduGpaUnit = parsedGpa.unit;
+      }
+      _eduStartYear = parsed.start;
+      _eduEndYear = parsed.end;
+      _eduCurrentlyStudying = parsed.isCurrent;
+    });
+  }
+
+  void _cancelEditEducation() {
+    final original = _editingEducationOriginal;
+    final index = _editingEducationIndex;
+    if (original == null || index == null) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _educationEntries = [..._educationEntries]..insert(index.clamp(0, _educationEntries.length), original);
+      _editingEducationIndex = null;
+      _editingEducationOriginal = null;
+      _eduInstitutionController.clear();
+      _eduDegreeController.clear();
+      _eduGpaController.clear();
+      _eduGpaUnit = GpaUnit.cgpa;
+      _eduGpaError = null;
+      _eduStartYear = null;
+      _eduEndYear = null;
+      _eduCurrentlyStudying = false;
+    });
+  }
+
+  void _selectHasWorkExperience(bool value) {
+    HapticFeedback.lightImpact();
+    setState(() => _hasWorkExperience = value);
+  }
+
+  Future<void> _pickExpStartDate() async {
+    // A start date can't be in the future either — the same real-world
+    // constraint as the end date, just less obviously so.
+    final now = DateTime.now();
+    final currentMonth = DateTime(now.year, now.month);
+    final picked = await showMonthYearPickerSheet(
+      context,
+      initialDate: _expStartDate,
+      title: 'Start date',
+      minYear: 1990,
+      maxYear: now.year,
+      maxDate: currentMonth,
+    );
+    if (picked == null) return;
+    final start = DateTime(picked.year, picked.month);
+    setState(() {
+      _expStartDate = start;
+      if (_expEndDate != null && _expEndDate!.isBefore(start)) _expEndDate = null;
+    });
+  }
+
+  Future<void> _pickExpEndDate() async {
+    final now = DateTime.now();
+    final picked = await showMonthYearPickerSheet(
+      context,
+      initialDate: _expEndDate,
+      title: 'End date',
+      minYear: _expStartDate?.year ?? 1990,
+      maxYear: now.year,
+      maxDate: DateTime(now.year, now.month),
+    );
+    if (picked == null) return;
+    setState(() => _expEndDate = DateTime(picked.year, picked.month));
+  }
+
+  void _setExpCurrentlyWorking(bool value) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _expCurrentlyWorking = value;
+      if (value) _expEndDate = null;
+    });
+  }
+
+  void _addWorkExperience() {
+    final company = _expCompanyController.text.trim();
+    final role = _expRoleController.text.trim();
+    final start = _expStartDate;
+    if (company.isEmpty || role.isEmpty || start == null) return;
+    final startLabel = _formatMonthYear(start);
+    final duration = _expCurrentlyWorking ? '$startLabel - Present' : (_expEndDate != null ? '$startLabel - ${_formatMonthYear(_expEndDate!)}' : startLabel);
+    final entry = WorkExperience(company: company, role: role, duration: duration, description: _expDescController.text.trim());
+    HapticFeedback.selectionClick();
+    setState(() {
+      final editingAt = _editingExperienceIndex;
+      if (editingAt != null) {
+        _workExperience = [..._workExperience]..insert(editingAt.clamp(0, _workExperience.length), entry);
+        _editingExperienceIndex = null;
+        _editingExperienceOriginal = null;
+      } else {
+        _workExperience = [..._workExperience, entry];
+      }
+      _expCompanyController.clear();
+      _expRoleController.clear();
+      _expDescController.clear();
+      _expStartDate = null;
+      _expEndDate = null;
+      _expCurrentlyWorking = false;
+    });
+  }
+
+  void _removeWorkExperience(WorkExperience w) {
+    HapticFeedback.selectionClick();
+    setState(() => _workExperience = _workExperience.where((x) => x != w).toList());
+  }
+
+  void _editWorkExperience(int index) {
+    final entry = _workExperience[index];
+    final parsed = _parseMonthYearDurationRange(entry.duration);
+    HapticFeedback.selectionClick();
+    setState(() {
+      _workExperience = [..._workExperience]..removeAt(index);
+      _editingExperienceIndex = index;
+      _editingExperienceOriginal = entry;
+      _expCompanyController.text = entry.company;
+      _expRoleController.text = entry.role;
+      _expDescController.text = entry.description;
+      _expStartDate = parsed.start;
+      _expEndDate = parsed.end;
+      _expCurrentlyWorking = parsed.isCurrent;
+    });
+  }
+
+  void _cancelEditWorkExperience() {
+    final original = _editingExperienceOriginal;
+    final index = _editingExperienceIndex;
+    if (original == null || index == null) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _workExperience = [..._workExperience]..insert(index.clamp(0, _workExperience.length), original);
+      _editingExperienceIndex = null;
+      _editingExperienceOriginal = null;
+      _expCompanyController.clear();
+      _expRoleController.clear();
+      _expDescController.clear();
+      _expStartDate = null;
+      _expEndDate = null;
+      _expCurrentlyWorking = false;
+    });
+  }
+
+  void _selectHasCertifications(bool value) {
+    HapticFeedback.lightImpact();
+    setState(() => _hasCertifications = value);
+    if (value == false) {
+      // "Not yet" has nothing further to fill in — unlike "Yes, I do",
+      // which needs the form to appear — so skip the extra tap and move on
+      // automatically. A short delay, not instant: AppChip has no built-in
+      // selection transition of its own (a plain Container rebuild), so
+      // this isn't waiting on an animation — it's giving the user a beat to
+      // see their tap actually register before the page slides away.
+      // Re-checks _hasCertifications so a fast follow-up tap on "Yes, I do"
+      // cancels this.
+      Future.delayed(const Duration(milliseconds: 220), () {
+        if (mounted && _hasCertifications == false) _goTo(4);
+      });
+    }
+  }
+
+  Future<void> _pickCertStartDate() async {
+    final now = DateTime.now();
+    final picked = await showMonthYearPickerSheet(
+      context,
+      initialDate: _certStartDate,
+      title: 'Start date',
+      minYear: 1990,
+      maxYear: now.year,
+      maxDate: DateTime(now.year, now.month),
+    );
+    if (picked == null) return;
+    final start = DateTime(picked.year, picked.month);
+    setState(() {
+      _certStartDate = start;
+      if (_certEndDate != null && _certEndDate!.isBefore(start)) _certEndDate = null;
+    });
+  }
+
+  Future<void> _pickCertEndDate() async {
+    final now = DateTime.now();
+    final picked = await showMonthYearPickerSheet(
+      context,
+      initialDate: _certEndDate,
+      title: 'End date',
+      minYear: _certStartDate?.year ?? 1990,
+      maxYear: now.year,
+      maxDate: DateTime(now.year, now.month),
+    );
+    if (picked == null) return;
+    setState(() => _certEndDate = DateTime(picked.year, picked.month));
+  }
+
+  void _setCertOngoing(bool value) {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _certOngoing = value;
+      if (value) _certEndDate = null;
+    });
+  }
+
+  Future<void> _pickCertImage() async {
+    final file = await ImagePicker().pickImage(source: ImageSource.gallery, imageQuality: 85);
+    if (file == null) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _certImageFile = file;
+      _certImagePath = file.path;
+    });
+  }
+
+  void _removeCertImage() {
+    HapticFeedback.selectionClick();
+    setState(() {
+      _certImageFile = null;
+      _certImagePath = null;
+    });
+  }
+
+  void _addCertification() {
+    final name = _certNameController.text.trim();
+    final start = _certStartDate;
+    if (name.isEmpty || start == null) return;
+    final startLabel = _formatMonthYear(start);
+    final duration = _certOngoing ? '$startLabel - Present' : (_certEndDate != null ? '$startLabel - ${_formatMonthYear(_certEndDate!)}' : startLabel);
+    final link = _certLinkController.text.trim();
+    final entry = ResumeCertification(
+      name: name,
+      duration: duration,
+      link: link.isEmpty ? null : link,
+      imagePath: _certImagePath,
+    );
+    HapticFeedback.selectionClick();
+    setState(() {
+      final editingAt = _editingCertificationIndex;
+      if (editingAt != null) {
+        _certifications = [..._certifications]..insert(editingAt.clamp(0, _certifications.length), entry);
+        _editingCertificationIndex = null;
+        _editingCertificationOriginal = null;
+      } else {
+        _certifications = [..._certifications, entry];
+      }
+      _certNameController.clear();
+      _certLinkController.clear();
+      _certStartDate = null;
+      _certEndDate = null;
+      _certOngoing = false;
+      _certImageFile = null;
+      _certImagePath = null;
+    });
+  }
+
+  void _removeCertification(ResumeCertification c) {
+    HapticFeedback.selectionClick();
+    setState(() => _certifications = _certifications.where((x) => x != c).toList());
+  }
+
+  void _editCertification(int index) {
+    final entry = _certifications[index];
+    final parsed = _parseMonthYearDurationRange(entry.duration);
+    HapticFeedback.selectionClick();
+    setState(() {
+      _certifications = [..._certifications]..removeAt(index);
+      _editingCertificationIndex = index;
+      _editingCertificationOriginal = entry;
+      _certNameController.text = entry.name;
+      _certLinkController.text = entry.link ?? '';
+      _certStartDate = parsed.start;
+      _certEndDate = parsed.end;
+      _certOngoing = parsed.isCurrent;
+      _certImagePath = entry.imagePath;
+      _certImageFile = null;
+    });
+  }
+
+  void _cancelEditCertification() {
+    final original = _editingCertificationOriginal;
+    final index = _editingCertificationIndex;
+    if (original == null || index == null) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _certifications = [..._certifications]..insert(index.clamp(0, _certifications.length), original);
+      _editingCertificationIndex = null;
+      _editingCertificationOriginal = null;
+      _certNameController.clear();
+      _certLinkController.clear();
+      _certStartDate = null;
+      _certEndDate = null;
+      _certOngoing = false;
+      _certImageFile = null;
+      _certImagePath = null;
+    });
+  }
+
+  void _addLanguage(String name) {
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return;
+    final exists = _languages.any((l) => l.name.toLowerCase() == trimmed.toLowerCase());
+    if (exists) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _languages = [..._languages, LanguageEntry(name: trimmed, proficiency: 'Intermediate')];
+      _languagesError = null;
+    });
+  }
+
+  void _removeLanguage(LanguageEntry l) {
+    HapticFeedback.selectionClick();
+    setState(() => _languages = _languages.where((x) => x != l).toList());
+  }
+
+  void _continueFromLanguages() {
+    if (_languages.isEmpty) {
+      HapticFeedback.selectionClick();
+      setState(() => _languagesError = 'Add at least one language to continue.');
+      return;
+    }
+    _goTo(6);
+  }
+
+  /// One resume-style sentence, not a fact dump — a blank text box is the
+  /// single most intimidating part of writing a summary, so give people
+  /// something to edit that already reads like a real opener, not
+  /// something they'd need to rewrite from scratch anyway.
+  String _oxfordJoin(List<String> items) {
+    if (items.isEmpty) return '';
+    if (items.length == 1) return items.first;
+    if (items.length == 2) return '${items[0]} and ${items[1]}';
+    return '${items.sublist(0, items.length - 1).join(', ')}, and ${items.last}';
+  }
+
+  /// A sentence-fragment opener, not a full sentence — the name is
+  /// deliberately left out (it's redundant on an actual resume, already the
+  /// page's own header) and this leads with qualification framed as
+  /// identity ("X student at Y") rather than a bare "Pursuing X at Y."
+  /// status line.
+  String? get _qualificationPhrase {
+    final course = _user?.course?.trim();
+    final college = _user?.college?.trim();
+    final hasCourse = course != null && course.isNotEmpty;
+    final hasCollege = college != null && college.isNotEmpty;
+    if (hasCourse && hasCollege) return '$course student at $college';
+    if (hasCourse) return '$course student';
+    if (hasCollege) return 'Student at $college';
+    return null;
+  }
+
+  /// 2 differently-worded phrasings per tier, not the same clause reshuffled
+  /// — a "Regenerate" tap needs to actually read as a different suggestion,
+  /// not the identical sentence again.
+  String _summaryForVariant(int variant) {
+    final qualification = _qualificationPhrase;
+    final skillsPhrase = _oxfordJoin(_skills.take(3).toList());
+    final v = variant % 2;
+
+    if (qualification != null && skillsPhrase.isNotEmpty) {
+      return v == 0
+          ? '$qualification with hands-on skills in $skillsPhrase, driven to deliver real, measurable impact.'
+          : '$qualification, bringing hands-on experience in $skillsPhrase and a drive to deliver real results.';
+    }
+    if (qualification != null) {
+      return v == 0
+          ? '$qualification, eager to turn classroom learning into real-world impact.'
+          : '$qualification, ready to bring energy and initiative to a real team.';
+    }
+    if (skillsPhrase.isNotEmpty) {
+      return v == 0
+          ? 'Motivated professional with hands-on skills in $skillsPhrase, driven to deliver real, measurable impact.'
+          : 'Practical, hands-on professional skilled in $skillsPhrase, ready to make an immediate contribution.';
+    }
+    return v == 0
+        ? 'Motivated and driven, eager to contribute meaningfully from day one.'
+        : 'Driven and dependable, ready to learn fast and add value from day one.';
+  }
+
+  void _useSuggestedSummary() {
+    HapticFeedback.selectionClick();
+    // Only a genuine "Regenerate" tap (field still holds exactly what the
+    // button wrote last time) advances the variant — a first-time autofill
+    // always starts at variant 0, so nothing changes for anyone who's
+    // never tapped this before.
+    final isRegenerate = _lastGeneratedSummary != null && _summaryController.text == _lastGeneratedSummary;
+    if (isRegenerate) _summaryVariant = (_summaryVariant + 1) % 2;
+    final text = _summaryForVariant(_summaryVariant);
+    _summaryController.text = text;
+    _summaryController.selection = TextSelection.collapsed(offset: _summaryController.text.length);
+    setState(() {
+      _lastGeneratedSummary = text;
+      _summaryError = null;
+    });
+  }
+
+  void _onSummaryChanged(String _) {
+    // Always rebuilds, not just when there's an error to clear — the
+    // "Regenerate" vs "Tap to autofill" label depends on comparing the
+    // field's live text to _lastGeneratedSummary on every keystroke, so a
+    // hand-edit needs to flip that label back immediately, not only on
+    // some other unrelated rebuild.
+    setState(() {
+      if (_summaryError != null) _summaryError = null;
+    });
+  }
+
+  void _continueFromSummary() {
+    if (_summaryController.text.trim().isEmpty) {
+      HapticFeedback.selectionClick();
+      setState(() => _summaryError = 'Write a short summary to continue.');
+      return;
+    }
+    _startBuilding();
+  }
+
+  void _startBuilding() {
+    setState(() => _phase = _Phase.building);
+    _buildingTimer = Timer.periodic(const Duration(milliseconds: 450), (timer) {
+      if (_buildingStep >= _buildingSteps.length - 1) {
+        timer.cancel();
+        Future.delayed(const Duration(milliseconds: 500), _finishBuilding);
+        return;
+      }
+      setState(() => _buildingStep++);
+    });
+  }
+
+  Future<void> _finishBuilding() async {
+    final wasOnboarding = !_postOnboarding;
+    final resume = _resumeFromState();
+    await context.read<AppState>().updateProfile((current) => (wasOnboarding
+        ? current.copyWith(resume: resume, languages: _languages, onboardingComplete: true)
+        : current.copyWith(resume: resume, languages: _languages)));
+    if (!mounted) return;
+    setState(() => _phase = _Phase.ready);
+  }
+
+  // Resume is the last onboarding step (goals already happened before this
+  // screen), so finishing here means straight home, not on to another step —
+  // unless this build was started from an apply-gate, in which case the
+  // application it was blocking can now actually be submitted. Deliberately
+  // NOT a plain pop: this quiz is pushed on top of the resume-upload screen,
+  // so popping once would land back on that now-stale intermediate screen
+  // instead of home.
+  void _done() {
+    final applyFor = widget.applyForOpportunityId;
+    if (applyFor != null) {
+      final application = createApplication(applyFor);
+      if (application != null) {
+        context.go('/application/${application.id}');
+        return;
+      }
+    }
+    context.go('/tabs');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_phase == _Phase.building) return _BuildingView(stepLabel: _buildingSteps[_buildingStep]);
+    if (_phase == _Phase.ready) return ResumeReadyView(user: _user, onDone: _done);
+
+    final topInset = MediaQuery.of(context).padding.top;
+
+    return PopScope(
+      // The system/browser back gesture would otherwise pop this whole
+      // route in one go, skipping however many questions are behind the
+      // current one — intercept it and step back exactly one question,
+      // same as the in-app chevron.
+      canPop: _index == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _back();
+      },
+      child: AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.dark,
+      child: Scaffold(
+        backgroundColor: AppColors.white,
+        body: ResponsiveBody(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: EdgeInsets.only(top: topInset + AppSpacing.sm, left: AppSpacing.lg, right: AppSpacing.lg, bottom: AppSpacing.md),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: _back,
+                    child: const Icon(Ionicons.chevron_back, size: 44 - AppSpacing.lg, color: AppColors.ink),
+                  ),
+                  Expanded(
+                    child: Text(
+                      'Step ${_index + 1} of $_totalSteps',
+                      textAlign: TextAlign.center,
+                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.gray500, fontWeight: AppFontWeight.medium),
+                    ),
+                  ),
+                  SizedBox(width: 44 - AppSpacing.lg),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(AppRadius.sm / 2),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween(end: ((_index + 1) / _totalSteps).clamp(0.04, 1.0)),
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, _) => LinearProgressIndicator(
+                    value: value,
+                    minHeight: AppSpacing.sm - AppSpacing.xs / 2,
+                    backgroundColor: AppColors.offWhite,
+                    valueColor: const AlwaysStoppedAnimation(AppColors.blue),
+                  ),
+                ),
+              ),
+            ),
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: const NeverScrollableScrollPhysics(),
+                onPageChanged: (page) {
+                  if (_index != page) setState(() => _index = page);
+                },
+                children: [
+                  _IntroStep(
+                    user: _user,
+                    headlineController: _headlineController,
+                    phoneController: _phoneController,
+                    onContinue: () => _goTo(1),
+                  ),
+                  _EducationStep(
+                    entries: _educationEntries,
+                    institutionController: _eduInstitutionController,
+                    degreeController: _eduDegreeController,
+                    gpaController: _eduGpaController,
+                    gpaUnit: _eduGpaUnit,
+                    onGpaUnitChanged: _setEduGpaUnit,
+                    gpaError: _eduGpaError,
+                    onGpaChanged: _onEduGpaChanged,
+                    startYear: _eduStartYear,
+                    endYear: _eduEndYear,
+                    isCurrent: _eduCurrentlyStudying,
+                    isEditing: _editingEducationIndex != null,
+                    onPickStart: _pickEduStartYear,
+                    onPickEnd: _pickEduEndYear,
+                    onCurrentChanged: _setEduCurrentlyStudying,
+                    onAdd: _addEducation,
+                    onRemove: _removeEducation,
+                    onEdit: _editEducation,
+                    onCancelEdit: _cancelEditEducation,
+                    onContinue: () => _goTo(2),
+                  ),
+                  _ExperienceStep(
+                    hasExperience: _hasWorkExperience,
+                    onSelectHasExperience: _selectHasWorkExperience,
+                    entries: _workExperience,
+                    companyController: _expCompanyController,
+                    roleController: _expRoleController,
+                    descController: _expDescController,
+                    startDate: _expStartDate,
+                    endDate: _expEndDate,
+                    isCurrent: _expCurrentlyWorking,
+                    isEditing: _editingExperienceIndex != null,
+                    onPickStart: _pickExpStartDate,
+                    onPickEnd: _pickExpEndDate,
+                    onCurrentChanged: _setExpCurrentlyWorking,
+                    onAdd: _addWorkExperience,
+                    onRemove: _removeWorkExperience,
+                    onEdit: _editWorkExperience,
+                    onCancelEdit: _cancelEditWorkExperience,
+                    onContinue: () => _goTo(3),
+                  ),
+                  _CertificationsStep(
+                    hasCertifications: _hasCertifications,
+                    onSelectHasCertifications: _selectHasCertifications,
+                    entries: _certifications,
+                    nameController: _certNameController,
+                    linkController: _certLinkController,
+                    startDate: _certStartDate,
+                    endDate: _certEndDate,
+                    isCurrent: _certOngoing,
+                    isEditing: _editingCertificationIndex != null,
+                    imageFile: _certImageFile,
+                    imagePath: _certImagePath,
+                    onPickStart: _pickCertStartDate,
+                    onPickEnd: _pickCertEndDate,
+                    onCurrentChanged: _setCertOngoing,
+                    onPickImage: _pickCertImage,
+                    onRemoveImage: _removeCertImage,
+                    onAdd: _addCertification,
+                    onRemove: _removeCertification,
+                    onEdit: _editCertification,
+                    onCancelEdit: _cancelEditCertification,
+                    onContinue: () => _goTo(4),
+                  ),
+                  _SkillsStep(
+                    skills: _skills,
+                    suggestions: skillSuggestionsByField[_field] ?? const [],
+                    controller: _skillInputController,
+                    onAdd: _addSkill,
+                    onAddSuggestion: _addSkillValue,
+                    onRemove: (s) => setState(() => _skills = _skills.where((x) => x != s).toList()),
+                    error: _skillsError,
+                    onContinue: _continueFromSkills,
+                  ),
+                  _LanguageStep(
+                    languages: _languages,
+                    onAddQuick: _addLanguage,
+                    onAdd: _addLanguage,
+                    onRemove: _removeLanguage,
+                    error: _languagesError,
+                    onContinue: _continueFromLanguages,
+                  ),
+                  _SummaryStep(
+                    controller: _summaryController,
+                    // "Regenerate" once the field still holds exactly what
+                    // the button last generated; "Tap to autofill" for an
+                    // empty field or one that's been hand-edited since.
+                    label: _summaryController.text == _lastGeneratedSummary ? 'Regenerate' : 'Tap to autofill',
+                    onUseSuggestion: _useSuggestedSummary,
+                    onChanged: _onSummaryChanged,
+                    error: _summaryError,
+                    onContinue: _continueFromSummary,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        )),
+      ),
+      ),
+    );
+  }
+}
+
+class _IntroStep extends StatelessWidget {
+  final User? user;
+  final TextEditingController headlineController;
+  final TextEditingController phoneController;
+  final VoidCallback onContinue;
+  const _IntroStep({required this.user, required this.headlineController, required this.phoneController, required this.onContinue});
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <(IconData, String, String)>[
+      (Ionicons.person_outline, 'Name', user?.name ?? '—'),
+      if ((user?.college ?? '').isNotEmpty) (Ionicons.business_outline, 'College', user!.college!),
+      if ((user?.course ?? '').isNotEmpty) (Ionicons.book_outline, 'Course', user!.course!),
+      if ((user?.year ?? '').isNotEmpty) (Ionicons.calendar_outline, 'Year', user!.year!),
+    ];
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  noOrphan('Already got this from your profile'),
+                  style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, height: 1.25),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Text(
+                    noOrphan("No need to type it twice — you'll just answer a couple of quick ones."),
+                    style: AppTextStyles.body.copyWith(color: AppColors.gray500),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xl),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+                    decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.lg)),
+                    child: Column(
+                      children: rows
+                          .map((r) => Padding(
+                                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                                child: Row(
+                                  children: [
+                                    Icon(r.$1, size: 18, color: AppColors.blue),
+                                    const SizedBox(width: AppSpacing.md),
+                                    SizedBox(
+                                      width: 64,
+                                      child: Text(r.$2, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5)),
+                                    ),
+                                    Expanded(
+                                      child: Text(
+                                        r.$3,
+                                        textAlign: TextAlign.left,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 13.5),
+                                      ),
+                                    ),
+                                    const SizedBox(width: AppSpacing.sm),
+                                    const Icon(Ionicons.checkmark_circle, size: 16, color: AppColors.success),
+                                  ],
+                                ),
+                              ))
+                          .toList(),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.md),
+                  child: GestureDetector(
+                    onTap: () => context.push(Uri(
+                      path: '/profile-edit',
+                      queryParameters: {'returnTo': '/college/resume/build'},
+                    ).toString()),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Ionicons.pencil_outline, size: 14, color: AppColors.blue),
+                        const SizedBox(width: AppSpacing.xs),
+                        Text(
+                          'Something wrong? Edit your profile',
+                          style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const FieldLabel('Your role (optional)'),
+                AutocompleteField(
+                  value: headlineController.text,
+                  controller: headlineController,
+                  placeholder: 'e.g. Graphics Designer',
+                  icon: Ionicons.briefcase_outline,
+                  options: mockJobTitles,
+                  onChanged: (_) {},
+                ),
+                const FieldLabel('Phone number (optional)', tight: true),
+                PillInput(
+                  controller: phoneController,
+                  placeholder: 'e.g. 98765 43210',
+                  icon: Ionicons.call_outline,
+                  keyboardType: TextInputType.phone,
+                ),
+              ],
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
+          decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
+          child: PillButton(label: 'Continue', onPressed: onContinue),
+        ),
+      ],
+    );
+  }
+}
+
+/// Start/end date picker shared by Education and Experience — two wheel
+/// picks (same native scroll-wheel sheet used app-wide for dates) plus an
+/// "in progress" checkbox that blanks the end date and shows "Present".
+/// Takes pre-formatted display labels rather than raw year/date values —
+/// Education formats a bare year ('2024'), Experience a month+year
+/// ('Jan 2024') — so this stays one shared, purely presentational widget
+/// instead of forking into two near-duplicates over that one difference.
+class _YearRangeRow extends StatelessWidget {
+  final String? startLabel;
+  final String? endLabel;
+  final bool isCurrent;
+  final String currentLabel;
+  final VoidCallback onPickStart;
+  final VoidCallback onPickEnd;
+  final ValueChanged<bool> onCurrentChanged;
+
+  const _YearRangeRow({
+    required this.startLabel,
+    required this.endLabel,
+    required this.isCurrent,
+    required this.currentLabel,
+    required this.onPickStart,
+    required this.onPickEnd,
+    required this.onCurrentChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: DatePickerField(value: startLabel, placeholder: 'Start date', icon: Ionicons.calendar_outline, onTap: onPickStart),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: DatePickerField(
+                value: isCurrent ? 'Present' : endLabel,
+                placeholder: 'End date',
+                icon: Ionicons.calendar_outline,
+                onTap: onPickEnd,
+              ),
+            ),
+          ],
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.sm),
+          child: GestureDetector(
+            onTap: () => onCurrentChanged(!isCurrent),
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              children: [
+                Icon(isCurrent ? Ionicons.checkbox : Ionicons.square_outline, size: 20, color: isCurrent ? AppColors.blue : AppColors.gray400),
+                const SizedBox(width: AppSpacing.sm),
+                Text(currentLabel, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14)),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Multi-entry education — institution, degree, duration, and GPA/percentage.
+/// Same add/list/remove pattern as Experience: form at the top pre-seeded
+/// from onboarding's college/course for the first entry, "Add education"
+/// commits it as a card below and clears the form for the next one.
+class _EducationStep extends StatelessWidget {
+  final List<ResumeEducation> entries;
+  final TextEditingController institutionController;
+  final TextEditingController degreeController;
+  final TextEditingController gpaController;
+  final GpaUnit gpaUnit;
+  final ValueChanged<GpaUnit> onGpaUnitChanged;
+  final String? gpaError;
+  final ValueChanged<String> onGpaChanged;
+  final int? startYear;
+  final int? endYear;
+  final bool isCurrent;
+  final bool isEditing;
+  final VoidCallback onPickStart;
+  final VoidCallback onPickEnd;
+  final ValueChanged<bool> onCurrentChanged;
+  final VoidCallback onAdd;
+  final ValueChanged<ResumeEducation> onRemove;
+  final ValueChanged<int> onEdit;
+  final VoidCallback onCancelEdit;
+  final VoidCallback onContinue;
+
+  const _EducationStep({
+    required this.entries,
+    required this.institutionController,
+    required this.degreeController,
+    required this.gpaController,
+    required this.gpaUnit,
+    required this.onGpaUnitChanged,
+    required this.gpaError,
+    required this.onGpaChanged,
+    required this.startYear,
+    required this.endYear,
+    required this.isCurrent,
+    required this.isEditing,
+    required this.onPickStart,
+    required this.onPickEnd,
+    required this.onCurrentChanged,
+    required this.onAdd,
+    required this.onRemove,
+    required this.onEdit,
+    required this.onCancelEdit,
+    required this.onContinue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  noOrphan('Your education'),
+                  style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, height: 1.25),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Text(noOrphan("We've filled in what we already know — just add the dates and grade."), style: AppTextStyles.body.copyWith(color: AppColors.gray500)),
+                ),
+                const FieldLabel('Institution'),
+                AutocompleteField(value: institutionController.text, controller: institutionController, placeholder: 'e.g. BITS Goa', icon: Ionicons.business_outline, options: mockColleges, onChanged: (_) {}),
+                const FieldLabel('Degree', tight: true),
+                AutocompleteField(value: degreeController.text, controller: degreeController, placeholder: 'e.g. Bachelor of Design', icon: Ionicons.school_outline, options: mockCourses, onChanged: (_) {}),
+                const FieldLabel('Duration', tight: true),
+                _YearRangeRow(
+                  startLabel: startYear?.toString(),
+                  endLabel: endYear?.toString(),
+                  isCurrent: isCurrent,
+                  currentLabel: 'Currently studying here',
+                  onPickStart: onPickStart,
+                  onPickEnd: onPickEnd,
+                  onCurrentChanged: onCurrentChanged,
+                ),
+                const FieldLabel('Grade (optional)', tight: true),
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: GpaUnit.values
+                      .map((u) => AppChip(label: _gpaUnitLabel(u), selected: gpaUnit == u, onPressed: () => onGpaUnitChanged(u)))
+                      .toList(),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: PillInput(
+                    controller: gpaController,
+                    placeholder: _gpaPlaceholder(gpaUnit),
+                    icon: Ionicons.ribbon_outline,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                    error: gpaError,
+                    onChanged: onGpaChanged,
+                    // Last field before "Add education" — without this the
+                    // keyboard can cover that button with nothing telling
+                    // the user it's still there, just off-screen.
+                    scrollIntoViewOnFocus: true,
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.lg),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: PillButton(
+                          label: isEditing ? 'Save changes' : 'Add education',
+                          variant: PillVariant.secondary,
+                          onPressed: onAdd,
+                        ),
+                      ),
+                      if (isEditing) ...[
+                        const SizedBox(width: AppSpacing.md),
+                        GestureDetector(
+                          onTap: onCancelEdit,
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.lg),
+                            child: Text('Cancel', style: AppTextStyles.label.copyWith(color: AppColors.gray500, fontWeight: AppFontWeight.medium)),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                if (entries.isNotEmpty)
+                  ...entries.asMap().entries.map((indexed) {
+                    final i = indexed.key;
+                    final e = indexed.value;
+                    return Container(
+                      margin: const EdgeInsets.only(top: AppSpacing.md),
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.lg)),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: () => onEdit(i),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(e.degree, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium)),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text(
+                                      [e.institution, e.duration, if (e.gpa != null && e.gpa!.isNotEmpty) e.gpa!].where((s) => s.isNotEmpty).join(' • '),
+                                      style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => onRemove(e),
+                            child: const Icon(Ionicons.close_circle, size: 20, color: AppColors.gray400),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+              ],
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
+          decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
+          child: PillButton(
+            label: entries.isEmpty ? 'Skip for now' : 'Continue',
+            variant: entries.isEmpty ? PillVariant.ghost : PillVariant.primary,
+            onPressed: onContinue,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Gated multi-entry work history — a fresher sees one yes/no question and
+/// nothing else; picking "yes" reveals the same add/list/remove form shape
+/// Education uses (company/role/duration/description instead of
+/// institution/degree/duration/GPA), so the two sections ask the same way.
+class _ExperienceStep extends StatelessWidget {
+  final bool? hasExperience;
+  final ValueChanged<bool> onSelectHasExperience;
+  final List<WorkExperience> entries;
+  final TextEditingController companyController;
+  final TextEditingController roleController;
+  final TextEditingController descController;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final bool isCurrent;
+  final bool isEditing;
+  final VoidCallback onPickStart;
+  final VoidCallback onPickEnd;
+  final ValueChanged<bool> onCurrentChanged;
+  final VoidCallback onAdd;
+  final ValueChanged<WorkExperience> onRemove;
+  final ValueChanged<int> onEdit;
+  final VoidCallback onCancelEdit;
+  final VoidCallback onContinue;
+
+  const _ExperienceStep({
+    required this.hasExperience,
+    required this.onSelectHasExperience,
+    required this.entries,
+    required this.companyController,
+    required this.roleController,
+    required this.descController,
+    required this.startDate,
+    required this.endDate,
+    required this.isCurrent,
+    required this.isEditing,
+    required this.onPickStart,
+    required this.onPickEnd,
+    required this.onCurrentChanged,
+    required this.onAdd,
+    required this.onRemove,
+    required this.onEdit,
+    required this.onCancelEdit,
+    required this.onContinue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final showForm = hasExperience == true;
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  noOrphan('Do you have work experience?'),
+                  style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, height: 1.25),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Text(noOrphan('Internships count too.'), style: AppTextStyles.body.copyWith(color: AppColors.gray500)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.lg),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: AppChip(label: 'Not yet', selected: hasExperience == false, onPressed: () => onSelectHasExperience(false)),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: AppChip(label: 'Yes, I do', selected: hasExperience == true, onPressed: () => onSelectHasExperience(true)),
+                      ),
+                    ],
+                  ),
+                ),
+                if (showForm) ...[
+                  const FieldLabel('Company'),
+                  AutocompleteField(value: companyController.text, controller: companyController, placeholder: 'e.g. Microsoft', icon: Ionicons.business_outline, options: mockCompanyNames, onChanged: (_) {}),
+                  const FieldLabel('Role', tight: true),
+                  AutocompleteField(value: roleController.text, controller: roleController, placeholder: 'e.g. Software Intern', icon: Ionicons.person_outline, options: mockJobTitles, onChanged: (_) {}),
+                  const FieldLabel('Duration', tight: true),
+                  _YearRangeRow(
+                    startLabel: startDate != null ? _formatMonthYear(startDate!) : null,
+                    endLabel: endDate != null ? _formatMonthYear(endDate!) : null,
+                    isCurrent: isCurrent,
+                    currentLabel: 'I currently work here',
+                    onPickStart: onPickStart,
+                    onPickEnd: onPickEnd,
+                    onCurrentChanged: onCurrentChanged,
+                  ),
+                  const FieldLabel('What did you do in this role? (optional)', tight: true),
+                  PillInput(
+                    controller: descController,
+                    placeholder: 'e.g. Shipped a feature used by 500+ customers',
+                    maxLength: 400,
+                    maxLines: 4,
+                    minLines: 3,
+                    // Last field before "Add job" — same keyboard-coverage
+                    // fix as the Education GPA field above.
+                    scrollIntoViewOnFocus: true,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.lg),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: PillButton(
+                            label: isEditing ? 'Save changes' : 'Add job',
+                            variant: PillVariant.secondary,
+                            onPressed: onAdd,
+                          ),
+                        ),
+                        if (isEditing) ...[
+                          const SizedBox(width: AppSpacing.md),
+                          GestureDetector(
+                            onTap: onCancelEdit,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.lg),
+                              child: Text('Cancel', style: AppTextStyles.label.copyWith(color: AppColors.gray500, fontWeight: AppFontWeight.medium)),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+                if (entries.isNotEmpty)
+                  ...entries.asMap().entries.map((indexed) {
+                    final i = indexed.key;
+                    final w = indexed.value;
+                    return Container(
+                      margin: const EdgeInsets.only(top: AppSpacing.md),
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.lg)),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Only the identity block (role/company/
+                                // duration) opens edit mode — the
+                                // description below has its own "View
+                                // more" tap target, which a single
+                                // GestureDetector spanning the whole card
+                                // would otherwise contend with.
+                                GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => onEdit(i),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        '${w.role} — ${w.company}',
+                                        style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium),
+                                      ),
+                                      if (w.duration.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 2),
+                                          child: Text(w.duration, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13)),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                if (w.description.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: ExpandableText(
+                                      text: w.description,
+                                      maxLines: 3,
+                                      style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => onRemove(w),
+                            child: const Icon(Ionicons.close_circle, size: 20, color: AppColors.gray400),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+              ],
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
+          decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
+          child: PillButton(
+            label: entries.isEmpty ? 'Skip for now' : 'Continue',
+            variant: entries.isEmpty ? PillVariant.ghost : PillVariant.primary,
+            onPressed: onContinue,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Certifications / completed courses — deliberately mirrors
+/// _ExperienceStep's shape exactly (same yes/no gate, same date pickers,
+/// same skippable footer, same entry-card layout), plus two certificate-
+/// specific optional fields: a verification link and an uploaded image.
+class _CertificationsStep extends StatelessWidget {
+  final bool? hasCertifications;
+  final ValueChanged<bool> onSelectHasCertifications;
+  final List<ResumeCertification> entries;
+  final TextEditingController nameController;
+  final TextEditingController linkController;
+  final DateTime? startDate;
+  final DateTime? endDate;
+  final bool isCurrent;
+  final bool isEditing;
+  final XFile? imageFile;
+  final String? imagePath;
+  final VoidCallback onPickStart;
+  final VoidCallback onPickEnd;
+  final ValueChanged<bool> onCurrentChanged;
+  final VoidCallback onPickImage;
+  final VoidCallback onRemoveImage;
+  final VoidCallback onAdd;
+  final ValueChanged<ResumeCertification> onRemove;
+  final ValueChanged<int> onEdit;
+  final VoidCallback onCancelEdit;
+  final VoidCallback onContinue;
+
+  const _CertificationsStep({
+    required this.hasCertifications,
+    required this.onSelectHasCertifications,
+    required this.entries,
+    required this.nameController,
+    required this.linkController,
+    required this.startDate,
+    required this.endDate,
+    required this.isCurrent,
+    required this.isEditing,
+    required this.imageFile,
+    required this.imagePath,
+    required this.onPickStart,
+    required this.onPickEnd,
+    required this.onCurrentChanged,
+    required this.onPickImage,
+    required this.onRemoveImage,
+    required this.onAdd,
+    required this.onRemove,
+    required this.onEdit,
+    required this.onCancelEdit,
+    required this.onContinue,
+  });
+
+  Widget _imagePreview() {
+    if (imageFile != null) {
+      return kIsWeb
+          ? Image.network(imageFile!.path, width: 48, height: 48, fit: BoxFit.cover)
+          : Image.file(File(imageFile!.path), width: 48, height: 48, fit: BoxFit.cover);
+    }
+    return Image.network(imagePath!, width: 48, height: 48, fit: BoxFit.cover);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showForm = hasCertifications == true;
+    final hasImage = imageFile != null || (imagePath != null && imagePath!.isNotEmpty);
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  noOrphan('Do you have any certifications?'),
+                  style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, height: 1.25),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Text(noOrphan('Online courses count too.'), style: AppTextStyles.body.copyWith(color: AppColors.gray500)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.lg),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: AppChip(label: 'Not yet', selected: hasCertifications == false, onPressed: () => onSelectHasCertifications(false)),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: AppChip(label: 'Yes, I do', selected: hasCertifications == true, onPressed: () => onSelectHasCertifications(true)),
+                      ),
+                    ],
+                  ),
+                ),
+                if (showForm) ...[
+                  const FieldLabel('Certification / course name'),
+                  PillInput(controller: nameController, placeholder: 'e.g. Google UX Design Certificate', icon: Ionicons.ribbon_outline),
+                  const FieldLabel('Duration', tight: true),
+                  _YearRangeRow(
+                    startLabel: startDate != null ? _formatMonthYear(startDate!) : null,
+                    endLabel: endDate != null ? _formatMonthYear(endDate!) : null,
+                    isCurrent: isCurrent,
+                    currentLabel: 'Currently ongoing',
+                    onPickStart: onPickStart,
+                    onPickEnd: onPickEnd,
+                    onCurrentChanged: onCurrentChanged,
+                  ),
+                  const FieldLabel('Certificate link (optional)', tight: true),
+                  PillInput(
+                    controller: linkController,
+                    placeholder: 'e.g. https://coursera.org/verify/…',
+                    icon: Ionicons.link_outline,
+                    keyboardType: TextInputType.url,
+                    // Last text field before the image-upload row and "Add
+                    // certification" — same keyboard-coverage fix as above.
+                    scrollIntoViewOnFocus: true,
+                  ),
+                  const FieldLabel('Certificate image (optional)', tight: true),
+                  Row(
+                    children: [
+                      if (hasImage) ...[
+                        ClipRRect(borderRadius: BorderRadius.circular(AppRadius.md), child: _imagePreview()),
+                        const SizedBox(width: AppSpacing.md),
+                      ],
+                      Expanded(
+                        child: GestureDetector(
+                          onTap: onPickImage,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: AppColors.offWhite,
+                              borderRadius: BorderRadius.circular(AppRadius.lg),
+                              border: Border.all(color: AppColors.border, width: 1),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Ionicons.image_outline, size: 18, color: AppColors.gray500),
+                                const SizedBox(width: AppSpacing.sm),
+                                Text(hasImage ? 'Change image' : 'Upload image', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14, fontWeight: AppFontWeight.medium)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (hasImage) ...[
+                        const SizedBox(width: AppSpacing.sm),
+                        GestureDetector(
+                          onTap: onRemoveImage,
+                          child: const Icon(Ionicons.close_circle, size: 20, color: AppColors.gray400),
+                        ),
+                      ],
+                    ],
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.lg),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: PillButton(
+                            label: isEditing ? 'Save changes' : 'Add certification',
+                            variant: PillVariant.secondary,
+                            onPressed: onAdd,
+                          ),
+                        ),
+                        if (isEditing) ...[
+                          const SizedBox(width: AppSpacing.md),
+                          GestureDetector(
+                            onTap: onCancelEdit,
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.lg),
+                              child: Text('Cancel', style: AppTextStyles.label.copyWith(color: AppColors.gray500, fontWeight: AppFontWeight.medium)),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
+                if (entries.isNotEmpty)
+                  ...entries.asMap().entries.map((indexed) {
+                    final i = indexed.key;
+                    final c = indexed.value;
+                    return Container(
+                      margin: const EdgeInsets.only(top: AppSpacing.md),
+                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.lg)),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                GestureDetector(
+                                  behavior: HitTestBehavior.opaque,
+                                  onTap: () => onEdit(i),
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(c.name, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium)),
+                                      if (c.duration.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 2),
+                                          child: Text(c.duration, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13)),
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                                if ((c.link ?? '').isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 4),
+                                    child: Text('View certificate', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: () => onRemove(c),
+                            child: const Icon(Ionicons.close_circle, size: 20, color: AppColors.gray400),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+              ],
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
+          decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
+          child: PillButton(
+            label: entries.isEmpty ? 'Skip for now' : 'Continue',
+            variant: entries.isEmpty ? PillVariant.ghost : PillVariant.primary,
+            onPressed: onContinue,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SkillsStep extends StatelessWidget {
+  final List<String> skills;
+  final List<String> suggestions;
+  final TextEditingController controller;
+  final VoidCallback onAdd;
+  final ValueChanged<String> onAddSuggestion;
+  final ValueChanged<String> onRemove;
+  final String? error;
+  final VoidCallback onContinue;
+
+  const _SkillsStep({
+    required this.skills,
+    required this.suggestions,
+    required this.controller,
+    required this.onAdd,
+    required this.onAddSuggestion,
+    required this.onRemove,
+    required this.error,
+    required this.onContinue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // Each pick pulls in its related skills too, so the list grows with
+    // relevant suggestions instead of staying static after the first tap.
+    final relatedToSelected = skills.expand((s) => _relatedSkills[s] ?? const <String>[]);
+    final remainingSuggestions = {...suggestions, ...relatedToSelected}.where((s) => !skills.contains(s)).toList();
+
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  noOrphan("Add your skills"),
+                  style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, height: 1.25),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Text(noOrphan('Tap to add, or type your own.'), style: AppTextStyles.body.copyWith(color: AppColors.gray500)),
+                ),
+                if (remainingSuggestions.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.lg),
+                    child: Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: remainingSuggestions.map((s) => _SuggestionChip(label: s, onTap: () => onAddSuggestion(s))).toList(),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xl),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: PillInput(
+                          controller: controller,
+                          placeholder: 'Or type your own…',
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      GestureDetector(
+                        onTap: onAdd,
+                        child: Container(
+                          width: 54,
+                          height: 54,
+                          alignment: Alignment.center,
+                          decoration: const BoxDecoration(color: AppColors.blue, shape: BoxShape.circle),
+                          child: const Icon(Ionicons.add, size: 24, color: AppColors.white),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (skills.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.lg),
+                    child: Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: skills.map((s) => _RemovableChip(label: s, onTap: () => onRemove(s))).toList(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
+          decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Text(error!, style: AppTextStyles.caption.copyWith(fontSize: 12, color: AppColors.error)),
+                ),
+              PillButton(label: 'Continue', onPressed: onContinue),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Unselected "tap to add" suggestion chip — offWhite background, bordered,
+/// leading + icon. Shared by Skills' and Languages' quick-pick rows so both
+/// read as the same interaction: tap it here, watch it move to the
+/// removable badge row below instead of just recoloring in place.
+class _SuggestionChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _SuggestionChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: AppColors.offWhite,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: AppColors.border, width: 1),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Ionicons.add, size: 14, color: AppColors.blue),
+            const SizedBox(width: AppSpacing.xs),
+            Text(label, style: AppTextStyles.label.copyWith(color: AppColors.ink, fontSize: 13, fontWeight: AppFontWeight.medium)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Selected, removable badge — blueA10 background, trailing × icon. Shared
+/// by Skills' and Languages' "what you've added" row below the suggestions.
+class _RemovableChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _RemovableChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+            const SizedBox(width: AppSpacing.sm),
+            const Icon(Ionicons.close, size: 14, color: AppColors.blue),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Quick-pick badges for the handful of languages most students need one
+/// tap for, plus a search-suggest field (full mockLanguages list, free text
+/// also accepted) for anything else — the same "chip row + type your own"
+/// shape Skills already uses, so switching sections doesn't feel like a
+/// different app.
+class _LanguageStep extends StatelessWidget {
+  final List<LanguageEntry> languages;
+  final ValueChanged<String> onAddQuick;
+  final ValueChanged<String> onAdd;
+  final ValueChanged<LanguageEntry> onRemove;
+  final String? error;
+  final VoidCallback onContinue;
+
+  const _LanguageStep({
+    required this.languages,
+    required this.onAddQuick,
+    required this.onAdd,
+    required this.onRemove,
+    required this.error,
+    required this.onContinue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final selectedNames = languages.map((l) => l.name.toLowerCase()).toSet();
+    // Same "drop out of suggestions, reappear as a removable badge below"
+    // interaction as Skills' remainingSuggestions — a quick-pick language
+    // that's already added has nothing left to do in this row.
+    final remainingQuick = _quickLanguages.where((l) => !selectedNames.contains(l.toLowerCase())).toList();
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  noOrphan('Languages you know'),
+                  style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, height: 1.25),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Text(noOrphan('Tap to add, or search for more.'), style: AppTextStyles.body.copyWith(color: AppColors.gray500)),
+                ),
+                if (remainingQuick.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.lg),
+                    child: Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: remainingQuick.map((l) => _SuggestionChip(label: l, onTap: () => onAddQuick(l))).toList(),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.lg),
+                  child: AutocompleteField(
+                    value: '',
+                    placeholder: 'Search any other language…',
+                    icon: Ionicons.search_outline,
+                    options: mockLanguages,
+                    onChanged: (_) {},
+                    onSelected: onAdd,
+                    onSubmitted: onAdd,
+                  ),
+                ),
+                if (languages.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.lg),
+                    child: Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: languages.map((l) => _RemovableChip(label: l.name, onTap: () => onRemove(l))).toList(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
+          decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Text(error!, style: AppTextStyles.caption.copyWith(fontSize: 12, color: AppColors.error)),
+                ),
+              PillButton(label: 'Continue', onPressed: onContinue),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Last content step: a 2–3 sentence professional summary — the section
+/// most resume guidance calls the highest-leverage part of the page, and
+/// the one this builder had no equivalent of at all before. Offers a
+/// generated starting point instead of a blank box, since that's the
+/// biggest reason people skip writing one.
+class _SummaryStep extends StatelessWidget {
+  final TextEditingController controller;
+  // 'Tap to autofill' or 'Regenerate' — computed by the parent from
+  // whether the field still holds what the button last generated (see
+  // _useSuggestedSummary), not decided in here.
+  final String label;
+  final VoidCallback onUseSuggestion;
+  final ValueChanged<String> onChanged;
+  final String? error;
+  final VoidCallback onContinue;
+
+  const _SummaryStep({
+    required this.controller,
+    required this.label,
+    required this.onUseSuggestion,
+    required this.onChanged,
+    required this.error,
+    required this.onContinue,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  noOrphan('Introduce yourself'),
+                  style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, height: 1.25),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Text(
+                    noOrphan("Recruiters read this first — keep it short."),
+                    style: AppTextStyles.body.copyWith(color: AppColors.gray500),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.lg),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.offWhite,
+                      borderRadius: BorderRadius.circular(AppRadius.lg),
+                      border: Border.all(color: AppColors.border, width: 1),
+                    ),
+                    child: TextField(
+                      controller: controller,
+                      onChanged: onChanged,
+                      maxLines: 5,
+                      minLines: 5,
+                      maxLength: 600,
+                      style: AppTextStyles.bodyLg.copyWith(fontSize: 15, color: AppColors.ink, height: 1.4),
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.all(AppSpacing.lg),
+                        hintText: "e.g. B.Tech student at XYZ College with hands-on skills in Python, SQL, and Excel, driven to deliver real, measurable impact.",
+                        hintStyle: AppTextStyles.body.copyWith(color: AppColors.gray400, height: 1.4),
+                        border: InputBorder.none,
+                        counterStyle: AppTextStyles.caption.copyWith(color: AppColors.gray400),
+                      ),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.md),
+                  child: GestureDetector(
+                    onTap: onUseSuggestion,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: AppColors.blueA10,
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        // A border is what separates this from a plain static
+                        // tag — without one it read as an inert label instead
+                        // of a button, so tapping it felt like an accident
+                        // discovery rather than an obvious action.
+                        border: Border.all(color: AppColors.blue, width: 1.5),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Note: Ionicons in this bundled font version has no "sparkles"
+                          // glyph — flash_outline is the established substitute elsewhere
+                          // in this app (see value_slides_screen.dart's AI-Powered badge).
+                          // Swaps to refresh_outline in the Regenerate state — this app's
+                          // own established "do it again" glyph (see the Restore button
+                          // on recently_deleted_applications_screen.dart), so the icon
+                          // itself signals "do it again," not just the label text.
+                          Icon(label == 'Regenerate' ? Ionicons.refresh_outline : Ionicons.flash_outline, size: 14, color: AppColors.blue),
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(
+                            label,
+                            style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
+          decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (error != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                  child: Text(error!, style: AppTextStyles.caption.copyWith(fontSize: 12, color: AppColors.error)),
+                ),
+              PillButton(label: 'Build my resume', onPressed: onContinue),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BuildingView extends StatelessWidget {
+  final String stepLabel;
+  const _BuildingView({required this.stepLabel});
+
+  @override
+  Widget build(BuildContext context) {
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: AppColors.blue,
+        body: ResponsiveBody(child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(
+                  width: 56,
+                  height: 56,
+                  child: CircularProgressIndicator(color: AppColors.yellow, strokeWidth: 3),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xl),
+                  child: Text(
+                    'Building your resume…',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.h3.copyWith(color: AppColors.white, fontWeight: AppFontWeight.medium),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Text(
+                    stepLabel,
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.body.copyWith(color: AppColors.whiteA70),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        )),
+      ),
+    );
+  }
+}
