@@ -1,11 +1,11 @@
 {
-    "name": "aerostar_edge",
-    "short_name": "aerostar_edge",
+    "name": "Aerostar Edge",
+    "short_name": "Aerostar Edge",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0A2FFF",
+    "theme_color": "#0A2FFF",
+    "description": "Aerostar Edge — placement and career-readiness prototype for students.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

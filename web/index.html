@@ -16,18 +16,18 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Aerostar Edge — placement and career-readiness prototype for students.">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="aerostar_edge">
+  <meta name="apple-mobile-web-app-title" content="Aerostar Edge">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png">
 
-  <title>aerostar_edge</title>
+  <title>Aerostar Edge</title>
   <link rel="manifest" href="manifest.json">
   <style id="splash-screen-style">
     html {
@@ -37,7 +37,10 @@
     body {
       margin: 0;
       min-height: 100%;
-      background-color: #000000;
+      /* Matches AppColors.blue (lib/theme/colors.dart) — the same
+         background the in-app splash screen uses, so there's no color
+         flash between this raw HTML boot splash and Flutter's own. */
+      background-color: #0A2FFF;
           background-size: 100% 100%;
     }
 
