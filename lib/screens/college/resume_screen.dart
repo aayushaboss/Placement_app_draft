@@ -714,7 +714,14 @@ class _ResumeScreenState extends State<ResumeScreen> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppRadius.lg),
                 color: AppColors.blueA10,
-                boxShadow: AppShadows.card,
+                // AppShadows.soft, not .card — .card's shadow is tuned for
+                // a white "identity" card floating on a plain page, and
+                // reads as a heavy, muddy smear under a pale tinted panel
+                // like this one instead of a clean lift. Matches the
+                // lighter tier already used elsewhere for secondary/tinted
+                // panels (e.g. HomeDashboardCards' own boost-tip card,
+                // which uses no shadow at all).
+                boxShadow: AppShadows.soft,
               ),
               child: Row(
                 children: [

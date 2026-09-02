@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -49,7 +50,10 @@ class _LandingScreenState extends State<LandingScreen> {
     }
   }
 
-  void _continueWithEmail() => context.push('/auth/login?mode=email');
+  // No `mode` query param — LoginScreen's own default (startOnEmail: false,
+  // per router.dart) is the phone field, so this lands there directly
+  // instead of on email.
+  void _continueWithPhone() => context.push('/auth/login');
 
   void _goToReturningLogin() => context.push('/auth/login?returning=1');
 
@@ -131,10 +135,10 @@ class _LandingScreenState extends State<LandingScreen> {
                     Padding(
                       padding: const EdgeInsets.only(top: AppSpacing.md),
                       child: PillButton(
-                        label: 'Continue with Email',
+                        label: 'Continue with Phone Number',
                         variant: PillVariant.outlineWhite,
-                        iconWidget: SvgPicture.asset('assets/icons/gmail.svg'),
-                        onPressed: _continueWithEmail,
+                        icon: Ionicons.call_outline,
+                        onPressed: _continueWithPhone,
                       ),
                     ),
                     Center(
