@@ -297,28 +297,37 @@ class _BoostSection extends StatelessWidget {
 
     if (tip == null && !showResumeCard) return const SizedBox.shrink();
 
+    final Widget content;
     if (!showResumeCard) {
       // tip is non-null here: the only way to reach !showResumeCard with a
       // null tip would require hasResume to already be true (resume is a
       // requiredForApply checklist item, so an empty `missing` list implies
       // it's done) — which makes showResumeCard false regardless, so this
       // branch is only ever taken with tip != null.
-      return Padding(
+      content = Padding(
         padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
         child: _BoostTipCard(message: tip!.message, cta: tip.cta, route: tip.route, icon: tip.icon),
       );
+    } else {
+      final resumeCard = _BoostTipCard(message: _resumeTip.message, cta: _resumeTip.cta, route: _resumeTip.route, icon: _resumeTip.icon);
+      content = tip == null
+          ? Padding(padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl), child: resumeCard)
+          : AutoCarousel(
+              height: 80,
+              cards: [
+                _BoostTipCard(message: tip.message, cta: tip.cta, route: tip.route, icon: tip.icon),
+                resumeCard,
+              ],
+            );
     }
 
-    final resumeCard = _BoostTipCard(message: _resumeTip.message, cta: _resumeTip.cta, route: _resumeTip.route, icon: _resumeTip.icon);
-    if (tip == null) return Padding(padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl), child: resumeCard);
-
-    return AutoCarousel(
-      height: 80,
-      cards: [
-        _BoostTipCard(message: tip.message, cta: tip.cta, route: tip.route, icon: tip.icon),
-        resumeCard,
-      ],
-    );
+    // AppSpacing.xl above, matching the same "carousels need an explicit
+    // rhythm gap, not just their own shadow-clearance" fix used wherever
+    // this app stacks carousel-style sections — kept inside this widget
+    // (not the caller) so the gap only exists when there's actually
+    // something below it to space out, not a floating gap above nothing
+    // on the (fairly common) days this whole section has nothing to show.
+    return Padding(padding: const EdgeInsets.only(top: AppSpacing.xl), child: content);
   }
 }
 

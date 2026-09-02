@@ -18,7 +18,7 @@ import '../../widgets/pill_button.dart';
 import '../../widgets/pill_input.dart';
 import '../../widgets/responsive_body.dart';
 
-const _placementTypes = ['Resume Review', 'Mock Interview', 'Career Chat'];
+const _placementTypes = ['Mock Interview', 'Career Chat'];
 
 class _DayOption {
   final String key;

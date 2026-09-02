@@ -175,6 +175,12 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
       if (items.isEmpty) return;
       final capped = items.take(_sectionCap).toList();
       shownOpps.addAll(capped);
+      // AppSpacing.xl between stacked carousels, not just each one's own
+      // built-in shadow-clearance (AppShadows.cardBuffer, 16px, tuned to
+      // stop card shadows clipping — not a design rhythm) — otherwise
+      // several carousels back to back read as "stacked together" against
+      // the rest of the app's AppSpacing.xl section-to-section gap.
+      if (sections.isNotEmpty) sections.add(const SizedBox(height: AppSpacing.xl));
       sections.add(OpportunityCarouselSection(
         title: title,
         opportunities: capped,
@@ -220,6 +226,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     // Course.category, which uses a different vocabulary entirely.
     final upskillCourses = prepCoursesForOpportunities(shownOpps);
     if (upskillCourses.isNotEmpty) {
+      if (sections.isNotEmpty) sections.add(const SizedBox(height: AppSpacing.xl));
       sections.add(CourseCarouselSection(
         title: 'Boost your chances',
         courses: upskillCourses,
@@ -417,7 +424,10 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                             )
                           else if (isFiltering)
                             Padding(
-                              padding: const EdgeInsets.only(top: AppShadows.cardBuffer),
+                              // Same fix as the unfiltered branch below —
+                              // AppSpacing.xl, matching the gap above
+                              // HomeDashboardCards' nudge banner.
+                              padding: const EdgeInsets.only(top: AppSpacing.xl),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -473,10 +483,12 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                               // buffer only covers the gap *before* its
                               // nudge banner (_BoostTip), not after it, and
                               // the banner itself has no shadow of its own
-                              // to lean on. Needs an explicit gap, matching
-                              // the same AppShadows.cardBuffer used
-                              // everywhere else on the page.
-                              padding: const EdgeInsets.only(top: AppShadows.cardBuffer),
+                              // to lean on. AppSpacing.xl, not
+                              // AppShadows.cardBuffer — matches the gap
+                              // _BoostSection puts *above* that same banner,
+                              // so it reads as equidistant from the cards on
+                              // both sides instead of 4px tighter below.
+                              padding: const EdgeInsets.only(top: AppSpacing.xl),
                               child: Column(children: _sections(_opps, appState, user)),
                             ),
                         ],

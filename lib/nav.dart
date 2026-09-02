@@ -1,4 +1,3 @@
-import 'models/profile_readiness.dart';
 import 'models/user.dart';
 
 /// Single source of truth for where a user should land based on onboarding
@@ -14,11 +13,13 @@ String routeForUser(User? user) {
   if (user.segment == null) return '/onboarding/profile';
   if (!user.onboardingComplete) {
     // School users finish required profile data on the profile screen, then
-    // home. College users pick goals/roles next, then upload a resume —
-    // the three-step flow this function has to resume mid-way on reload.
+    // home. College users pick goals/roles next, then home — resume
+    // building is no longer part of onboarding at all; it's deferred to
+    // whenever the student actually tries to apply (see
+    // services/apply_flow.dart's own independent resume gate, which
+    // enforces this regardless of onboarding).
     if (user.segment == Segment.school) return '/tabs';
     if (user.goal == null) return '/college/goals';
-    if (!user.hasResume) return '/college/resume';
     return '/tabs';
   }
   return '/tabs';

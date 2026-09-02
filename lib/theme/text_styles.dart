@@ -9,7 +9,15 @@ class AppFontWeight {
 
   static const black = FontWeight.w900;
   static const extrabold = FontWeight.w800;
-  static const bold = FontWeight.w700;
+  // w600, not w700 — dialed back one notch app-wide so bold text (screen
+  // titles, section headings, card titles) doesn't read as visually heavy.
+  // Flutter/CSS weights only exist in steps of 100, so "one step lighter"
+  // lands exactly on the same value as `semibold` below — bold and
+  // semibold text now render at the same weight, distinguished by size
+  // alone rather than size-plus-weight. Both stay clearly heavier than
+  // `medium`/`regular`, which is what actually keeps bold text reading as
+  // distinct from ordinary body copy.
+  static const bold = FontWeight.w600;
   static const semibold = FontWeight.w600;
   static const medium = FontWeight.w500;
   static const regular = FontWeight.w400;

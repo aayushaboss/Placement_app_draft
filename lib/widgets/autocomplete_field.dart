@@ -109,6 +109,11 @@ class _AutocompleteFieldState extends State<AutocompleteField> {
     } else {
       _controller.text = option;
       _controller.selection = TextSelection.collapsed(offset: option.length);
+      // Tapping a suggestion is the same "field answered, move on" signal
+      // as typing it out and hitting the keyboard's own submit — without
+      // this, picking from the dropdown filled the field but left it
+      // sitting there with no way forward except a second, separate tap.
+      widget.onSubmitted?.call(option);
     }
     setState(() => _suggestions = const []);
     _removeOverlay();
@@ -118,8 +123,19 @@ class _AutocompleteFieldState extends State<AutocompleteField> {
     final trimmed = text.trim();
     if (widget.onSubmitted == null || trimmed.isEmpty) return;
     widget.onSubmitted!(trimmed);
-    _controller.clear();
-    widget.onChanged('');
+    // Only when onSelected is also wired — that combination means this
+    // field's own intent is "type a value, commit it, clear for the next
+    // one" (e.g. adding cities one at a time in opportunity_filter_screen.
+    // dart, where onSelected/onSubmitted both point at the same add
+    // handler). Without onSelected, onSubmitted means "the field is done,
+    // move on" — the resume builder's single-value fields (Institution,
+    // Degree, Company, Role) rely on the typed text staying put, since it's
+    // read back afterward as the answer itself; clearing it here used to
+    // silently blank it the instant the keyboard's submit fired.
+    if (widget.onSelected != null) {
+      _controller.clear();
+      widget.onChanged('');
+    }
     setState(() => _suggestions = const []);
     _removeOverlay();
   }

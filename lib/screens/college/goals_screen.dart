@@ -112,6 +112,14 @@ class _GoalsScreenState extends State<GoalsScreen> {
       await appState.updateProfile((current) => current.copyWith(
             goal: _goal,
             roles: _selectedRoles,
+            // Goals is now the true last onboarding step — resume-building
+            // (and, before that, career preferences) both used to sit
+            // between here and Home; both are optional Profile-tab
+            // sections now instead of forced onboarding steps. Only set
+            // here, not unconditionally, so a post-onboarding edit (Profile
+            // → "Goals & roles") can't accidentally re-flip an
+            // already-true flag — it's already true by then regardless.
+            onboardingComplete: wasPostOnboarding ? null : true,
           ));
       if (!mounted) return;
       if (wasPostOnboarding) {
@@ -121,11 +129,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
           context.go('/tabs');
         }
       } else {
-        // Resume comes next, not this one — keep going instead of dropping
-        // the user on Home with no resume yet. Career preferences used to
-        // sit here too, but it's now an optional Profile-tab section
-        // (same as Video profile) instead of a forced onboarding step.
-        context.go('/college/resume');
+        context.go('/tabs');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -164,7 +168,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
                     Padding(
                       padding: const EdgeInsets.only(top: AppSpacing.lg),
                       child: Text(
-                        'STEP 2 OF 3',
+                        'STEP 2 OF 2',
                         style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontWeight: AppFontWeight.medium, letterSpacing: 1.2),
                       ),
                     ),

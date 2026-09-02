@@ -118,8 +118,21 @@ class _OpportunityFilterScreenState extends State<OpportunityFilterScreen> {
 
   bool get _valid => _goal.isNotEmpty && _roles.isNotEmpty;
 
+  // Clears only the true *filter* facets — not Category/Goal, which are
+  // identity fields bound to the profile (see this screen's own doc
+  // comment above). The old implementation called setState(_hydrate),
+  // which re-read every field — including Category/Goal — from the last
+  // *saved* profile. Since those two rarely change, Reset would silently
+  // revert Work mode/Employment type/Cities to whatever was saved last
+  // time Apply was tapped rather than actually clearing them — often
+  // producing no visible change at all, which read as "Reset is broken."
   void _reset() {
-    setState(_hydrate);
+    HapticFeedback.selectionClick();
+    setState(() {
+      _workMode = null;
+      _employmentType = null;
+      _cities = [];
+    });
   }
 
   Future<void> _apply() async {
@@ -157,11 +170,22 @@ class _OpportunityFilterScreenState extends State<OpportunityFilterScreen> {
     );
   }
 
+  // Same visual language as _removableChip, minus the close icon — Category
+  // is only ever edited wholesale via the picker screen (_pickRoles), not
+  // added/removed inline the way cities are, so a badge here is read-only;
+  // the whole row it sits in already opens that picker on tap.
+  Widget _roleBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
+      child: Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final rolesLabel = _roles.isEmpty ? 'All roles' : _roles.join(', ');
     final employmentDisabled = _goal == 'internship';
 
     return Scaffold(
@@ -188,23 +212,29 @@ class _OpportunityFilterScreenState extends State<OpportunityFilterScreen> {
                 GestureDetector(
                   onTap: _pickRoles,
                   child: Container(
-                    height: 54,
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    constraints: const BoxConstraints(minHeight: 54),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
                     decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(999)),
                     child: Row(
                       children: [
                         const Icon(Ionicons.briefcase_outline, size: 18, color: AppColors.gray500),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(
-                            rolesLabel,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: _roles.isEmpty
-                                ? AppTextStyles.bodyLg.copyWith(fontSize: 16, color: AppColors.gray400, fontWeight: AppFontWeight.regular)
-                                : AppTextStyles.bodyLg.copyWith(fontSize: 16, color: AppColors.ink),
-                          ),
+                          // Real badges, not a comma-joined string — matches
+                          // "Preferred cities" below visually (blueA10 pill,
+                          // blue text), just read-only: this row's own tap
+                          // target already opens the picker screen, which is
+                          // the only place roles are actually edited, so a
+                          // badge here doesn't need its own remove `x`.
+                          child: _roles.isEmpty
+                              ? Text('All roles', style: AppTextStyles.bodyLg.copyWith(fontSize: 16, color: AppColors.gray400, fontWeight: AppFontWeight.regular))
+                              : Wrap(
+                                  spacing: AppSpacing.sm,
+                                  runSpacing: AppSpacing.sm,
+                                  children: _roles.map((r) => _roleBadge(r)).toList(),
+                                ),
                         ),
+                        const SizedBox(width: 8),
                         const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
                       ],
                     ),
@@ -275,11 +305,19 @@ class _OpportunityFilterScreenState extends State<OpportunityFilterScreen> {
           Container(
             padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.md),
             decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-            child: Row(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Expanded(child: PillButton(label: 'Reset', variant: PillVariant.secondary, onPressed: _reset)),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(flex: 2, child: PillButton(label: 'Apply', onPressed: _valid ? _apply : null, loading: _loading, disabled: !_valid)),
+                PillButton(label: 'Apply', onPressed: _valid ? _apply : null, loading: _loading, disabled: !_valid),
+                const SizedBox(height: AppSpacing.md),
+                // De-emphasized on purpose, same treatment as "Clear
+                // filters" elsewhere (college_feed_screen.dart,
+                // courses_explore_screen.dart) — Reset is a minor, reversible
+                // action and shouldn't visually compete with Apply.
+                GestureDetector(
+                  onTap: _reset,
+                  child: Text('Reset', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                ),
               ],
             ),
           ),

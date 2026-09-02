@@ -118,11 +118,37 @@ void _showApplyGateSheet(BuildContext context, User? user, Opportunity opportuni
               },
             ),
           ),
+          // Only when the gate step is actually Resume — "Finish profile"
+          // has no from-scratch equivalent. Routes straight to the builder
+          // (not the upload screen, which already offers this same link one
+          // tap deeper) so it's a genuine one-tap alternative right here.
+          if (primaryRoute.contains('resume'))
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.md),
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  context.push('/college/resume/build?applyFor=${opportunity.id}');
+                },
+                child: Text(
+                  "Don't have one? Build it here",
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 14, fontWeight: AppFontWeight.medium),
+                ),
+              ),
+            ),
           const SizedBox(height: AppSpacing.md),
-          PillButton(
-            label: 'Not now',
-            variant: PillVariant.ghost,
-            onPressed: () => Navigator.of(sheetContext).pop(),
+          // Plain muted text, not another button — with "Upload resume" and
+          // "Don't have one? Build it here" both in blue right above it, a
+          // third blue pill here read as an equally-weighted third option
+          // instead of the dismiss action it actually is.
+          GestureDetector(
+            onTap: () => Navigator.of(sheetContext).pop(),
+            child: Text(
+              'Not now',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body.copyWith(color: AppColors.gray400, fontSize: 13, fontWeight: AppFontWeight.medium),
+            ),
           ),
         ],
       ),

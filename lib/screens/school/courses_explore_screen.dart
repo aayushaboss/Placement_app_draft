@@ -260,10 +260,21 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
               )),
       ];
     } else {
-      bodyItems = [
-        ..._headerItems(topInset, isFiltering),
+      final carousels = [
         if (recommended.isNotEmpty) CourseCarouselSection(title: 'Recommended for you', courses: recommended),
         for (final category in _categories) CourseCarouselSection(title: category, courses: filterCourses(category)),
+      ];
+      bodyItems = [
+        ..._headerItems(topInset, isFiltering),
+        // AppSpacing.xl between each stacked carousel — same fix as
+        // college_feed_screen.dart's _sections(), same reason: each
+        // carousel's own built-in clearance (AppShadows.cardBuffer) is
+        // sized to stop card shadows clipping, not to read as this app's
+        // usual section-to-section rhythm.
+        for (var i = 0; i < carousels.length; i++) ...[
+          if (i > 0) const SizedBox(height: AppSpacing.xl),
+          carousels[i],
+        ],
       ];
     }
 

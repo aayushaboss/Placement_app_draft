@@ -251,6 +251,11 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
   int? _eduStartYear;
   int? _eduEndYear;
   bool _eduCurrentlyStudying = false;
+  // Which single question the add-a-new-entry flow is currently showing:
+  // 0=Institution, 1=Degree, 2=Duration, 3=Grade. Reset to 0 every time an
+  // entry is committed (or editing starts/ends), so a second entry always
+  // starts fresh at the first question.
+  int _eduQuestionIndex = 0;
   // Non-null while an existing entry is loaded into the form above for
   // editing — set on tapping a card, cleared on save/cancel. The tapped
   // entry is pulled out of _educationEntries while this is set (so it
@@ -272,6 +277,9 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
   DateTime? _expStartDate;
   DateTime? _expEndDate;
   bool _expCurrentlyWorking = false;
+  // Same purpose as _eduQuestionIndex: 0=Company, 1=Role, 2=Duration,
+  // 3=Description.
+  int _expQuestionIndex = 0;
   // Same editing pattern as education, see _editingEducationIndex.
   int? _editingExperienceIndex;
   WorkExperience? _editingExperienceOriginal;
@@ -280,10 +288,16 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
   bool? _hasCertifications;
   List<ResumeCertification> _certifications = [];
   final _certNameController = TextEditingController();
-  final _certLinkController = TextEditingController();
+  // No input for this anymore (certificate-link question removed — image
+  // only) — carries a pre-existing entry's link through an edit/re-save
+  // unchanged instead of silently dropping it. Always null for a
+  // brand-new entry.
+  String? _certExistingLink;
   DateTime? _certStartDate;
   DateTime? _certEndDate;
   bool _certOngoing = false;
+  // Same purpose as _eduQuestionIndex: 0=Name, 1=Duration, 2=Image.
+  int _certQuestionIndex = 0;
   int? _editingCertificationIndex;
   ResumeCertification? _editingCertificationOriginal;
   // Optional proof-of-certificate image — picked straight from the gallery
@@ -341,6 +355,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     if (resume == null) {
       _eduInstitutionController.text = _user?.college ?? '';
       _eduDegreeController.text = _user?.course ?? '';
+      _eduQuestionIndex = _skipPrefilledEduQuestions();
       return;
     }
     _headlineController.text = resume.headline ?? '';
@@ -349,6 +364,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     if (_educationEntries.isEmpty) {
       _eduInstitutionController.text = _user?.college ?? '';
       _eduDegreeController.text = _user?.course ?? '';
+      _eduQuestionIndex = _skipPrefilledEduQuestions();
     }
     _workExperience = List.of(resume.workExperience);
     _hasWorkExperience = _workExperience.isNotEmpty ? true : (resume.experienceLevel == 'Fresher' ? false : null);
@@ -357,6 +373,20 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     _skills = List.of(resume.skills);
     _specializations = List.of(resume.specializations);
     _summaryController.text = resume.summary ?? '';
+  }
+
+  // Institution/Degree are the only questions anywhere in this flow that
+  // can already be known before the user answers anything — seeded above
+  // from the profile's college/course, and only ever for a brand-new first
+  // entry (every later entry starts with both controllers cleared). A
+  // value that arrived this way shouldn't need "advancing through" as if
+  // it were a question the user just answered — it's shown immediately,
+  // grouped with any other already-known fields, and the one-at-a-time
+  // flow starts from the first genuinely unanswered question instead.
+  int _skipPrefilledEduQuestions() {
+    if (_eduInstitutionController.text.trim().isEmpty) return 0;
+    if (_eduDegreeController.text.trim().isEmpty) return 1;
+    return 2;
   }
 
   @override
@@ -372,7 +402,6 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     _expRoleController.dispose();
     _expDescController.dispose();
     _certNameController.dispose();
-    _certLinkController.dispose();
     _skillInputController.dispose();
     _summaryController.dispose();
     super.dispose();
@@ -473,6 +502,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       // either direction (previously only checked the "too early" side).
       if (_eduEndYear != null && (_eduEndYear! < year || _eduEndYear! > year + 6)) _eduEndYear = null;
     });
+    _maybeAutoAdvanceEduDuration();
   }
 
   Future<void> _pickEduEndYear() async {
@@ -492,6 +522,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     );
     if (year == null) return;
     setState(() => _eduEndYear = year);
+    _maybeAutoAdvanceEduDuration();
   }
 
   void _setEduCurrentlyStudying(bool value) {
@@ -499,6 +530,26 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     setState(() {
       _eduCurrentlyStudying = value;
       if (value) _eduEndYear = null;
+    });
+    _maybeAutoAdvanceEduDuration();
+  }
+
+  // Duration has no keyboard to submit — it's two date-picker sheets plus a
+  // checkbox — so unlike every other question in this flow, nothing here
+  // naturally signals "done." Auto-advances once the answer is actually
+  // complete (a start plus either an end or "currently studying"), from
+  // whichever of the three inputs above happens to complete it, so picking
+  // them in any order still moves on. A short delay (matching the same
+  // pattern already used for the yes/no gates in this file) lets the user
+  // see their last tap register before the question changes under them;
+  // re-checking the question index inside the callback guards against a
+  // stale timer firing after the user has already moved past this question
+  // some other way.
+  void _maybeAutoAdvanceEduDuration() {
+    if (_eduQuestionIndex != 2) return;
+    if (_eduStartYear == null || (_eduEndYear == null && !_eduCurrentlyStudying)) return;
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted && _eduQuestionIndex == 2) setState(() => _eduQuestionIndex = 3);
     });
   }
 
@@ -554,6 +605,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _eduStartYear = null;
       _eduEndYear = null;
       _eduCurrentlyStudying = false;
+      _eduQuestionIndex = 0;
     });
   }
 
@@ -588,6 +640,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _eduStartYear = parsed.start;
       _eduEndYear = parsed.end;
       _eduCurrentlyStudying = parsed.isCurrent;
+      _eduQuestionIndex = 0;
     });
   }
 
@@ -608,12 +661,22 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _eduStartYear = null;
       _eduEndYear = null;
       _eduCurrentlyStudying = false;
+      _eduQuestionIndex = 0;
     });
   }
 
   void _selectHasWorkExperience(bool value) {
     HapticFeedback.lightImpact();
     setState(() => _hasWorkExperience = value);
+    // Same auto-advance as Certifications' "Not yet" (_selectHasCertifications
+    // below) — "Not yet" has nothing further to fill in, so skip the extra
+    // tap. Re-checks _hasWorkExperience so a fast follow-up tap on "Yes, I
+    // do" cancels this.
+    if (value == false) {
+      Future.delayed(const Duration(milliseconds: 220), () {
+        if (mounted && _hasWorkExperience == false) _goTo(3);
+      });
+    }
   }
 
   Future<void> _pickExpStartDate() async {
@@ -635,20 +698,27 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _expStartDate = start;
       if (_expEndDate != null && _expEndDate!.isBefore(start)) _expEndDate = null;
     });
+    _maybeAutoAdvanceExpDuration();
   }
 
   Future<void> _pickExpEndDate() async {
     final now = DateTime.now();
+    final start = _expStartDate;
     final picked = await showMonthYearPickerSheet(
       context,
       initialDate: _expEndDate,
       title: 'End date',
-      minYear: _expStartDate?.year ?? 1990,
+      minYear: start?.year ?? 1990,
       maxYear: now.year,
+      // minYear alone only floors the *year* wheel — within that year every
+      // month was still pickable, so a start of Sep 2026 let the end land
+      // on, say, Feb 2026 (before it). minDate floors the actual month too.
+      minDate: start,
       maxDate: DateTime(now.year, now.month),
     );
     if (picked == null) return;
     setState(() => _expEndDate = DateTime(picked.year, picked.month));
+    _maybeAutoAdvanceExpDuration();
   }
 
   void _setExpCurrentlyWorking(bool value) {
@@ -656,6 +726,17 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     setState(() {
       _expCurrentlyWorking = value;
       if (value) _expEndDate = null;
+    });
+    _maybeAutoAdvanceExpDuration();
+  }
+
+  // See _maybeAutoAdvanceEduDuration — same reasoning, target index 3
+  // (Description) matches this section's own _question switch.
+  void _maybeAutoAdvanceExpDuration() {
+    if (_expQuestionIndex != 2) return;
+    if (_expStartDate == null || (_expEndDate == null && !_expCurrentlyWorking)) return;
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted && _expQuestionIndex == 2) setState(() => _expQuestionIndex = 3);
     });
   }
 
@@ -683,6 +764,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _expStartDate = null;
       _expEndDate = null;
       _expCurrentlyWorking = false;
+      _expQuestionIndex = 0;
     });
   }
 
@@ -705,6 +787,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _expStartDate = parsed.start;
       _expEndDate = parsed.end;
       _expCurrentlyWorking = parsed.isCurrent;
+      _expQuestionIndex = 0;
     });
   }
 
@@ -723,6 +806,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _expStartDate = null;
       _expEndDate = null;
       _expCurrentlyWorking = false;
+      _expQuestionIndex = 0;
     });
   }
 
@@ -760,20 +844,26 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _certStartDate = start;
       if (_certEndDate != null && _certEndDate!.isBefore(start)) _certEndDate = null;
     });
+    _maybeAutoAdvanceCertDuration();
   }
 
   Future<void> _pickCertEndDate() async {
     final now = DateTime.now();
+    final start = _certStartDate;
     final picked = await showMonthYearPickerSheet(
       context,
       initialDate: _certEndDate,
       title: 'End date',
-      minYear: _certStartDate?.year ?? 1990,
+      minYear: start?.year ?? 1990,
       maxYear: now.year,
+      // See _pickExpEndDate's comment — minYear alone doesn't stop an
+      // earlier month within the same year as start; minDate does.
+      minDate: start,
       maxDate: DateTime(now.year, now.month),
     );
     if (picked == null) return;
     setState(() => _certEndDate = DateTime(picked.year, picked.month));
+    _maybeAutoAdvanceCertDuration();
   }
 
   void _setCertOngoing(bool value) {
@@ -781,6 +871,17 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     setState(() {
       _certOngoing = value;
       if (value) _certEndDate = null;
+    });
+    _maybeAutoAdvanceCertDuration();
+  }
+
+  // See _maybeAutoAdvanceEduDuration — same reasoning, target index 2
+  // (certificate image) matches this section's own _question switch.
+  void _maybeAutoAdvanceCertDuration() {
+    if (_certQuestionIndex != 1) return;
+    if (_certStartDate == null || (_certEndDate == null && !_certOngoing)) return;
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted && _certQuestionIndex == 1) setState(() => _certQuestionIndex = 2);
     });
   }
 
@@ -808,11 +909,15 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     if (name.isEmpty || start == null) return;
     final startLabel = _formatMonthYear(start);
     final duration = _certOngoing ? '$startLabel - Present' : (_certEndDate != null ? '$startLabel - ${_formatMonthYear(_certEndDate!)}' : startLabel);
-    final link = _certLinkController.text.trim();
     final entry = ResumeCertification(
       name: name,
       duration: duration,
-      link: link.isEmpty ? null : link,
+      // No input for this anymore (link question removed) — a brand-new
+      // entry never has one. Editing an *existing* entry that already had
+      // a link (e.g. from an older draft) carries it through unchanged via
+      // _certExistingLink rather than silently dropping it just because
+      // this field was touched.
+      link: _certExistingLink,
       imagePath: _certImagePath,
     );
     HapticFeedback.selectionClick();
@@ -826,12 +931,13 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
         _certifications = [..._certifications, entry];
       }
       _certNameController.clear();
-      _certLinkController.clear();
+      _certExistingLink = null;
       _certStartDate = null;
       _certEndDate = null;
       _certOngoing = false;
       _certImageFile = null;
       _certImagePath = null;
+      _certQuestionIndex = 0;
     });
   }
 
@@ -849,12 +955,13 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _editingCertificationIndex = index;
       _editingCertificationOriginal = entry;
       _certNameController.text = entry.name;
-      _certLinkController.text = entry.link ?? '';
+      _certExistingLink = entry.link;
       _certStartDate = parsed.start;
       _certEndDate = parsed.end;
       _certOngoing = parsed.isCurrent;
       _certImagePath = entry.imagePath;
       _certImageFile = null;
+      _certQuestionIndex = 0;
     });
   }
 
@@ -868,12 +975,13 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _editingCertificationIndex = null;
       _editingCertificationOriginal = null;
       _certNameController.clear();
-      _certLinkController.clear();
+      _certExistingLink = null;
       _certStartDate = null;
       _certEndDate = null;
       _certOngoing = false;
       _certImageFile = null;
       _certImagePath = null;
+      _certQuestionIndex = 0;
     });
   }
 
@@ -1122,6 +1230,9 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
                     endYear: _eduEndYear,
                     isCurrent: _eduCurrentlyStudying,
                     isEditing: _editingEducationIndex != null,
+                    questionIndex: _eduQuestionIndex,
+                    onQuestionIndexChanged: (i) => setState(() => _eduQuestionIndex = i),
+                    onFieldChanged: () => setState(() {}),
                     onPickStart: _pickEduStartYear,
                     onPickEnd: _pickEduEndYear,
                     onCurrentChanged: _setEduCurrentlyStudying,
@@ -1142,6 +1253,9 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
                     endDate: _expEndDate,
                     isCurrent: _expCurrentlyWorking,
                     isEditing: _editingExperienceIndex != null,
+                    questionIndex: _expQuestionIndex,
+                    onQuestionIndexChanged: (i) => setState(() => _expQuestionIndex = i),
+                    onFieldChanged: () => setState(() {}),
                     onPickStart: _pickExpStartDate,
                     onPickEnd: _pickExpEndDate,
                     onCurrentChanged: _setExpCurrentlyWorking,
@@ -1156,11 +1270,13 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
                     onSelectHasCertifications: _selectHasCertifications,
                     entries: _certifications,
                     nameController: _certNameController,
-                    linkController: _certLinkController,
                     startDate: _certStartDate,
                     endDate: _certEndDate,
                     isCurrent: _certOngoing,
                     isEditing: _editingCertificationIndex != null,
+                    questionIndex: _certQuestionIndex,
+                    onQuestionIndexChanged: (i) => setState(() => _certQuestionIndex = i),
+                    onFieldChanged: () => setState(() {}),
                     imageFile: _certImageFile,
                     imagePath: _certImagePath,
                     onPickStart: _pickCertStartDate,
@@ -1400,10 +1516,191 @@ class _YearRangeRow extends StatelessWidget {
   }
 }
 
+/// One "single question" layout shared by Education/Experience/
+/// Certifications' add-a-new-entry flow — a label, the field itself, and a
+/// fallback advance button that only appears once [canAdvance] is true. A
+/// text field's primary way forward is still its own keyboard submit
+/// (wired at each call site's `onSubmitted`) — but that only fires from an
+/// actual keystroke, so a field that already has a valid answer without
+/// the user ever having typed into it (pre-filled from the profile, or
+/// simply not tapped) has no keyboard to submit at all. Without this
+/// button that's a dead end: a filled field with no visible way forward.
+/// Hidden while the field is empty, on purpose — an empty field's natural
+/// next step really is "type something, then hit the keyboard's check,"
+/// and a button sitting there too would just be visual noise competing
+/// with that. The Duration question (no keyboard — it's date pickers)
+/// still advances itself automatically once a complete answer exists (see
+/// e.g. `_maybeAutoAdvanceEduDuration`); its own [canAdvance] here is
+/// deliberately looser (just a start date) so this button still offers a
+/// way forward even in the one case that auto-advance doesn't cover — a
+/// start with no end and "currently" left unchecked. The last, optional
+/// question in each section doesn't use this at all — its own field wires
+/// the keyboard's submit action and an explicit checkmark button
+/// (`_FinalQuestionRow`) directly to committing the entry, since there's
+/// nothing further to advance to within the section.
+class _QuestionScaffold extends StatelessWidget {
+  final String label;
+  final Widget field;
+  final VoidCallback onAdvance;
+  final bool canAdvance;
+
+  const _QuestionScaffold({
+    super.key,
+    required this.label,
+    required this.field,
+    required this.onAdvance,
+    required this.canAdvance,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        FieldLabel(label),
+        field,
+        if (canAdvance)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.md),
+            child: Align(
+              alignment: Alignment.centerRight,
+              child: GestureDetector(
+                onTap: onAdvance,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(color: AppColors.blue, shape: BoxShape.circle),
+                  child: const Icon(Ionicons.arrow_forward, size: 18, color: AppColors.white),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Row shown below the last, optional question in each section's
+/// add-a-new-entry flow (Education's Grade, Experience's Description,
+/// Certifications' image). Every required question before it advances off
+/// its own keyboard submit — this one can't rely on that the same way: an
+/// empty answer is valid here (nothing to "submit"), and Experience's
+/// Description is a genuine multi-line field where the keyboard's Enter
+/// key correctly inserts a newline instead of firing a submit at all. A
+/// plain "Skip" link alone left no obvious way to say "I typed something,
+/// I'm done" — this pairs it with an explicit checkmark button. Both call
+/// the same [onAdd]; the field being empty or filled doesn't change what
+/// committing the entry means, so there's no separate "submit" handler to
+/// wire — Skip and the checkmark are just two doors to the same action.
+class _FinalQuestionRow extends StatelessWidget {
+  final VoidCallback onAdd;
+  const _FinalQuestionRow({required this.onAdd});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.lg),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.end,
+        children: [
+          GestureDetector(
+            onTap: onAdd,
+            child: Text('Skip', style: AppTextStyles.body.copyWith(color: AppColors.gray400, fontSize: 14, fontWeight: AppFontWeight.medium)),
+          ),
+          const SizedBox(width: AppSpacing.xl),
+          GestureDetector(
+            onTap: onAdd,
+            child: Container(
+              width: 44,
+              height: 44,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(color: AppColors.blue, shape: BoxShape.circle),
+              child: const Icon(Ionicons.checkmark, size: 20, color: AppColors.white),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One "already known" fact — icon, label, value, trailing checkmark.
+/// Exactly mirrors _IntroStep's own "Already got this from your profile"
+/// rows, reused here so a value looks identical everywhere it's shown as
+/// settled: a field the profile already supplied (Education's Institution/
+/// Degree, when known) and a question just answered earlier in this
+/// section's own one-at-a-time flow both render the same way. Several of
+/// these stack inside one shared [_factBox], not one box per row.
+///
+/// Tappable (via [onTap]) to jump back and change the answer — the field's
+/// own state (its controller, or the picked date) lives in the parent
+/// regardless of which question is currently active, so re-showing it here
+/// just makes it editable again without losing anything already entered
+/// for questions after it.
+class _FactRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final VoidCallback? onTap;
+
+  const _FactRow({required this.icon, required this.label, required this.value, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+        child: Row(
+          children: [
+            Icon(icon, size: 18, color: AppColors.blue),
+            const SizedBox(width: AppSpacing.md),
+            // 92, not _IntroStep's 64 — "Institution" and "Company" (used
+            // here, unlike _IntroStep's shorter Name/College/Course/Year)
+            // don't fit 64 without wrapping to a second line.
+            SizedBox(width: 92, child: Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5))),
+            Expanded(
+              child: Text(
+                value,
+                textAlign: TextAlign.left,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 13.5),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            if (onTap != null) const Icon(Ionicons.pencil_outline, size: 14, color: AppColors.gray400) else const Icon(Ionicons.checkmark_circle, size: 16, color: AppColors.success),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Shared offWhite container for one or more [_FactRow]s — same shell
+/// _IntroStep's profile-fact card uses. Empty when there's nothing known
+/// yet, so a fresh question with no prior answers renders no stray box.
+Widget _factBox(List<Widget> rows) {
+  if (rows.isEmpty) return const SizedBox.shrink();
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.sm),
+    decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.lg)),
+    child: Column(children: rows),
+  );
+}
+
 /// Multi-entry education — institution, degree, duration, and GPA/percentage.
-/// Same add/list/remove pattern as Experience: form at the top pre-seeded
-/// from onboarding's college/course for the first entry, "Add education"
-/// commits it as a card below and clears the form for the next one.
+/// Adding a new entry is one question at a time (Institution → Degree →
+/// Duration → Grade); the last, optional question commits the entry on
+/// either a keyboard submit or "Skip" — there's no separate "Add" button
+/// anywhere in this flow. Editing an existing entry (tap its card) still
+/// shows every field on one screen at once, unchanged — a deliberate,
+/// smaller-blast-radius choice: editing is an occasional, deliberate
+/// action where seeing everything at once for review is the better
+/// experience, not something that needed the same redesign as first-time
+/// entry.
 class _EducationStep extends StatelessWidget {
   final List<ResumeEducation> entries;
   final TextEditingController institutionController;
@@ -1417,6 +1714,9 @@ class _EducationStep extends StatelessWidget {
   final int? endYear;
   final bool isCurrent;
   final bool isEditing;
+  final int questionIndex;
+  final ValueChanged<int> onQuestionIndexChanged;
+  final VoidCallback onFieldChanged;
   final VoidCallback onPickStart;
   final VoidCallback onPickEnd;
   final ValueChanged<bool> onCurrentChanged;
@@ -1439,6 +1739,9 @@ class _EducationStep extends StatelessWidget {
     required this.endYear,
     required this.isCurrent,
     required this.isEditing,
+    required this.questionIndex,
+    required this.onQuestionIndexChanged,
+    required this.onFieldChanged,
     required this.onPickStart,
     required this.onPickEnd,
     required this.onCurrentChanged,
@@ -1448,6 +1751,114 @@ class _EducationStep extends StatelessWidget {
     required this.onCancelEdit,
     required this.onContinue,
   });
+
+  Widget _question(int index) {
+    switch (index) {
+      case 0:
+        return _QuestionScaffold(
+          key: const ValueKey('institution'),
+          label: 'Institution',
+          field: AutocompleteField(
+            value: institutionController.text,
+            controller: institutionController,
+            placeholder: 'e.g. BITS Goa',
+            icon: Ionicons.business_outline,
+            options: mockColleges,
+            onChanged: (_) => onFieldChanged(),
+            onSubmitted: (_) {
+              if (institutionController.text.trim().isNotEmpty) onQuestionIndexChanged(1);
+            },
+          ),
+          canAdvance: institutionController.text.trim().isNotEmpty,
+          onAdvance: () => onQuestionIndexChanged(1),
+        );
+      case 1:
+        return _QuestionScaffold(
+          key: const ValueKey('degree'),
+          label: 'Degree',
+          field: AutocompleteField(
+            value: degreeController.text,
+            controller: degreeController,
+            placeholder: 'e.g. Bachelor of Design',
+            icon: Ionicons.school_outline,
+            options: mockCourses,
+            onChanged: (_) => onFieldChanged(),
+            onSubmitted: (_) {
+              if (degreeController.text.trim().isNotEmpty) onQuestionIndexChanged(2);
+            },
+          ),
+          canAdvance: degreeController.text.trim().isNotEmpty,
+          onAdvance: () => onQuestionIndexChanged(2),
+        );
+      case 2:
+        return _QuestionScaffold(
+          key: const ValueKey('duration'),
+          label: 'Duration',
+          field: _YearRangeRow(
+            startLabel: startYear?.toString(),
+            endLabel: endYear?.toString(),
+            isCurrent: isCurrent,
+            currentLabel: 'Currently studying here',
+            onPickStart: onPickStart,
+            onPickEnd: onPickEnd,
+            onCurrentChanged: onCurrentChanged,
+          ),
+          canAdvance: startYear != null,
+          onAdvance: () => onQuestionIndexChanged(3),
+        );
+      default:
+        return Column(
+          key: const ValueKey('grade'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const FieldLabel('Grade (optional)'),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: GpaUnit.values
+                  .map((u) => AppChip(label: _gpaUnitLabel(u), selected: gpaUnit == u, onPressed: () => onGpaUnitChanged(u)))
+                  .toList(),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: PillInput(
+                controller: gpaController,
+                placeholder: _gpaPlaceholder(gpaUnit),
+                icon: Ionicons.ribbon_outline,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                error: gpaError,
+                onChanged: onGpaChanged,
+                // Typing a value then hitting the keyboard's own submit
+                // commits the entry directly — same outcome as the
+                // checkmark button below, just with the field filled in
+                // first.
+                onSubmitted: (_) => onAdd(),
+                scrollIntoViewOnFocus: true,
+              ),
+            ),
+            _FinalQuestionRow(onAdd: onAdd),
+          ],
+        );
+    }
+  }
+
+  // Read-only fact row for a question index already passed (either
+  // pre-filled from the profile or answered earlier in this flow) — see
+  // _FactRow's own doc comment. Only ever called for indices strictly
+  // before questionIndex, so 0/1/2 are the only cases that can occur (3,
+  // Grade, is always the active question, never a past one).
+  Widget _answeredRow(int index) {
+    switch (index) {
+      case 0:
+        return _FactRow(icon: Ionicons.business_outline, label: 'Institution', value: institutionController.text, onTap: () => onQuestionIndexChanged(0));
+      case 1:
+        return _FactRow(icon: Ionicons.school_outline, label: 'Degree', value: degreeController.text, onTap: () => onQuestionIndexChanged(1));
+      default:
+        final value = isCurrent ? '$startYear - Present' : (endYear != null ? '$startYear - $endYear' : '$startYear');
+        return _FactRow(icon: Ionicons.calendar_outline, label: 'Duration', value: value, onTap: () => onQuestionIndexChanged(2));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1467,56 +1878,50 @@ class _EducationStep extends StatelessWidget {
                   padding: const EdgeInsets.only(top: AppSpacing.sm),
                   child: Text(noOrphan("We've filled in what we already know — just add the dates and grade."), style: AppTextStyles.body.copyWith(color: AppColors.gray500)),
                 ),
-                const FieldLabel('Institution'),
-                AutocompleteField(value: institutionController.text, controller: institutionController, placeholder: 'e.g. BITS Goa', icon: Ionicons.business_outline, options: mockColleges, onChanged: (_) {}),
-                const FieldLabel('Degree', tight: true),
-                AutocompleteField(value: degreeController.text, controller: degreeController, placeholder: 'e.g. Bachelor of Design', icon: Ionicons.school_outline, options: mockCourses, onChanged: (_) {}),
-                const FieldLabel('Duration', tight: true),
-                _YearRangeRow(
-                  startLabel: startYear?.toString(),
-                  endLabel: endYear?.toString(),
-                  isCurrent: isCurrent,
-                  currentLabel: 'Currently studying here',
-                  onPickStart: onPickStart,
-                  onPickEnd: onPickEnd,
-                  onCurrentChanged: onCurrentChanged,
-                ),
-                const FieldLabel('Grade (optional)', tight: true),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: GpaUnit.values
-                      .map((u) => AppChip(label: _gpaUnitLabel(u), selected: gpaUnit == u, onPressed: () => onGpaUnitChanged(u)))
-                      .toList(),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.sm),
-                  child: PillInput(
-                    controller: gpaController,
-                    placeholder: _gpaPlaceholder(gpaUnit),
-                    icon: Ionicons.ribbon_outline,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
-                    error: gpaError,
-                    onChanged: onGpaChanged,
-                    // Last field before "Add education" — without this the
-                    // keyboard can cover that button with nothing telling
-                    // the user it's still there, just off-screen.
-                    scrollIntoViewOnFocus: true,
+                const SizedBox(height: AppSpacing.lg),
+                if (isEditing) ...[
+                  const FieldLabel('Institution', tight: true),
+                  AutocompleteField(value: institutionController.text, controller: institutionController, placeholder: 'e.g. BITS Goa', icon: Ionicons.business_outline, options: mockColleges, onChanged: (_) {}),
+                  const FieldLabel('Degree', tight: true),
+                  AutocompleteField(value: degreeController.text, controller: degreeController, placeholder: 'e.g. Bachelor of Design', icon: Ionicons.school_outline, options: mockCourses, onChanged: (_) {}),
+                  const FieldLabel('Duration', tight: true),
+                  _YearRangeRow(
+                    startLabel: startYear?.toString(),
+                    endLabel: endYear?.toString(),
+                    isCurrent: isCurrent,
+                    currentLabel: 'Currently studying here',
+                    onPickStart: onPickStart,
+                    onPickEnd: onPickEnd,
+                    onCurrentChanged: onCurrentChanged,
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.lg),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: PillButton(
-                          label: isEditing ? 'Save changes' : 'Add education',
-                          variant: PillVariant.secondary,
-                          onPressed: onAdd,
+                  const FieldLabel('Grade (optional)', tight: true),
+                  Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    children: GpaUnit.values
+                        .map((u) => AppChip(label: _gpaUnitLabel(u), selected: gpaUnit == u, onPressed: () => onGpaUnitChanged(u)))
+                        .toList(),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.sm),
+                    child: PillInput(
+                      controller: gpaController,
+                      placeholder: _gpaPlaceholder(gpaUnit),
+                      icon: Ionicons.ribbon_outline,
+                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.]'))],
+                      error: gpaError,
+                      onChanged: onGpaChanged,
+                      scrollIntoViewOnFocus: true,
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.lg),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: PillButton(label: 'Save changes', variant: PillVariant.secondary, onPressed: onAdd),
                         ),
-                      ),
-                      if (isEditing) ...[
                         const SizedBox(width: AppSpacing.md),
                         GestureDetector(
                           onTap: onCancelEdit,
@@ -1526,9 +1931,22 @@ class _EducationStep extends StatelessWidget {
                           ),
                         ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
+                ] else ...[
+                  _factBox([for (var i = 0; i < questionIndex; i++) _answeredRow(i)]),
+                  if (questionIndex > 0) const SizedBox(height: AppSpacing.lg),
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 250),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeIn,
+                    transitionBuilder: (child, animation) => FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(position: Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero).animate(animation), child: child),
+                    ),
+                    child: _question(questionIndex),
+                  ),
+                ],
                 if (entries.isNotEmpty)
                   ...entries.asMap().entries.map((indexed) {
                     final i = indexed.key;
@@ -1600,6 +2018,9 @@ class _ExperienceStep extends StatelessWidget {
   final DateTime? endDate;
   final bool isCurrent;
   final bool isEditing;
+  final int questionIndex;
+  final ValueChanged<int> onQuestionIndexChanged;
+  final VoidCallback onFieldChanged;
   final VoidCallback onPickStart;
   final VoidCallback onPickEnd;
   final ValueChanged<bool> onCurrentChanged;
@@ -1620,6 +2041,9 @@ class _ExperienceStep extends StatelessWidget {
     required this.endDate,
     required this.isCurrent,
     required this.isEditing,
+    required this.questionIndex,
+    required this.onQuestionIndexChanged,
+    required this.onFieldChanged,
     required this.onPickStart,
     required this.onPickEnd,
     required this.onCurrentChanged,
@@ -1629,6 +2053,103 @@ class _ExperienceStep extends StatelessWidget {
     required this.onCancelEdit,
     required this.onContinue,
   });
+
+  Widget _question(int index) {
+    switch (index) {
+      case 0:
+        return _QuestionScaffold(
+          key: const ValueKey('company'),
+          label: 'Company',
+          field: AutocompleteField(
+            value: companyController.text,
+            controller: companyController,
+            placeholder: 'e.g. Microsoft',
+            icon: Ionicons.business_outline,
+            options: mockCompanyNames,
+            onChanged: (_) => onFieldChanged(),
+            onSubmitted: (_) {
+              if (companyController.text.trim().isNotEmpty) onQuestionIndexChanged(1);
+            },
+          ),
+          canAdvance: companyController.text.trim().isNotEmpty,
+          onAdvance: () => onQuestionIndexChanged(1),
+        );
+      case 1:
+        return _QuestionScaffold(
+          key: const ValueKey('role'),
+          label: 'Role',
+          field: AutocompleteField(
+            value: roleController.text,
+            controller: roleController,
+            placeholder: 'e.g. Software Intern',
+            icon: Ionicons.person_outline,
+            options: mockJobTitles,
+            onChanged: (_) => onFieldChanged(),
+            onSubmitted: (_) {
+              if (roleController.text.trim().isNotEmpty) onQuestionIndexChanged(2);
+            },
+          ),
+          canAdvance: roleController.text.trim().isNotEmpty,
+          onAdvance: () => onQuestionIndexChanged(2),
+        );
+      case 2:
+        return _QuestionScaffold(
+          key: const ValueKey('duration'),
+          label: 'Duration',
+          field: _YearRangeRow(
+            startLabel: startDate != null ? _formatMonthYear(startDate!) : null,
+            endLabel: endDate != null ? _formatMonthYear(endDate!) : null,
+            isCurrent: isCurrent,
+            currentLabel: 'I currently work here',
+            onPickStart: onPickStart,
+            onPickEnd: onPickEnd,
+            onCurrentChanged: onCurrentChanged,
+          ),
+          canAdvance: startDate != null,
+          onAdvance: () => onQuestionIndexChanged(3),
+        );
+      default:
+        return Column(
+          key: const ValueKey('description'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const FieldLabel('What did you do in this role? (optional)'),
+            PillInput(
+              controller: descController,
+              placeholder: 'e.g. Shipped a feature used by 500+ customers',
+              maxLength: 400,
+              // Genuinely multi-line — Enter here correctly inserts a new
+              // line rather than submitting, so onSubmitted's keyboard-only
+              // trigger can't be this field's real "I'm done" signal the
+              // way it is for every single-line question earlier in this
+              // flow; the checkmark button below is the reliable one.
+              maxLines: 4,
+              minLines: 3,
+              onSubmitted: (_) => onAdd(),
+              scrollIntoViewOnFocus: true,
+            ),
+            _FinalQuestionRow(onAdd: onAdd),
+          ],
+        );
+    }
+  }
+
+  // See _EducationStep._answeredRow — same purpose. Cases 0/1/2 are the
+  // only ones that can occur (3, Description, is always the active
+  // question, never a past one).
+  Widget _answeredRow(int index) {
+    switch (index) {
+      case 0:
+        return _FactRow(icon: Ionicons.business_outline, label: 'Company', value: companyController.text, onTap: () => onQuestionIndexChanged(0));
+      case 1:
+        return _FactRow(icon: Ionicons.person_outline, label: 'Role', value: roleController.text, onTap: () => onQuestionIndexChanged(1));
+      default:
+        final start = startDate;
+        final startLabel = start != null ? _formatMonthYear(start) : '';
+        final value = isCurrent ? '$startLabel - Present' : (endDate != null ? '$startLabel - ${_formatMonthYear(endDate!)}' : startLabel);
+        return _FactRow(icon: Ionicons.calendar_outline, label: 'Duration', value: value, onTap: () => onQuestionIndexChanged(2));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1664,43 +2185,38 @@ class _ExperienceStep extends StatelessWidget {
                   ),
                 ),
                 if (showForm) ...[
-                  const FieldLabel('Company'),
-                  AutocompleteField(value: companyController.text, controller: companyController, placeholder: 'e.g. Microsoft', icon: Ionicons.business_outline, options: mockCompanyNames, onChanged: (_) {}),
-                  const FieldLabel('Role', tight: true),
-                  AutocompleteField(value: roleController.text, controller: roleController, placeholder: 'e.g. Software Intern', icon: Ionicons.person_outline, options: mockJobTitles, onChanged: (_) {}),
-                  const FieldLabel('Duration', tight: true),
-                  _YearRangeRow(
-                    startLabel: startDate != null ? _formatMonthYear(startDate!) : null,
-                    endLabel: endDate != null ? _formatMonthYear(endDate!) : null,
-                    isCurrent: isCurrent,
-                    currentLabel: 'I currently work here',
-                    onPickStart: onPickStart,
-                    onPickEnd: onPickEnd,
-                    onCurrentChanged: onCurrentChanged,
-                  ),
-                  const FieldLabel('What did you do in this role? (optional)', tight: true),
-                  PillInput(
-                    controller: descController,
-                    placeholder: 'e.g. Shipped a feature used by 500+ customers',
-                    maxLength: 400,
-                    maxLines: 4,
-                    minLines: 3,
-                    // Last field before "Add job" — same keyboard-coverage
-                    // fix as the Education GPA field above.
-                    scrollIntoViewOnFocus: true,
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.lg),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: PillButton(
-                            label: isEditing ? 'Save changes' : 'Add job',
-                            variant: PillVariant.secondary,
-                            onPressed: onAdd,
+                  const SizedBox(height: AppSpacing.lg),
+                  if (isEditing) ...[
+                    const FieldLabel('Company', tight: true),
+                    AutocompleteField(value: companyController.text, controller: companyController, placeholder: 'e.g. Microsoft', icon: Ionicons.business_outline, options: mockCompanyNames, onChanged: (_) {}),
+                    const FieldLabel('Role', tight: true),
+                    AutocompleteField(value: roleController.text, controller: roleController, placeholder: 'e.g. Software Intern', icon: Ionicons.person_outline, options: mockJobTitles, onChanged: (_) {}),
+                    const FieldLabel('Duration', tight: true),
+                    _YearRangeRow(
+                      startLabel: startDate != null ? _formatMonthYear(startDate!) : null,
+                      endLabel: endDate != null ? _formatMonthYear(endDate!) : null,
+                      isCurrent: isCurrent,
+                      currentLabel: 'I currently work here',
+                      onPickStart: onPickStart,
+                      onPickEnd: onPickEnd,
+                      onCurrentChanged: onCurrentChanged,
+                    ),
+                    const FieldLabel('What did you do in this role? (optional)', tight: true),
+                    PillInput(
+                      controller: descController,
+                      placeholder: 'e.g. Shipped a feature used by 500+ customers',
+                      maxLength: 400,
+                      maxLines: 4,
+                      minLines: 3,
+                      scrollIntoViewOnFocus: true,
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.lg),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: PillButton(label: 'Save changes', variant: PillVariant.secondary, onPressed: onAdd),
                           ),
-                        ),
-                        if (isEditing) ...[
                           const SizedBox(width: AppSpacing.md),
                           GestureDetector(
                             onTap: onCancelEdit,
@@ -1710,9 +2226,22 @@ class _ExperienceStep extends StatelessWidget {
                             ),
                           ),
                         ],
-                      ],
+                      ),
                     ),
-                  ),
+                  ] else ...[
+                    _factBox([for (var i = 0; i < questionIndex; i++) _answeredRow(i)]),
+                    if (questionIndex > 0) const SizedBox(height: AppSpacing.lg),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeIn,
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(position: Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero).animate(animation), child: child),
+                      ),
+                      child: _question(questionIndex),
+                    ),
+                  ],
                 ],
                 if (entries.isNotEmpty)
                   ...entries.asMap().entries.map((indexed) {
@@ -1791,20 +2320,24 @@ class _ExperienceStep extends StatelessWidget {
   }
 }
 
-/// Certifications / completed courses — deliberately mirrors
-/// _ExperienceStep's shape exactly (same yes/no gate, same date pickers,
-/// same skippable footer, same entry-card layout), plus two certificate-
-/// specific optional fields: a verification link and an uploaded image.
+/// Certifications / completed courses — mirrors _ExperienceStep's shape
+/// (same yes/no gate, same date pickers, same skippable footer, same
+/// entry-card layout). One optional certificate-specific field: an
+/// uploaded image (no link field anymore — see [linkController]'s removal
+/// note at the call site; a pre-existing entry's link, if any, still
+/// displays on its card, just can't be set from here going forward).
 class _CertificationsStep extends StatelessWidget {
   final bool? hasCertifications;
   final ValueChanged<bool> onSelectHasCertifications;
   final List<ResumeCertification> entries;
   final TextEditingController nameController;
-  final TextEditingController linkController;
   final DateTime? startDate;
   final DateTime? endDate;
   final bool isCurrent;
   final bool isEditing;
+  final int questionIndex;
+  final ValueChanged<int> onQuestionIndexChanged;
+  final VoidCallback onFieldChanged;
   final XFile? imageFile;
   final String? imagePath;
   final VoidCallback onPickStart;
@@ -1823,11 +2356,13 @@ class _CertificationsStep extends StatelessWidget {
     required this.onSelectHasCertifications,
     required this.entries,
     required this.nameController,
-    required this.linkController,
     required this.startDate,
     required this.endDate,
     required this.isCurrent,
     required this.isEditing,
+    required this.questionIndex,
+    required this.onQuestionIndexChanged,
+    required this.onFieldChanged,
     required this.imageFile,
     required this.imagePath,
     required this.onPickStart,
@@ -1849,6 +2384,110 @@ class _CertificationsStep extends StatelessWidget {
           : Image.file(File(imageFile!.path), width: 48, height: 48, fit: BoxFit.cover);
     }
     return Image.network(imagePath!, width: 48, height: 48, fit: BoxFit.cover);
+  }
+
+  Widget _imagePickerRow(bool hasImage) {
+    return Row(
+      children: [
+        if (hasImage) ...[
+          ClipRRect(borderRadius: BorderRadius.circular(AppRadius.md), child: _imagePreview()),
+          const SizedBox(width: AppSpacing.md),
+        ],
+        Expanded(
+          child: GestureDetector(
+            onTap: onPickImage,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.offWhite,
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: AppColors.border, width: 1),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Ionicons.image_outline, size: 18, color: AppColors.gray500),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(hasImage ? 'Change image' : 'Upload image', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14, fontWeight: AppFontWeight.medium)),
+                ],
+              ),
+            ),
+          ),
+        ),
+        if (hasImage) ...[
+          const SizedBox(width: AppSpacing.sm),
+          GestureDetector(
+            onTap: onRemoveImage,
+            child: const Icon(Ionicons.close_circle, size: 20, color: AppColors.gray400),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _question(int index, bool hasImage) {
+    switch (index) {
+      case 0:
+        return _QuestionScaffold(
+          key: const ValueKey('name'),
+          label: 'Certification / course name',
+          field: PillInput(
+            controller: nameController,
+            placeholder: 'e.g. Google UX Design Certificate',
+            icon: Ionicons.ribbon_outline,
+            onChanged: (_) => onFieldChanged(),
+            onSubmitted: (_) {
+              if (nameController.text.trim().isNotEmpty) onQuestionIndexChanged(1);
+            },
+          ),
+          canAdvance: nameController.text.trim().isNotEmpty,
+          onAdvance: () => onQuestionIndexChanged(1),
+        );
+      case 1:
+        return _QuestionScaffold(
+          key: const ValueKey('duration'),
+          label: 'Duration',
+          field: _YearRangeRow(
+            startLabel: startDate != null ? _formatMonthYear(startDate!) : null,
+            endLabel: endDate != null ? _formatMonthYear(endDate!) : null,
+            isCurrent: isCurrent,
+            currentLabel: 'Currently ongoing',
+            onPickStart: onPickStart,
+            onPickEnd: onPickEnd,
+            onCurrentChanged: onCurrentChanged,
+          ),
+          canAdvance: startDate != null,
+          onAdvance: () => onQuestionIndexChanged(2),
+        );
+      default:
+        return Column(
+          key: const ValueKey('image'),
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const FieldLabel('Certificate image (optional)'),
+            _imagePickerRow(hasImage),
+            _FinalQuestionRow(onAdd: onAdd),
+          ],
+        );
+    }
+  }
+
+  // See _EducationStep._answeredRow — same purpose. Cases 0/1 are the
+  // only ones that can occur (2, the certificate image, is always the
+  // active question, never a past one).
+  Widget _answeredRow(int index) {
+    switch (index) {
+      case 0:
+        // Shortened from the active question's own longer label
+        // ("Certification / course name") — _FactRow's label column is
+        // sized for short words like Step 1's Name/College/Course/Year.
+        return _FactRow(icon: Ionicons.ribbon_outline, label: 'Name', value: nameController.text, onTap: () => onQuestionIndexChanged(0));
+      default:
+        final start = startDate;
+        final startLabel = start != null ? _formatMonthYear(start) : '';
+        final value = isCurrent ? '$startLabel - Present' : (endDate != null ? '$startLabel - ${_formatMonthYear(endDate!)}' : startLabel);
+        return _FactRow(icon: Ionicons.calendar_outline, label: 'Duration', value: value, onTap: () => onQuestionIndexChanged(1));
+    }
   }
 
   @override
@@ -1886,77 +2525,29 @@ class _CertificationsStep extends StatelessWidget {
                   ),
                 ),
                 if (showForm) ...[
-                  const FieldLabel('Certification / course name'),
-                  PillInput(controller: nameController, placeholder: 'e.g. Google UX Design Certificate', icon: Ionicons.ribbon_outline),
-                  const FieldLabel('Duration', tight: true),
-                  _YearRangeRow(
-                    startLabel: startDate != null ? _formatMonthYear(startDate!) : null,
-                    endLabel: endDate != null ? _formatMonthYear(endDate!) : null,
-                    isCurrent: isCurrent,
-                    currentLabel: 'Currently ongoing',
-                    onPickStart: onPickStart,
-                    onPickEnd: onPickEnd,
-                    onCurrentChanged: onCurrentChanged,
-                  ),
-                  const FieldLabel('Certificate link (optional)', tight: true),
-                  PillInput(
-                    controller: linkController,
-                    placeholder: 'e.g. https://coursera.org/verify/…',
-                    icon: Ionicons.link_outline,
-                    keyboardType: TextInputType.url,
-                    // Last text field before the image-upload row and "Add
-                    // certification" — same keyboard-coverage fix as above.
-                    scrollIntoViewOnFocus: true,
-                  ),
-                  const FieldLabel('Certificate image (optional)', tight: true),
-                  Row(
-                    children: [
-                      if (hasImage) ...[
-                        ClipRRect(borderRadius: BorderRadius.circular(AppRadius.md), child: _imagePreview()),
-                        const SizedBox(width: AppSpacing.md),
-                      ],
-                      Expanded(
-                        child: GestureDetector(
-                          onTap: onPickImage,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: AppColors.offWhite,
-                              borderRadius: BorderRadius.circular(AppRadius.lg),
-                              border: Border.all(color: AppColors.border, width: 1),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Ionicons.image_outline, size: 18, color: AppColors.gray500),
-                                const SizedBox(width: AppSpacing.sm),
-                                Text(hasImage ? 'Change image' : 'Upload image', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14, fontWeight: AppFontWeight.medium)),
-                              ],
-                            ),
+                  const SizedBox(height: AppSpacing.lg),
+                  if (isEditing) ...[
+                    const FieldLabel('Certification / course name', tight: true),
+                    PillInput(controller: nameController, placeholder: 'e.g. Google UX Design Certificate', icon: Ionicons.ribbon_outline),
+                    const FieldLabel('Duration', tight: true),
+                    _YearRangeRow(
+                      startLabel: startDate != null ? _formatMonthYear(startDate!) : null,
+                      endLabel: endDate != null ? _formatMonthYear(endDate!) : null,
+                      isCurrent: isCurrent,
+                      currentLabel: 'Currently ongoing',
+                      onPickStart: onPickStart,
+                      onPickEnd: onPickEnd,
+                      onCurrentChanged: onCurrentChanged,
+                    ),
+                    const FieldLabel('Certificate image (optional)', tight: true),
+                    _imagePickerRow(hasImage),
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.lg),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: PillButton(label: 'Save changes', variant: PillVariant.secondary, onPressed: onAdd),
                           ),
-                        ),
-                      ),
-                      if (hasImage) ...[
-                        const SizedBox(width: AppSpacing.sm),
-                        GestureDetector(
-                          onTap: onRemoveImage,
-                          child: const Icon(Ionicons.close_circle, size: 20, color: AppColors.gray400),
-                        ),
-                      ],
-                    ],
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.lg),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: PillButton(
-                            label: isEditing ? 'Save changes' : 'Add certification',
-                            variant: PillVariant.secondary,
-                            onPressed: onAdd,
-                          ),
-                        ),
-                        if (isEditing) ...[
                           const SizedBox(width: AppSpacing.md),
                           GestureDetector(
                             onTap: onCancelEdit,
@@ -1966,9 +2557,22 @@ class _CertificationsStep extends StatelessWidget {
                             ),
                           ),
                         ],
-                      ],
+                      ),
                     ),
-                  ),
+                  ] else ...[
+                    _factBox([for (var i = 0; i < questionIndex; i++) _answeredRow(i)]),
+                    if (questionIndex > 0) const SizedBox(height: AppSpacing.lg),
+                    AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 250),
+                      switchInCurve: Curves.easeOutCubic,
+                      switchOutCurve: Curves.easeIn,
+                      transitionBuilder: (child, animation) => FadeTransition(
+                        opacity: animation,
+                        child: SlideTransition(position: Tween<Offset>(begin: const Offset(0, 0.04), end: Offset.zero).animate(animation), child: child),
+                      ),
+                      child: _question(questionIndex, hasImage),
+                    ),
+                  ],
                 ],
                 if (entries.isNotEmpty)
                   ...entries.asMap().entries.map((indexed) {

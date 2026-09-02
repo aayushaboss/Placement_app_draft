@@ -18,9 +18,16 @@ class AppShadows {
   // instead of ballooning to 32 to stay shadow-safe. Cards get their
   // separation from this alone, no border, which is why every card-style
   // widget switched from Border.all(AppColors.border) to this shadow.
+  //
+  // Alpha bumped 0x1A -> 0x33 (~10% -> ~20% opacity) after live feedback
+  // that cards barely read as elevated against the app's own white page
+  // background. Deliberately the only lever touched here — blurRadius/
+  // offset stay exactly as they were, so [cardBuffer] (derived from those
+  // two) and every carousel-lane file that sizes itself off it need no
+  // change at all.
   static const card = [
     BoxShadow(
-      color: Color(0x1A1E0A3A),
+      color: Color(0x331E0A3A),
       offset: Offset(0, 4),
       blurRadius: 12,
     ),

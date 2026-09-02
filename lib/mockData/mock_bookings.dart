@@ -26,24 +26,13 @@ const mockOfflineVenues = {
   'counseling': OfflineVenue(name: 'Aerostar Careers Office', address: '3rd Floor, Baner Road, Pune', city: 'Pune'),
 };
 
-/// Seed so Sessions / SchoolHome aren't empty on first load.
-List<Booking> _bookings = [
-  Booking(
-    id: 'booking-demo-1',
-    userId: 'demo',
-    kind: 'placement',
-    mode: 'online',
-    sessionType: 'Mock Interview',
-    date: 'Thu, 14 Aug',
-    time: '02:30 PM',
-    name: 'Demo User',
-    phone: '9876543210',
-    email: null,
-    counselor: 'Ms. Ananya Rao',
-    status: 'Confirmed',
-    createdAt: DateTime.now().toIso8601String(),
-  ),
-];
+// Deliberately empty — this used to seed a fake "Mock Interview" booking so
+// Sessions / Home's Upcoming Session card were never empty on first load,
+// but that meant every fresh account landed on a session it never actually
+// booked. The real empty state (Home's "Talk to a placement expert" CTA,
+// Sessions' own empty state) is the correct default; booking one for real
+// via booking_screen.dart is what should populate this list.
+List<Booking> _bookings = [];
 
 List<Booking> listBookings() => List.of(_bookings);
 
