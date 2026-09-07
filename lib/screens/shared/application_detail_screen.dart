@@ -116,6 +116,45 @@ class ApplicationDetailScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.xl),
                 _InsightsSection(app: app, user: user),
+                // Screening answers/note were captured at apply-time but
+                // never shown back anywhere — a student who typed a careful
+                // answer had no way to confirm it was actually captured.
+                if ((app.screeningAnswers?.isNotEmpty ?? false) || (app.note?.trim().isNotEmpty ?? false)) ...[
+                  const SizedBox(height: AppSpacing.xl),
+                  Text('Your answers', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
+                  const SizedBox(height: AppSpacing.md),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.xl), boxShadow: AppShadows.soft),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final entry in (app.screeningAnswers ?? const {}).entries)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(entry.key, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5, fontWeight: AppFontWeight.medium)),
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(entry.value, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14)),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (app.note?.trim().isNotEmpty ?? false) ...[
+                          Text('Note to recruiter', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5, fontWeight: AppFontWeight.medium)),
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Text(app.note!.trim(), style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14)),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ],
                 if (app.messages.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.xl),
                   Text('Updates', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
@@ -485,7 +524,7 @@ class _RecoveryAction extends StatelessWidget {
 }
 
 /// Naukri-style "how this application compares" block — a summary
-/// checklist ("N out of 6") for a glance, then the full donut carousel for
+/// checklist ("N out of ${insights.length}") for a glance, then the full donut carousel for
 /// anyone who wants the breakdown. Useful precisely because it still shows
 /// up on a rejection: seeing *why* is more actionable than just the no.
 class _InsightsSection extends StatelessWidget {

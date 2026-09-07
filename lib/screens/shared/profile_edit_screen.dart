@@ -17,6 +17,7 @@ import '../../theme/text_styles.dart';
 import '../../utils/initials.dart';
 import '../../widgets/app_chip.dart';
 import '../../widgets/autocomplete_field.dart';
+import '../../widgets/date_picker_field.dart';
 import '../../widgets/field_label.dart';
 import '../../widgets/not_found_view.dart';
 import '../../widgets/pill_button.dart';
@@ -25,7 +26,6 @@ import '../../widgets/responsive_body.dart';
 
 const _classOptions = ['Class 11', 'Class 12', 'Below 11'];
 const _boardOptions = ['CBSE', 'State', 'IB', 'Other'];
-const _yearOptions = ['1st Year', '2nd Year', '3rd Year', 'Final Year'];
 const _priorExperienceOptions = ['Fresher', '1-2 yrs', '3-5 yrs', '5+ yrs'];
 const _qualificationOptions = ['Below 10th', '10th pass', '12th pass', 'Diploma', 'Graduate', 'Postgraduate'];
 const _educatedQualifications = {'Diploma', 'Graduate', 'Postgraduate'};
@@ -67,7 +67,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   String _fieldOfStudy = '';
   String _currentClass = '';
   String _board = '';
-  String _year = '';
+  String _semester = '';
   String _priorExperience = '';
   // Only relevant when _priorExperience == '5+ yrs' — see
   // _effectivePriorExperience.
@@ -109,7 +109,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     _fieldOfStudy = user.fieldOfStudy ?? '';
     _currentClass = user.currentClass ?? '';
     _board = user.board ?? '';
-    _year = user.year ?? '';
+    _semester = user.semester ?? '';
     // A previously-saved exact figure (e.g. "7 yrs", from the "5+ yrs"
     // refinement field) matches none of the 4 bucket chips — treat it as
     // the "5+ yrs" bucket for chip-selection purposes and restore the
@@ -280,7 +280,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   city: _city,
                   college: _college,
                   course: _course,
-                  year: _year,
+                  semester: _semester,
                   fieldOfStudy: _fieldOfStudy,
                   priorExperience: appState.user?.segment == Segment.pg && _priorExperience.isNotEmpty ? _effectivePriorExperience : null,
                   goal: _goal,
@@ -296,11 +296,19 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       // There was no catch here before — a failed save (e.g. the picked
       // photo being too large to persist to local storage) threw silently,
       // the loading spinner reset, and nothing else visibly happened at
-      // all. Surface it instead of failing dark.
+      // all. Surface it instead of failing dark — but as a generic,
+      // actionable message, not the raw exception text (which could be
+      // anything from a stack trace fragment to a storage-quota error,
+      // neither of which means anything to the person looking at it). The
+      // real exception still goes to the console for anyone debugging.
+      debugPrint('ProfileEditScreen: save failed — $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text('Could not save changes: $e')));
+        ..showSnackBar(SnackBar(
+          content: const Text("Couldn't save — try a smaller photo or check your connection"),
+          action: SnackBarAction(label: 'Retry', textColor: AppColors.yellow, onPressed: _save),
+        ));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -481,7 +489,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       AutocompleteField(value: _college, placeholder: 'e.g. BITS Goa', icon: Ionicons.business_outline, options: mockColleges, onChanged: (v) => setState(() => _college = v)),
                       const FieldLabel('Course / Degree'),
                       AutocompleteField(value: _course, placeholder: 'e.g. B.Tech, MBA, B.Sc…', icon: Ionicons.book_outline, options: mockCourses, onChanged: (v) => setState(() => _course = v)),
-                      if (user.segment != Segment.pg) _chipField('Year', _yearOptions, _year, (v) => setState(() => _year = v)),
+                      if (user.segment != Segment.pg) ...[
+                        const FieldLabel('Semester'),
+                        DatePickerField(
+                          value: _semester.isEmpty ? null : _semester,
+                          placeholder: 'Select semester',
+                          icon: Ionicons.layers_outline,
+                          onTap: _pickSemester,
+                        ),
+                      ],
                       if (user.segment == Segment.pg) _priorExperienceField('Work experience before this program'),
                       const FieldLabel('Field of study'),
                       AutocompleteField(value: _fieldOfStudy, placeholder: 'e.g. Computer Science', icon: Ionicons.school_outline, options: mockFieldsOfStudy, onChanged: (v) => setState(() => _fieldOfStudy = v)),
@@ -513,6 +529,18 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         )),
       ),
     );
+  }
+
+  Future<void> _pickSemester() async {
+    final picked = await showOptionListSheet(
+      context,
+      options: mockSemesters,
+      currentValue: _semester.isEmpty ? null : _semester,
+      title: 'Select semester',
+    );
+    if (picked == null) return;
+    HapticFeedback.selectionClick();
+    setState(() => _semester = picked);
   }
 
   Widget _chipField(String label, List<String> options, String value, ValueChanged<String> onSelect) {

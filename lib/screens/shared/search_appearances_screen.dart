@@ -52,6 +52,29 @@ class SearchAppearancesScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxl),
               children: [
+                // Same disclaimer as recruiter_actions_screen.dart — this
+                // trend and these keywords are synthetic, seeded on the
+                // user's own identifier so they look like consistent real
+                // history with no other signal that they aren't.
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(color: AppColors.warningA15, borderRadius: BorderRadius.circular(AppRadius.lg)),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Ionicons.alert_circle_outline, size: 18, color: AppColors.warning),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'Sample data — this will reflect your real activity once recruiter analytics are live.',
+                          style: AppTextStyles.caption.copyWith(color: AppColors.warning, fontSize: 12.5, fontWeight: AppFontWeight.medium, height: 1.3),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 Container(
                   padding: const EdgeInsets.all(AppSpacing.lg),
                   decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),

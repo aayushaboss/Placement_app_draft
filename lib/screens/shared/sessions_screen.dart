@@ -13,6 +13,7 @@ import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
 import '../../utils/no_orphan.dart';
 import '../../utils/scroll_to_top_registry.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/pill_button.dart';
 import '../../widgets/responsive_body.dart';
 
@@ -31,6 +32,7 @@ class SessionsScreen extends StatefulWidget {
 class _SessionsScreenState extends State<SessionsScreen> {
   List<Booking> _bookings = [];
   final _scrollController = ScrollController();
+  int _lastSeenDataVersion = -1;
 
   @override
   void initState() {
@@ -119,8 +121,36 @@ class _SessionsScreenState extends State<SessionsScreen> {
                       setSheetState(() => canceling = true);
                       // TODO: replace with real API call
                       deleteBooking(b.id);
+                      // Kept-alive Home (school_home_screen.dart) only
+                      // recomputes its own "upcoming session" card from
+                      // listBookings() on its own next build — bump so it
+                      // notices this change instead of showing a stale
+                      // now-cancelled session.
+                      context.read<AppState>().bumpDataVersion();
                       if (sheetContext.mounted) Navigator.of(sheetContext).pop();
                       _load();
+                      // Soft delete, not a hard removal — previously there
+                      // was no way back from a mistaken cancel at all,
+                      // unlike Applications' own undo-snackbar pattern for
+                      // the same kind of "oops" moment.
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context)
+                        ..hideCurrentSnackBar()
+                        ..showSnackBar(
+                          SnackBar(
+                            content: const Text('Session cancelled'),
+                            action: SnackBarAction(
+                              label: 'Undo',
+                              textColor: AppColors.yellow,
+                              onPressed: () {
+                                undoDeleteBooking(b.id);
+                                context.read<AppState>().bumpDataVersion();
+                                _load();
+                              },
+                            ),
+                            duration: const Duration(seconds: 4),
+                          ),
+                        );
                     },
                   ),
                 ),
@@ -128,8 +158,8 @@ class _SessionsScreenState extends State<SessionsScreen> {
               GestureDetector(
                 onTap: () => Navigator.of(sheetContext).pop(),
                 child: Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.md),
-                  child: Text('Keep session', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14, fontWeight: AppFontWeight.medium)),
+                  padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.sm),
+                  child: Text('Keep session', textAlign: TextAlign.center, style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14, fontWeight: AppFontWeight.medium)),
                 ),
               ),
             ],
@@ -150,7 +180,19 @@ class _SessionsScreenState extends State<SessionsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isSchool = context.watch<AppState>().user?.segment == Segment.school;
+    final appState = context.watch<AppState>();
+    final isSchool = appState.user?.segment == Segment.school;
+    // A booking created/cancelled/rescheduled elsewhere (e.g. Home's CTA,
+    // kept alive in the background by StatefulShellRoute.indexedStack)
+    // otherwise wouldn't be reflected here until a manual pull-to-refresh
+    // — bumpDataVersion's notifyListeners triggers this rebuild; scheduled
+    // post-frame since _load() calls setState and this is still mid-build.
+    if (appState.dataVersion != _lastSeenDataVersion) {
+      _lastSeenDataVersion = appState.dataVersion;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
     final topInset = MediaQuery.of(context).padding.top;
 
     return Scaffold(
@@ -163,18 +205,23 @@ class _SessionsScreenState extends State<SessionsScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // For college, still Profile-row-only (no bottom tab), so
-                // this needs an explicit way back instead of relying on
-                // tab-bar navigation. School gets this screen as its own
-                // "Sessions" tab, where this chevron is just a harmless
-                // extra shortcut to Profile.
-                GestureDetector(
-                  onTap: () => context.go('/tabs/profile'),
-                  child: const Padding(
-                    padding: EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: Icon(Ionicons.chevron_back, size: 26, color: AppColors.ink),
+                // College-only — college has no bottom-tab item for
+                // Sessions at all (only reachable via Profile's "Bookings"
+                // row), so it needs an explicit way back with no tab
+                // highlighted to show where it came from. School gets this
+                // screen as its own real "Sessions" tab (see
+                // tabs_scaffold.dart) — a chevron back to Profile there
+                // previously implied a nesting that doesn't exist, skipped
+                // the tab bar's own haptic/snackbar-clear on switch, and
+                // was simply redundant with the tab bar itself.
+                if (!isSchool)
+                  GestureDetector(
+                    onTap: () => context.go('/tabs/profile'),
+                    child: const Padding(
+                      padding: EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: Icon(Ionicons.chevron_back, size: 26, color: AppColors.ink),
+                    ),
                   ),
-                ),
                 Text('Bookings', textAlign: TextAlign.left, style: AppTextStyles.h1.copyWith(color: AppColors.ink)),
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.xs / 2),
@@ -196,29 +243,13 @@ class _SessionsScreenState extends State<SessionsScreen> {
                       controller: _scrollController,
                       children: [
                         Padding(
-                          padding: const EdgeInsets.only(top: AppSpacing.xxxl),
-                          child: Column(
-                            children: [
-                              Container(
-                                width: 72,
-                                height: 72,
-                                alignment: Alignment.center,
-                                decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
-                                child: const Icon(Ionicons.calendar_outline, size: 34, color: AppColors.blue),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.only(top: AppSpacing.md),
-                                child: Text('No sessions yet', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 18, fontWeight: AppFontWeight.medium)),
-                              ),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl).copyWith(top: AppSpacing.sm),
-                                child: Text(
-                                  'Book a ${isSchool ? 'counseling' : 'placement'} session to get expert 1:1 guidance.',
-                                  textAlign: TextAlign.center,
-                                  style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
-                                ),
-                              ),
-                            ],
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl).copyWith(top: AppSpacing.xxxl),
+                          child: EmptyState(
+                            icon: Ionicons.calendar_outline,
+                            title: 'No sessions yet',
+                            subtitle: 'Book a ${isSchool ? 'counseling' : 'placement'} session to get expert 1:1 guidance.',
+                            buttonLabel: 'Book a session',
+                            onButtonTap: () => context.push('/booking?kind=${isSchool ? 'counseling' : 'placement'}'),
                           ),
                         ),
                       ],
@@ -265,7 +296,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                                       children: [
                                         Text(
                                           b.kind == 'placement' ? (b.sessionType ?? 'Placement session') : 'Counseling session',
-                                          style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.bold),
+                                          style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium),
                                         ),
                                         Padding(
                                           padding: const EdgeInsets.only(top: 2),
@@ -295,7 +326,17 @@ class _SessionsScreenState extends State<SessionsScreen> {
                                       ],
                                     ),
                                   ),
-                                  const Icon(Ionicons.checkmark_circle, size: 18, color: AppColors.success),
+                                  // Previously a hardcoded "confirmed" icon
+                                  // regardless of the booking's own status
+                                  // field, which is never actually read —
+                                  // every booking always looked the same
+                                  // even though the model supports other
+                                  // states.
+                                  Icon(
+                                    b.status == 'Confirmed' ? Ionicons.checkmark_circle : Ionicons.time_outline,
+                                    size: 18,
+                                    color: b.status == 'Confirmed' ? AppColors.success : AppColors.warning,
+                                  ),
                                 ],
                               ),
                               Container(
@@ -355,7 +396,12 @@ class _SessionsScreenState extends State<SessionsScreen> {
             padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.md),
             decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
             child: PillButton(
-              label: isSchool ? '+ Book Counseling' : '+ Book Placement Session',
+              // A leading icon, not a hand-written "+" glyph in the label
+              // string — every other PillButton in the app that needs a
+              // leading mark uses the icon: param, which aligns/scales
+              // properly; a literal "+" character doesn't.
+              label: isSchool ? 'Book Counseling' : 'Book Placement Session',
+              icon: Ionicons.add,
               onPressed: () => _book(isSchool),
             ),
           ),

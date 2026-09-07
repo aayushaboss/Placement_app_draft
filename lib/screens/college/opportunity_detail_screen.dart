@@ -20,6 +20,7 @@ import '../../utils/no_orphan.dart';
 import '../../widgets/back_chevron.dart';
 import '../../widgets/badges.dart';
 import '../../widgets/company_mark.dart';
+import '../../widgets/not_found_view.dart';
 import '../../widgets/opportunity_row.dart';
 import '../../widgets/pill_button.dart';
 import '../../widgets/prep_course_card.dart';
@@ -63,9 +64,14 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
   Widget build(BuildContext context) {
     final o = _opportunity;
     if (o == null) {
-      return const Scaffold(
-        backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Center(child: CircularProgressIndicator(color: AppColors.blue))),
+      // getOpportunityById is a synchronous mock-data lookup (see
+      // initState) — null here means the id genuinely doesn't match
+      // anything, not "still loading," so this was previously a spinner
+      // that never resolved on a stale/invalid link instead of a real
+      // not-found state, unlike every sibling detail screen.
+      return const NotFoundView(
+        title: 'Opportunity not found',
+        message: "This opportunity may have been removed, or the link you followed is out of date.",
       );
     }
 
@@ -258,7 +264,14 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                                   meta: [s.location, s.stipend],
                                   deadlineLabel: s.deadlineLabel,
                                   deadlineUrgent: s.deadlineIsUrgent,
-                                  onTap: () => context.pushReplacement('/opportunity/${s.id}'),
+                                  // push, not pushReplacement — a
+                                  // replacement silently discarded the
+                                  // original opportunity from the back
+                                  // stack, so back from the similar role
+                                  // dropped the user wherever they were
+                                  // before the original detail screen
+                                  // instead of returning them to it.
+                                  onTap: () => context.push('/opportunity/${s.id}'),
                                 ),
                               );
                             },

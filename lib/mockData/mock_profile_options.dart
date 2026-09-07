@@ -671,3 +671,14 @@ const mockFieldsOfStudy = [
   'Fashion Design',
   'Graphic Design',
 ];
+
+/// Semester-select options for college/UG onboarding + Edit Profile —
+/// covers every real program length (4-year UG at 8, 5-year integrated at
+/// 10, ...) with one flat list, same as the year-based version it replaces
+/// needed no per-segment branching either.
+const mockSemesters = [
+  'Semester 1', 'Semester 2', 'Semester 3', 'Semester 4',
+  'Semester 5', 'Semester 6', 'Semester 7', 'Semester 8',
+  'Semester 9', 'Semester 10', 'Semester 11', 'Semester 12',
+  'Semester 13', 'Semester 14', 'Semester 15', 'Semester 16',
+];

@@ -34,9 +34,53 @@ const mockOfflineVenues = {
 // via booking_screen.dart is what should populate this list.
 List<Booking> _bookings = [];
 
-List<Booking> listBookings() => List.of(_bookings);
+/// Parses a booking's `date` ("yyyy-MM-dd") + `time` ("01:00 PM") into a
+/// real DateTime — the single place this parsing happens, so sorting,
+/// conflict checks, and "is this in the past" checks all agree on the
+/// same interpretation. Returns null on anything unparseable rather than
+/// throwing, so a malformed entry just sorts as if unparsed instead of
+/// crashing the whole list.
+DateTime? parseBookingDateTime(String date, String time) {
+  try {
+    final d = DateTime.parse(date);
+    final match = RegExp(r'^(\d{1,2}):(\d{2})\s*(AM|PM)$', caseSensitive: false).firstMatch(time.trim());
+    if (match == null) return d;
+    var hour = int.parse(match.group(1)!) % 12;
+    if (match.group(3)!.toUpperCase() == 'PM') hour += 12;
+    return DateTime(d.year, d.month, d.day, hour, int.parse(match.group(2)!));
+  } catch (_) {
+    return null;
+  }
+}
 
-Booking createBooking({
+/// Excludes soft-deleted entries and sorts by actual session date/time
+/// ascending — previously returned raw creation order, so a booking made
+/// later for an *earlier* date could bump a genuinely sooner session out
+/// of "upcoming" on Home/Sessions.
+List<Booking> listBookings() {
+  final active = _bookings.where((b) => b.deletedAt == null).toList();
+  active.sort((a, b) {
+    final da = parseBookingDateTime(a.date, a.time);
+    final db = parseBookingDateTime(b.date, b.time);
+    if (da == null || db == null) return 0;
+    return da.compareTo(db);
+  });
+  return active;
+}
+
+/// True if some other active booking already holds this exact date+time —
+/// previously the only "unavailable" slot was a hardcoded index (always
+/// disabling the same slot on every day, regardless of what was actually
+/// booked), so any other slot on any day could be double-booked freely.
+bool isSlotTaken(String date, String time, {String? excludeBookingId}) {
+  return _bookings.any((b) => b.deletedAt == null && b.id != excludeBookingId && b.date == date && b.time == time);
+}
+
+/// Null return means the slot was taken by the time this actually ran
+/// (checked here too, not just in the UI's disabled-slot rendering, so a
+/// resubmission — e.g. browser-back then Confirm again — can't silently
+/// create a duplicate for the same date+time).
+Booking? createBooking({
   required String kind,
   required String mode,
   String? sessionType,
@@ -46,6 +90,7 @@ Booking createBooking({
   String? phone,
   String? email,
 }) {
+  if (isSlotTaken(date, time)) return null;
   final venue = mode == 'offline' ? mockOfflineVenues[kind] : null;
   final booking = Booking(
     id: 'booking-${DateTime.now().millisecondsSinceEpoch}',
@@ -69,6 +114,10 @@ Booking createBooking({
   return booking;
 }
 
+/// Null return means either the booking doesn't exist, or (when date/time
+/// is actually changing) the new slot is already taken — same conflict
+/// check as [createBooking], so a reschedule can't collide with another
+/// booking either.
 Booking? updateBooking(
   String id, {
   String? mode,
@@ -78,7 +127,11 @@ Booking? updateBooking(
 }) {
   final idx = _bookings.indexWhere((b) => b.id == id);
   if (idx < 0) return null;
-  var updated = _bookings[idx].copyWith(
+  final current = _bookings[idx];
+  final newDate = date ?? current.date;
+  final newTime = time ?? current.time;
+  if ((date != null || time != null) && isSlotTaken(newDate, newTime, excludeBookingId: id)) return null;
+  var updated = current.copyWith(
     mode: mode,
     sessionType: sessionType,
     date: date,
@@ -95,8 +148,17 @@ Booking? updateBooking(
   return updated;
 }
 
+/// Soft delete, mirroring removeApplication/restoreApplication exactly —
+/// a cancelled session used to vanish permanently with no recovery.
 bool deleteBooking(String id) {
-  final before = _bookings.length;
-  _bookings = _bookings.where((b) => b.id != id).toList();
-  return _bookings.length < before;
+  final idx = _bookings.indexWhere((b) => b.id == id && b.deletedAt == null);
+  if (idx < 0) return false;
+  _bookings[idx] = _bookings[idx].withDeletedAt(DateTime.now().toIso8601String());
+  return true;
+}
+
+void undoDeleteBooking(String id) {
+  final idx = _bookings.indexWhere((b) => b.id == id);
+  if (idx < 0) return;
+  _bookings[idx] = _bookings[idx].withDeletedAt(null);
 }

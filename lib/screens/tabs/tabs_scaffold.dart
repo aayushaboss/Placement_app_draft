@@ -14,6 +14,7 @@ import '../college/college_feed_screen.dart';
 import '../school/courses_explore_screen.dart';
 import '../school/school_home_screen.dart';
 import '../shared/applications_tracker_screen.dart';
+import '../../widgets/accessible_tap_target.dart';
 import '../../widgets/responsive_body.dart';
 
 /// Home tab body: SchoolHome for school segment, CollegeFeed otherwise.
@@ -98,31 +99,39 @@ class TabsScaffold extends StatelessWidget {
               // Caps and centers just the tab row on tablet — otherwise 4
               // items stretched across ~768-1024px each get a lot of empty
               // space around a small centered icon+label, reading as sparse
-              // rather than a deliberate wide layout.
-              child: ResponsiveBody(child: Row(
+              // rather than a deliberate wide layout. 720, matching
+              // Applications' own maxWidth (needed there for its 2-column
+              // grid) rather than the 520 default every other tab uses —
+              // the bar sitting under a screen's max possible content width
+              // avoids it visibly narrowing/widening every time the active
+              // tab changes.
+              child: ResponsiveBody(maxWidth: 720, child: Row(
                 children: items.map((item) {
                   final active = shell.currentIndex == item.branchIndex;
+                  void onTap() {
+                    HapticFeedback.selectionClick();
+                    // IndexedStack preserves each branch's state across
+                    // switches (that's the point), so a snackbar shown
+                    // on one tab would otherwise still be sitting there
+                    // after switching away — the NavigatorObserver on
+                    // GoRouter doesn't fire for this since it's a
+                    // visibility change, not a push/pop.
+                    ScaffoldMessenger.of(context).clearSnackBars();
+                    final wasAlreadyActive = item.branchIndex == shell.currentIndex;
+                    shell.goBranch(item.branchIndex, initialLocation: wasAlreadyActive);
+                    // Re-tapping the tab you're already on pops its
+                    // nested Navigator back to its root route (that's
+                    // what initialLocation does above) but doesn't touch
+                    // scroll position on its own — that screen's own
+                    // ScrollController does the rest.
+                    if (wasAlreadyActive) ScrollToTopRegistry.trigger(item.branchIndex);
+                  }
+
                   return Expanded(
-                    child: GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        HapticFeedback.selectionClick();
-                        // IndexedStack preserves each branch's state across
-                        // switches (that's the point), so a snackbar shown
-                        // on one tab would otherwise still be sitting there
-                        // after switching away — the NavigatorObserver on
-                        // GoRouter doesn't fire for this since it's a
-                        // visibility change, not a push/pop.
-                        ScaffoldMessenger.of(context).clearSnackBars();
-                        final wasAlreadyActive = item.branchIndex == shell.currentIndex;
-                        shell.goBranch(item.branchIndex, initialLocation: wasAlreadyActive);
-                        // Re-tapping the tab you're already on pops its
-                        // nested Navigator back to its root route (that's
-                        // what initialLocation does above) but doesn't touch
-                        // scroll position on its own — that screen's own
-                        // ScrollController does the rest.
-                        if (wasAlreadyActive) ScrollToTopRegistry.trigger(item.branchIndex);
-                      },
+                    child: AccessibleTapTarget(
+                      label: item.label,
+                      selected: active,
+                      onTap: onTap,
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [

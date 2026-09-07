@@ -60,7 +60,7 @@ class _AptitudeScreenState extends State<AptitudeScreen> {
     try {
       // TODO: replace with real API call
       await appState.updateProfile((current) => current.copyWith(
-            aptitudeResults: mockAptitudeResults,
+            aptitudeResults: computeAptitudeResults(_answers),
             aptitudeSkipped: false,
             onboardingComplete: true,
           ));
@@ -87,18 +87,56 @@ class _AptitudeScreenState extends State<AptitudeScreen> {
     });
   }
 
-  void _goBack() {
+  Future<void> _goBack() async {
     _advanceTimer?.cancel();
     _advanceTimer = null;
     if (_index > 0) {
       _goTo(_index - 1);
-    } else {
-      context.pop();
+      return;
     }
+    if (_answers.isEmpty) {
+      context.pop();
+      return;
+    }
+    // At least one question answered and about to actually leave — ask
+    // first, mirroring the confirm-before-leaving guard the resume
+    // builder already uses for its own in-progress-work case. Previously
+    // this just popped silently, discarding every answer with zero
+    // warning.
+    final leave = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
+        title: Text('Leave without finishing?', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 17, fontWeight: AppFontWeight.semibold)),
+        content: Text(
+          "Your answers so far won't be saved.",
+          style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text('Keep answering', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontWeight: AppFontWeight.medium)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text('Leave', style: AppTextStyles.body.copyWith(color: AppColors.error, fontWeight: AppFontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (leave == true && mounted) context.pop();
   }
 
   void _answer(dynamic value) {
-    if (_calculating || _animating || _advanceTimer != null) return;
+    if (_calculating || _animating) return;
+    // A second tap on a different option within the 220ms window used to
+    // be silently ignored (the whole method returned early whenever a
+    // timer was already pending) — the first, possibly mis-tapped answer
+    // is what got recorded with no way to correct it short of going back
+    // a full question. Cancel and reschedule against the new answer
+    // instead, so a fast correction actually takes.
+    _advanceTimer?.cancel();
     HapticFeedback.lightImpact();
     final questionId = mockAptitudeQuestions[_index].id;
     setState(() => _answers[questionId] = value);
@@ -159,10 +197,11 @@ class _AptitudeScreenState extends State<AptitudeScreen> {
     final topInset = MediaQuery.of(context).padding.top;
 
     return PopScope(
-      // Without this, the system/browser back gesture pops the whole route
-      // instead of stepping back one question, skipping however many of
-      // the 12 questions are behind the current one.
-      canPop: _index == 0,
+      // False whenever leaving would either skip questions (mid-way
+      // through) or discard at least one already-answered question at
+      // index 0 — both routed through _goBack(), which now also confirms
+      // before actually discarding answered progress.
+      canPop: _index == 0 && _answers.isEmpty,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _goBack();
       },

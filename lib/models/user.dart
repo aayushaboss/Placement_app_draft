@@ -51,16 +51,16 @@ class User {
   final String? board;
   final String? college;
   final String? course;
-  final String? year;
+  final String? semester;
   final String? fieldOfStudy;
 
   /// Postgrads only — work experience before starting this program, e.g.
   /// '1-2 yrs'. Optional: collected on the same onboarding screen as
-  /// college/course/year but never gates Continue, same as [fieldOfStudy].
+  /// college/course/semester but never gates Continue, same as [fieldOfStudy].
   final String? priorExperience;
 
   /// Segment.working only — the highest level of formal education
-  /// completed, e.g. '12th pass'. This segment has no college/course/year
+  /// completed, e.g. '12th pass'. This segment has no college/course/semester
   /// of its own, so this is the one thing it collects, and unlike
   /// [priorExperience] it's required (it's the only question asked).
   final String? highestQualification;
@@ -107,7 +107,7 @@ class User {
     this.board,
     this.college,
     this.course,
-    this.year,
+    this.semester,
     this.fieldOfStudy,
     this.priorExperience,
     this.highestQualification,
@@ -139,7 +139,7 @@ class User {
     String? board,
     String? college,
     String? course,
-    String? year,
+    String? semester,
     String? fieldOfStudy,
     String? priorExperience,
     String? highestQualification,
@@ -170,7 +170,7 @@ class User {
       board: board ?? this.board,
       college: college ?? this.college,
       course: course ?? this.course,
-      year: year ?? this.year,
+      semester: semester ?? this.semester,
       fieldOfStudy: fieldOfStudy ?? this.fieldOfStudy,
       priorExperience: priorExperience ?? this.priorExperience,
       highestQualification: highestQualification ?? this.highestQualification,
@@ -203,7 +203,7 @@ class User {
         'board': board,
         'college': college,
         'course': course,
-        'year': year,
+        'semester': semester,
         'fieldOfStudy': fieldOfStudy,
         'priorExperience': priorExperience,
         'highestQualification': highestQualification,
@@ -235,7 +235,7 @@ class User {
         board: json['board'] as String?,
         college: json['college'] as String?,
         course: json['course'] as String?,
-        year: json['year'] as String?,
+        semester: json['semester'] as String?,
         fieldOfStudy: json['fieldOfStudy'] as String?,
         priorExperience: json['priorExperience'] as String?,
         highestQualification: json['highestQualification'] as String?,

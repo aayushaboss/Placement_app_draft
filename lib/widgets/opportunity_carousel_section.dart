@@ -22,6 +22,8 @@ class OpportunityCarouselSection extends StatelessWidget {
   final bool Function(Opportunity) isApplied;
   final void Function(Opportunity) onTapCard;
   final void Function(Opportunity) onApply;
+  final bool Function(Opportunity)? isSaved;
+  final void Function(Opportunity)? onToggleSave;
 
   const OpportunityCarouselSection({
     super.key,
@@ -32,6 +34,8 @@ class OpportunityCarouselSection extends StatelessWidget {
     required this.onTapCard,
     required this.onApply,
     this.onViewAll,
+    this.isSaved,
+    this.onToggleSave,
   });
 
   @override
@@ -67,7 +71,7 @@ class OpportunityCarouselSection extends StatelessWidget {
                       TextSpan(
                         text: '  (${opportunities.length})',
                         style: AppTextStyles.body.copyWith(
-                          color: AppColors.gray400,
+                          color: AppColors.gray500,
                           fontSize: 14,
                         ),
                       ),
@@ -146,8 +150,10 @@ class OpportunityCarouselSection extends StatelessWidget {
                   deadlineLabel: applied ? null : o.deadlineLabel,
                   deadlineUrgent: o.deadlineIsUrgent,
                   applied: applied,
+                  saved: isSaved?.call(o) ?? false,
                   onTap: () => onTapCard(o),
                   onApply: () => onApply(o),
+                  onToggleSave: onToggleSave == null ? null : () => onToggleSave!(o),
                 );
               },
             ),

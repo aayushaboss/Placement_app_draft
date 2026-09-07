@@ -39,6 +39,11 @@ class _VideoProfileSheet extends StatefulWidget {
 class _VideoProfileSheetState extends State<_VideoProfileSheet> {
   String? _videoIntroUrl;
   String? _videoIntroFileName;
+  // Hydrated originals, kept separate from the mutable working values —
+  // the only way to know whether there's actually something unsaved to
+  // warn about before letting the sheet close.
+  String? _originalVideoIntroUrl;
+  String? _originalVideoIntroFileName;
   bool _hydrated = false;
   bool _loading = false;
 
@@ -46,8 +51,12 @@ class _VideoProfileSheetState extends State<_VideoProfileSheet> {
     if (_hydrated) return;
     _videoIntroUrl = user.videoIntroUrl;
     _videoIntroFileName = user.videoIntroFileName;
+    _originalVideoIntroUrl = user.videoIntroUrl;
+    _originalVideoIntroFileName = user.videoIntroFileName;
     _hydrated = true;
   }
+
+  bool get _hasUnsavedChanges => _videoIntroUrl != _originalVideoIntroUrl || _videoIntroFileName != _originalVideoIntroFileName;
 
   Future<void> _pickVideo(ImageSource source) async {
     try {
@@ -58,9 +67,50 @@ class _VideoProfileSheetState extends State<_VideoProfileSheet> {
         _videoIntroUrl = file.path;
         _videoIntroFileName = file.name;
       });
-    } catch (_) {
-      // No file picked / camera unavailable in this context — leave as-is.
+    } catch (e) {
+      // The null-return above already covers the real "user cancelled"
+      // case per image_picker's own contract, so this catch is only ever
+      // reached for a genuine failure — permission denied, an unsupported
+      // source (e.g. no camera on a desktop browser), a plugin error.
+      // Previously swallowed with zero feedback on this screen's one and
+      // only function.
+      debugPrint('VideoProfileSheet: pickVideo failed — $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(source == ImageSource.camera
+              ? "Couldn't access your camera — try uploading a file instead."
+              : "Couldn't open that file — try a different one."),
+        ));
     }
+  }
+
+  Future<void> _attemptClose() async {
+    if (!_hasUnsavedChanges) {
+      Navigator.of(context).pop();
+      return;
+    }
+    final discard = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
+        title: Text('Discard this video?', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 17, fontWeight: AppFontWeight.semibold)),
+        content: Text("It hasn't been saved yet.", style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text('Keep editing', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontWeight: AppFontWeight.medium)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text('Discard', style: AppTextStyles.body.copyWith(color: AppColors.error, fontWeight: AppFontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (discard == true && mounted) Navigator.of(context).pop();
   }
 
   void _showVideoSourceSheet() {
@@ -121,7 +171,7 @@ class _VideoProfileSheetState extends State<_VideoProfileSheet> {
             board: current.board,
             college: current.college,
             course: current.course,
-            year: current.year,
+            semester: current.semester,
             fieldOfStudy: current.fieldOfStudy,
             goal: current.goal,
             roles: current.roles,
@@ -188,7 +238,16 @@ class _VideoProfileSheetState extends State<_VideoProfileSheet> {
     }
     _hydrate(user);
 
-    return Padding(
+    return PopScope(
+      // A recorded/attached video previously vanished with zero warning
+      // on any dismissal other than "Save changes" — tapping the scrim,
+      // dragging the sheet down, or the "X" all popped it instantly. Now
+      // only a genuinely unchanged sheet can close without a prompt.
+      canPop: !_hasUnsavedChanges,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _attemptClose();
+      },
+      child: Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: ConstrainedBox(
         constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
@@ -210,7 +269,7 @@ class _VideoProfileSheetState extends State<_VideoProfileSheet> {
                 children: [
                   Text('Video profile', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 18, fontWeight: AppFontWeight.semibold)),
                   GestureDetector(
-                    onTap: () => Navigator.of(context).pop(),
+                    onTap: _attemptClose,
                     child: const Icon(Ionicons.close, size: 24, color: AppColors.gray400),
                   ),
                 ],
@@ -234,6 +293,7 @@ class _VideoProfileSheetState extends State<_VideoProfileSheet> {
             ),
           ],
         ),
+      ),
       ),
     );
   }

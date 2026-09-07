@@ -54,6 +54,29 @@ class RecruiterActionsScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxl),
               children: [
+                // This whole screen is currently synthetic, seeded on the
+                // user's own identifier so it looks like consistent real
+                // history — without this, a student has no way to tell
+                // "Microsoft shortlisted you" apart from a genuine event.
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(color: AppColors.warningA15, borderRadius: BorderRadius.circular(AppRadius.lg)),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Ionicons.alert_circle_outline, size: 18, color: AppColors.warning),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'Sample data — this will reflect your real activity once recruiter analytics are live.',
+                          style: AppTextStyles.caption.copyWith(color: AppColors.warning, fontSize: 12.5, fontWeight: AppFontWeight.medium, height: 1.3),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 Text(
                   noOrphan("What recruiters have done with your profile — most recent first."),
                   style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.3),
@@ -77,7 +100,7 @@ class RecruiterActionsScreen extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(a.company, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14.5, fontWeight: AppFontWeight.semibold)),
+                                Text(a.company, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14.5, fontWeight: AppFontWeight.medium)),
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
                                   child: Text(a.action, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5)),

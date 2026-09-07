@@ -16,6 +16,10 @@ class DatePickerField extends StatelessWidget {
   final String placeholder;
   final IconData? icon;
   final VoidCallback onTap;
+  // Dims the field and makes it inert — e.g. an End-date field before its
+  // own Start date has a value, where the picker's own bounds have nothing
+  // to floor against yet.
+  final bool disabled;
 
   const DatePickerField({
     super.key,
@@ -23,35 +27,39 @@ class DatePickerField extends StatelessWidget {
     required this.placeholder,
     required this.onTap,
     this.icon,
+    this.disabled = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        height: 54,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-        decoration: BoxDecoration(
-          color: AppColors.offWhite,
-          borderRadius: BorderRadius.circular(999),
-        ),
-        child: Row(
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 18, color: AppColors.gray500),
-              const SizedBox(width: 8),
-            ],
-            Expanded(
-              child: Text(
-                value ?? placeholder,
-                style: value == null
-                    ? AppTextStyles.bodyLg.copyWith(fontSize: 16, color: AppColors.gray400, fontWeight: AppFontWeight.regular)
-                    : AppTextStyles.bodyLg.copyWith(fontSize: 16, color: AppColors.ink),
+    return Opacity(
+      opacity: disabled ? 0.5 : 1,
+      child: GestureDetector(
+        onTap: disabled ? null : onTap,
+        child: Container(
+          height: 54,
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+          decoration: BoxDecoration(
+            color: AppColors.offWhite,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Row(
+            children: [
+              if (icon != null) ...[
+                Icon(icon, size: 18, color: AppColors.gray500),
+                const SizedBox(width: 8),
+              ],
+              Expanded(
+                child: Text(
+                  value ?? placeholder,
+                  style: value == null
+                      ? AppTextStyles.bodyLg.copyWith(fontSize: 16, color: AppColors.gray400, fontWeight: AppFontWeight.regular)
+                      : AppTextStyles.bodyLg.copyWith(fontSize: 16, color: AppColors.ink),
+                ),
               ),
-            ),
-            const Icon(Ionicons.chevron_down, size: 16, color: AppColors.gray400),
-          ],
+              const Icon(Ionicons.chevron_down, size: 16, color: AppColors.gray400),
+            ],
+          ),
         ),
       ),
     );
@@ -168,6 +176,69 @@ Future<int?> showYearPickerSheet(BuildContext context, {required int minYear, re
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.lg),
             child: PillButton(label: 'Done', onPressed: () => Navigator.of(sheetContext).pop(years[index])),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Bottom sheet with a plain scrollable list of tappable rows — for a set
+/// of equally-weighted, clearly-delineated options (e.g. picking a
+/// semester) where a spinning wheel doesn't fit as well as it does for a
+/// dense numeric range like years/months: every option is legible at once
+/// instead of scrolled past. Tapping a row selects and closes immediately
+/// (no separate "Done" step), matching the tap-to-select convention
+/// already used by this app's other list-style pickers (e.g.
+/// language_full_list_screen.dart, course_category_picker_screen.dart).
+Future<String?> showOptionListSheet(
+  BuildContext context, {
+  required List<String> options,
+  String? currentValue,
+  required String title,
+}) {
+  return showModalBottomSheet<String>(
+    context: context,
+    backgroundColor: AppColors.white,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
+    builder: (sheetContext) => Padding(
+      padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, MediaQuery.of(sheetContext).padding.bottom + AppSpacing.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _sheetHandle(),
+          _sheetTitle(title),
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 360),
+            child: ListView(
+              shrinkWrap: true,
+              children: options
+                  .map((o) => GestureDetector(
+                        onTap: () => Navigator.of(sheetContext).pop(o),
+                        behavior: HitTestBehavior.opaque,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  o,
+                                  style: AppTextStyles.bodyLg.copyWith(
+                                    fontSize: 16,
+                                    color: AppColors.ink,
+                                    fontWeight: o == currentValue ? AppFontWeight.semibold : AppFontWeight.regular,
+                                  ),
+                                ),
+                              ),
+                              if (o == currentValue) const Icon(Ionicons.checkmark, size: 18, color: AppColors.blue),
+                            ],
+                          ),
+                        ),
+                      ))
+                  .toList(),
+            ),
           ),
         ],
       ),

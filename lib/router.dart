@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'nav.dart';
+import 'screens/dev/style_guide_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/otp_screen.dart';
 import 'screens/college/goals_screen.dart';
@@ -34,6 +37,7 @@ import 'screens/shared/saved_screen.dart';
 import 'screens/shared/search_appearances_screen.dart';
 import 'screens/shared/sessions_screen.dart';
 import 'screens/shared/skill_story_screen.dart';
+import 'screens/shared/support_screen.dart';
 import 'screens/splash_screen.dart';
 import 'screens/tabs/tabs_scaffold.dart';
 import 'snackbar_observer.dart';
@@ -89,8 +93,39 @@ GoRouter buildRouter(AppState appState, GlobalKey<ScaffoldMessengerState> scaffo
       // Anything else requires a signed-in user — a signed-out visitor
       // pasting a deep link (e.g. /tabs, /college/goals) gets sent to the
       // start of onboarding instead of rendering a screen with no user.
-      if (user == null && !isLanguageSelectRoute && !isAuthEntry) {
+      //
+      // Two of the routes in _authEntryRoutes need real context beyond
+      // "no user yet" to be safely reachable, even though they're exempt
+      // from the check above: /onboarding/profile expects a sign-in
+      // that's already in progress (a signed-out deep link here used to
+      // silently fabricate a throwaway 'guest' account via
+      // AppState.updateProfile instead of rendering nothing), and
+      // /auth/otp expects an actual pending OTP request (a signed-out
+      // deep link here — with no identifier — used to accept a resend
+      // after the 30s countdown and verify against the fixed demo code
+      // with nothing ever having been sent). Both stay reachable for a
+      // signed-out visitor arriving the normal way (pushed from Landing/
+      // Login), since that push always carries the identifier/segment
+      // context this redirect can't see — this only catches a bare,
+      // out-of-sequence deep link.
+      final needsInProgressContext = path == '/onboarding/profile' || path == '/auth/otp';
+      if (user == null && !isLanguageSelectRoute && (!isAuthEntry || needsInProgressContext)) {
         return '/onboarding';
+      }
+
+      // For a signed-in user on anything other than the auth-entry chain,
+      // make sure they're actually on (or heading to) their correct
+      // in-progress onboarding step — without this, any protected route
+      // (/tabs, /college/resume, /profile-edit, a booking sheet, ...) was
+      // directly reachable via a deep link or a stale tab while mid-
+      // onboarding, rendering against a User object missing whatever
+      // segment/goal/etc. that route assumes already exists. Only
+      // enforced while genuinely incomplete — once routeForUser resolves
+      // to '/tabs', a fully (or segment-appropriately) onboarded user is
+      // free to be anywhere in the app, not pinned to exactly '/tabs'.
+      if (user != null && !isAuthEntry) {
+        final expected = routeForUser(user);
+        if (expected != '/tabs' && expected != path) return expected;
       }
 
       return null;
@@ -198,12 +233,20 @@ GoRouter buildRouter(AppState appState, GlobalKey<ScaffoldMessengerState> scaffo
       GoRoute(path: '/recruiter-actions', builder: (context, state) => const RecruiterActionsScreen()),
       GoRoute(path: '/notifications', builder: (context, state) => const NotificationsScreen()),
       GoRoute(path: '/saved', builder: (context, state) => const SavedScreen()),
-      // '/support' (SupportScreen, in screens/shared/support_screen.dart) is
-      // on hold — built from a naukri/internshala reference, not yet backed
-      // by real company content, so the route and its Profile-menu entry are
-      // pulled until there's real copy to put behind it. The screen file
-      // itself is left in place, unrouted, so it's a quick re-add later.
+      // Re-enabled — the app otherwise had zero Help/Support entry point
+      // anywhere in either segment's 4 main-nav screens (a real Heuristic-10
+      // "help and documentation" gap), and this screen's FAQ/contact
+      // content, while built from a naukri/internshala reference, is real
+      // and functional, not placeholder — better to ship it than leave
+      // users with no path to help at all.
+      GoRoute(path: '/support', builder: (context, state) => const SupportScreen()),
       GoRoute(path: '/story/:id', builder: (context, state) => SkillStoryScreen(id: state.pathParameters['id']!)),
+      // Dev-only living style guide (Round V) — gated behind kDebugMode so
+      // this route (and StyleGuideScreen itself, once tree-shaken) is
+      // entirely absent from `flutter build web --release`. No nav-bar
+      // link anywhere; reachable only by typing the URL in a local debug
+      // build.
+      if (kDebugMode) GoRoute(path: '/dev/style-guide', builder: (context, state) => const StyleGuideScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => TabsScaffold(shell: shell),
         branches: [

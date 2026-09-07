@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:html' as html;
+
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,7 +8,9 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../mockData/mock_bookings.dart';
 import '../../state/app_state.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
@@ -74,9 +79,71 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
     context.go('/tabs');
   }
 
-  /// UI only for now — each option's onTap is a stub pending confirmation
-  /// of this sheet before the actual Google/Apple/.ics logic gets wired in
-  /// (via a separate CalendarService, not inline here).
+  String get _eventTitle => widget.kind == 'placement' ? (widget.sessionType.isNotEmpty ? widget.sessionType : 'Placement session') : 'Counseling session';
+
+  String get _eventLocation {
+    if (widget.mode == 'offline' && widget.venueAddress.isNotEmpty) return widget.venueAddress;
+    return 'Online';
+  }
+
+  /// Assumed — no real duration is captured anywhere in the booking flow
+  /// (mockBookingSlots are just start times), so 30 minutes is a
+  /// reasonable default for a counseling/placement chat rather than
+  /// leaving the event with no end time at all.
+  static const _eventDuration = Duration(minutes: 30);
+
+  String _icsDateTimeUtc(DateTime dt) {
+    final u = dt.toUtc();
+    String p2(int n) => n.toString().padLeft(2, '0');
+    return '${u.year}${p2(u.month)}${p2(u.day)}T${p2(u.hour)}${p2(u.minute)}${p2(u.second)}Z';
+  }
+
+  void _downloadIcs() {
+    final start = parseBookingDateTime(widget.date, widget.time);
+    if (start == null) return;
+    final end = start.add(_eventDuration);
+    final ics = [
+      'BEGIN:VCALENDAR',
+      'VERSION:2.0',
+      'PRODID:-//Aerostar Edge//Booking//EN',
+      'BEGIN:VEVENT',
+      'UID:booking-${start.millisecondsSinceEpoch}@aerostaredge',
+      'DTSTAMP:${_icsDateTimeUtc(DateTime.now())}',
+      'DTSTART:${_icsDateTimeUtc(start)}',
+      'DTEND:${_icsDateTimeUtc(end)}',
+      'SUMMARY:$_eventTitle',
+      'LOCATION:$_eventLocation',
+      'DESCRIPTION:Aerostar Edge session with ${widget.counselor}',
+      'END:VEVENT',
+      'END:VCALENDAR',
+    ].join('\r\n');
+    // dart:html — this app is web-only today (see other files already
+    // gated the same way), and Blob+anchor is the standard way to trigger
+    // a browser download of generated (not server-hosted) file content.
+    final blob = html.Blob([utf8.encode(ics)], 'text/calendar');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    html.AnchorElement(href: url)
+      ..setAttribute('download', 'aerostar-session.ics')
+      ..click();
+    html.Url.revokeObjectUrl(url);
+  }
+
+  Future<void> _openGoogleCalendar() async {
+    final start = parseBookingDateTime(widget.date, widget.time);
+    if (start == null) return;
+    final end = start.add(_eventDuration);
+    // No OAuth needed — Google's URL-based "add event" template just opens
+    // a pre-filled compose screen in the user's own Google Calendar.
+    final uri = Uri.https('calendar.google.com', '/calendar/render', {
+      'action': 'TEMPLATE',
+      'text': _eventTitle,
+      'dates': '${_icsDateTimeUtc(start)}/${_icsDateTimeUtc(end)}',
+      'details': 'Aerostar Edge session with ${widget.counselor}',
+      'location': _eventLocation,
+    });
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   void _showCalendarSheet() {
     final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     showModalBottomSheet(
@@ -108,20 +175,32 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
                 // Google's mark, not our palette.
                 iconColor: const Color(0xFF4285F4),
                 label: 'Google Calendar',
-                onTap: () => Navigator.of(sheetContext).pop(),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _openGoogleCalendar();
+                },
               ),
               if (isIOS)
                 _CalendarOptionTile(
                   icon: Ionicons.logo_apple,
                   iconColor: AppColors.ink,
                   label: 'Apple Calendar',
-                  onTap: () => Navigator.of(sheetContext).pop(),
+                  // No web URL scheme for Apple Calendar — it opens .ics
+                  // files natively, so this is the same real action as
+                  // "Download .ics file" below, not a separate stub.
+                  onTap: () {
+                    Navigator.of(sheetContext).pop();
+                    _downloadIcs();
+                  },
                 ),
               _CalendarOptionTile(
                 icon: Ionicons.download_outline,
                 iconColor: AppColors.blue,
                 label: 'Download .ics file',
-                onTap: () => Navigator.of(sheetContext).pop(),
+                onTap: () {
+                  Navigator.of(sheetContext).pop();
+                  _downloadIcs();
+                },
               ),
             ],
           ),

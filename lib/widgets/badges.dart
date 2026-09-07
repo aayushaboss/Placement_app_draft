@@ -133,11 +133,17 @@ class StatusBadge extends StatelessWidget {
   // pure status display. Softened to the same tinted-pill language as the
   // other three statuses so all five read consistently as status, not as
   // five buttons with two odd ones out.
+  // In Review/Offer use the *Dark variants, not the plain warning/success
+  // tokens — those read fine as icon fills but fail contrast as small
+  // text sat on their own tint. Interview gets its own violet accent
+  // instead of reusing Applied's blue, so the single most important
+  // status jump in a list of cards is distinguishable by color, not just
+  // by reading the label text.
   static const Map<String, (Color, Color)> _statusColors = {
     'Applied': (AppColors.blueA10, AppColors.blue),
-    'In Review': (AppColors.warningA15, AppColors.warning),
-    'Interview': (AppColors.blueA10, AppColors.blue),
-    'Offer': (AppColors.successA10, AppColors.success),
+    'In Review': (AppColors.warningA15, AppColors.warningDark),
+    'Interview': (AppColors.violetA15, AppColors.violet),
+    'Offer': (AppColors.successA10, AppColors.successDark),
     'Rejected': (AppColors.gray500A15, AppColors.gray500),
   };
 

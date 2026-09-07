@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:html' as html;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -12,12 +13,10 @@ import '../utils/fomo_prefs_key.dart';
 import '../utils/no_orphan.dart';
 import 'pill_button.dart';
 
-const _missedCount = 60;
-
-/// Naukri's landing-page FOMO nudge ("You missed out on 60 jobs last
-/// week! Turn on notifications") — shown once, as a bottom sheet, on the
-/// first Home arrival after onboarding. Not on the landing screen itself,
-/// since there's no signed-in user to notify yet.
+/// Naukri's landing-page FOMO nudge ("Turn on notifications so you never
+/// miss an opening") — shown once, as a bottom sheet, on the first Home
+/// arrival after onboarding. Not on the landing screen itself, since
+/// there's no signed-in user to notify yet.
 ///
 /// Call this from Home's first frame; it no-ops silently if the prompt has
 /// already been seen. [isSchool] swaps the copy for the school segment,
@@ -28,19 +27,23 @@ Future<void> maybeShowFomoSheet(BuildContext context, {required bool isSchool}) 
   if (prefs.getBool(fomoDismissedPrefsKey) ?? false) return;
   if (!context.mounted) return;
 
-  final title = isSchool ? 'New certificate courses are up' : 'You missed $_missedCount+ new openings this week';
-  final body = isSchool ? 'Turn on notifications so you never miss a new one.' : 'Turn on notifications so you never miss one again.';
+  // No fabricated "60+ missed" number — this used to be a hardcoded count
+  // shown to every user regardless of account age, including one that had
+  // literally never opened the feed yet and couldn't have missed anything.
+  final title = isSchool ? 'New certificate courses are up' : "Don't miss new openings";
+  final body = isSchool ? 'Turn on notifications so you never miss a new one.' : 'Turn on notifications so you never miss one that fits.';
 
   Future<void> dismiss() async {
     if (context.mounted) Navigator.of(context).pop();
     await prefs.setBool(fomoDismissedPrefsKey, true);
   }
 
-  showModalBottomSheet(
+  // Dismissible now (tap the scrim, or drag down) — previously the only
+  // way out was one of the two buttons below, with no tap-outside escape
+  // like every other bottom sheet in the app allows.
+  unawaited(showModalBottomSheet(
     context: context,
     backgroundColor: AppColors.white,
-    isDismissible: false,
-    enableDrag: false,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
     builder: (sheetContext) => Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxl),
@@ -102,5 +105,8 @@ Future<void> maybeShowFomoSheet(BuildContext context, {required bool isSchool}) 
         ],
       ),
     ),
-  );
+  // Marks it seen no matter how the sheet closed — including a scrim tap
+  // or drag-down, which dismiss() above never runs for since those don't
+  // go through either button's onPressed.
+  ).then((_) => prefs.setBool(fomoDismissedPrefsKey, true)));
 }

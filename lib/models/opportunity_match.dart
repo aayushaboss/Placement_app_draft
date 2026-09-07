@@ -1,6 +1,13 @@
 import 'opportunity.dart';
 import 'user.dart';
 
+/// Shown as a Tooltip on every match badge (see matchLabelFor below) — the
+/// score itself was rendered everywhere with zero explanation of what it
+/// meant or how to raise it. One shared string so the wording can't drift
+/// between the 3 different card widgets that render this badge.
+const matchExplanation =
+    'Based on how closely this role lines up with your interested roles, resume skills, and profile — add more skills to your resume to raise it.';
+
 /// Personalized relevance + deadline-urgency helpers for opportunity cards.
 /// Prototype heuristic (not a real ranking model): weights the user's
 /// selected "Interested roles" from onboarding heavily, with a smaller

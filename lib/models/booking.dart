@@ -22,6 +22,11 @@ class Booking {
   final String? venueAddress;
   final String? venueCity;
 
+  /// Soft-delete marker, mirroring Application.deletedAt exactly — a
+  /// cancelled session used to be a hard removal with no recovery path,
+  /// unlike Applications' own undo-snackbar-backed soft delete.
+  final String? deletedAt;
+
   const Booking({
     required this.id,
     required this.userId,
@@ -39,6 +44,7 @@ class Booking {
     this.venueName,
     this.venueAddress,
     this.venueCity,
+    this.deletedAt,
   });
 
   Booking copyWith({
@@ -64,6 +70,31 @@ class Booking {
       venueName: venueName,
       venueAddress: venueAddress,
       venueCity: venueCity,
+      deletedAt: deletedAt,
+    );
+  }
+
+  /// Unconditionally overwrites deletedAt, including clearing it back to
+  /// null on restore — mirrors Application.withDeletedAt exactly.
+  Booking withDeletedAt(String? deletedAt) {
+    return Booking(
+      id: id,
+      userId: userId,
+      kind: kind,
+      mode: mode,
+      sessionType: sessionType,
+      date: date,
+      time: time,
+      name: name,
+      phone: phone,
+      email: email,
+      counselor: counselor,
+      status: status,
+      createdAt: createdAt,
+      venueName: venueName,
+      venueAddress: venueAddress,
+      venueCity: venueCity,
+      deletedAt: deletedAt,
     );
   }
 
@@ -90,6 +121,7 @@ class Booking {
       venueName: name,
       venueAddress: address,
       venueCity: city,
+      deletedAt: deletedAt,
     );
   }
 }

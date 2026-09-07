@@ -394,13 +394,21 @@ List<Course> filterCourses([String? category]) {
 /// [filterCourses] rather than replacing it — search and the per-category
 /// carousels only ever need a single category and have no reason to pull in
 /// this richer shape.
+///
+/// [query] (Round V) lets a text search combine with the same facets
+/// instead of being a separate, mutually-exclusive mode — matches title and
+/// category, mirroring filterOpportunities' own multi-field `.contains()`
+/// approach.
 List<Course> filterCoursesAdvanced({
   List<String> categories = const [],
   List<String> durationBuckets = const [],
+  String? query,
 }) {
+  final q = query?.trim().toLowerCase();
   return mockCourses.where((c) {
     if (categories.isNotEmpty && !categories.contains(c.category)) return false;
     if (durationBuckets.isNotEmpty && !durationBuckets.any((b) => _matchesDurationBucket(c, b))) return false;
+    if (q != null && q.isNotEmpty && !c.title.toLowerCase().contains(q) && !c.category.toLowerCase().contains(q)) return false;
     return true;
   }).toList();
 }
@@ -435,7 +443,7 @@ List<Course> prepCoursesFor(List<String> ids) {
 /// Every prep course tied to a set of opportunities, deduped and falling
 /// back to the general catalog so the result is never empty — shared by
 /// the applications tracker's "prep for this interview" sheet and the
-/// college Home feed's end-of-scroll "Boost your chances" carousel.
+/// college Home feed's end-of-scroll "Courses to boost your profile" carousel.
 List<Course> prepCoursesForOpportunities(Iterable<Opportunity> opportunities, {int take = 4}) {
   final ids = <String>[];
   for (final opp in opportunities) {

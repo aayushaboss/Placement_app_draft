@@ -29,6 +29,21 @@ class AppColors {
   static const warning = Color(0xFFFF9500);
   static const error = Color(0xFFFF3B30);
   static const info = Color(0xFF0A2FFF);
+  // Semantic alias for `blue`, same reasoning as `info` above — a visible
+  // keyboard-focus outline (Round V accessibility bootstrap) should use the
+  // app's one interactive-accent color, not a new hue.
+  static const focusRing = blue;
+  // Darker variants for small text sat on that same color's own ~15% tint
+  // — the plain success/warning values above read fine as icon fills, but
+  // as StatusBadge's foreground text-on-tint they fell under WCAG AA
+  // (~2.2-2.6:1). These pass comfortably at the same 12px size.
+  static const successDark = Color(0xFF2E7D32);
+  static const warningDark = Color(0xFFB25900);
+  // Interview's own accent — previously identical to Applied's blue, the
+  // single most important status jump in the tracker was indistinguishable
+  // by color; no existing token fit, so this is new.
+  static const violet = Color(0xFF7C4DFF);
+  static const violetA15 = Color(0x267C4DFF);
 
   static const border = Color(0xFFE5E5EA);
 
@@ -38,6 +53,11 @@ class AppColors {
   static const whiteA20 = Color(0x33FFFFFF);
   static const whiteA70 = Color(0xB3FFFFFF);
   static const blueA10 = Color(0x1A0A2FFF);
+  // Course cards' accent — deliberately not blue, so a course card reads
+  // as visually distinct from a job card at a glance (same shell/layout
+  // otherwise), instead of relying on the reader to parse the card's text
+  // content to tell the two apart while scanning.
+  static const yellowA15 = Color(0x26FFC72C);
   static const successA10 = Color(0x1A4CAF50);
   static const warningA15 = Color(0x24FF9500);
   static const errorA10 = Color(0x1FFF3B30);

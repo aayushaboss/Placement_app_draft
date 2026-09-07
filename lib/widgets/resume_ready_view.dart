@@ -44,10 +44,14 @@ class _ResumeReadyViewState extends State<ResumeReadyView> {
       final safeName = _name.replaceAll(RegExp(r'[^\w\s-]'), '').trim().replaceAll(RegExp(r'\s+'), '_');
       await Printing.sharePdf(bytes: bytes, filename: '${safeName.isEmpty ? 'resume' : safeName}_resume.pdf');
     } catch (e) {
+      debugPrint('Resume PDF generation failed: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(content: Text("Couldn't generate the PDF: $e")));
+        ..showSnackBar(SnackBar(
+          content: const Text("Couldn't generate the PDF"),
+          action: SnackBarAction(label: 'Retry', textColor: AppColors.yellow, onPressed: _download),
+        ));
     } finally {
       if (mounted) setState(() => _downloading = false);
     }

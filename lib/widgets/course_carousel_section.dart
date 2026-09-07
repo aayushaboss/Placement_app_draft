@@ -49,7 +49,7 @@ class CourseCarouselSection extends StatelessWidget {
                   text: TextSpan(
                     children: [
                       TextSpan(text: title, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
-                      TextSpan(text: '  (${courses.length})', style: AppTextStyles.body.copyWith(color: AppColors.gray400, fontSize: 14)),
+                      TextSpan(text: '  (${courses.length})', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14)),
                     ],
                   ),
                   maxLines: 1,
@@ -61,7 +61,7 @@ class CourseCarouselSection extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   onTap: onViewAll,
                   child: Padding(
-                    padding: const EdgeInsets.only(left: AppSpacing.sm),
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.sm),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -139,8 +139,12 @@ class _CourseCard extends StatelessWidget {
                     width: 44,
                     height: 44,
                     alignment: Alignment.center,
-                    decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.md)),
-                    child: Icon(categoryIcons[course.category] ?? Ionicons.book_outline, size: 22, color: AppColors.blue),
+                    // Yellow, not blue — the one deliberate color break from
+                    // OpportunityCarouselCard's otherwise-identical shell, so
+                    // a course card reads as its own category at a glance
+                    // instead of looking like another job card.
+                    decoration: BoxDecoration(color: AppColors.yellowA15, borderRadius: BorderRadius.circular(AppRadius.md)),
+                    child: Icon(categoryIcons[course.category] ?? Ionicons.book_outline, size: 22, color: AppColors.yellowDark),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
@@ -148,7 +152,13 @@ class _CourseCard extends StatelessWidget {
                       course.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 15, height: 1.2),
+                      // medium, not bold, and plain bodyLg (14px) rather
+                      // than a bumped-up size — reads both lighter and
+                      // smaller than the section heading above (h3, 16px/
+                      // bold/w700), while staying the dominant text within
+                      // this card itself. See opportunity_carousel_card
+                      // .dart's own note — same fix, same reasoning.
+                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, height: 1.2),
                     ),
                   ),
                 ],

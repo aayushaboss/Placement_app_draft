@@ -5,16 +5,19 @@ import 'package:provider/provider.dart';
 
 import '../../mockData/mock_applications.dart';
 import '../../mockData/mock_opportunities.dart';
+import '../../models/opportunity.dart';
 import '../../models/opportunity_match.dart';
+import '../../models/user.dart';
 import '../../services/apply_flow.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
 import '../../utils/no_orphan.dart';
 import '../../widgets/back_chevron.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/opportunity_row.dart';
-import '../../widgets/pill_button.dart';
 import '../../widgets/responsive_body.dart';
 
 /// Mirrors frontend/src/screens/SavedScreen.tsx (SavedScreen).
@@ -33,10 +36,14 @@ class _SavedScreenState extends State<SavedScreen> {
     final user = appState.user;
     final items = mockOpportunities.where((o) => appState.isOpportunitySaved(o.id)).toList();
     final topInset = MediaQuery.of(context).padding.top;
+    // Same flat-list-of-uniform-cards shape as Applications — reuse its
+    // exact 2-column-at-tablet-width treatment rather than inventing a new
+    // reflow rule.
+    final columns = MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet ? 2 : 1;
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(child: Column(
+      body: ResponsiveBody(maxWidth: 720, child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
@@ -67,64 +74,67 @@ class _SavedScreenState extends State<SavedScreen> {
                     children: [
                       Padding(
                         padding: const EdgeInsets.only(top: AppSpacing.xxxl),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 72,
-                              height: 72,
-                              alignment: Alignment.center,
-                              decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
-                              child: const Icon(Ionicons.bookmark_outline, size: 34, color: AppColors.blue),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(top: AppSpacing.md),
-                              child: Text('Nothing saved yet', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 18, fontWeight: AppFontWeight.medium)),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(top: AppSpacing.sm),
-                              child: Text(
-                                'Tap the bookmark on any opportunity to keep it here.',
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(top: AppSpacing.xl),
-                              child: PillButton(
-                                label: 'Browse opportunities',
-                                full: false,
-                                onPressed: () => context.go('/tabs'),
-                              ),
-                            ),
-                          ],
+                        child: EmptyState(
+                          icon: Ionicons.bookmark_outline,
+                          title: 'Nothing saved yet',
+                          subtitle: 'Tap the bookmark on any opportunity to keep it here.',
+                          buttonLabel: 'Browse opportunities',
+                          onButtonTap: () => context.go('/tabs'),
                         ),
                       ),
                     ],
                   )
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xxxl),
-                    children: List.generate(items.length, (i) {
-                      final o = items[i];
-                      final row = OpportunityRow(
-                        tag: o.type,
-                        title: o.title,
-                        subtitle: o.company,
-                        meta: [o.location, o.stipend, o.duration],
-                        matchLabel: o.matchLabelFor(user),
-                        deadlineLabel: o.deadlineLabel,
-                        deadlineUrgent: o.deadlineIsUrgent,
-                        saved: appState.isOpportunitySaved(o.id),
-                        applied: listApplications().any((a) => a.opportunityId == o.id),
-                        onToggleSave: () => appState.toggleSavedOpportunity(o.id),
-                        onTap: () => context.push('/opportunity/${o.id}'),
-                        onApply: () => startApplyFlow(context, o, onApplied: () => setState(() {})),
-                      );
-                      return i == items.length - 1 ? row : Padding(padding: const EdgeInsets.only(bottom: AppSpacing.lg), child: row);
-                    }),
+                    children: [
+                      if (columns == 1)
+                        ...List.generate(items.length, (i) {
+                          final o = items[i];
+                          final row = _savedRow(context, appState, user, o);
+                          return i == items.length - 1 ? row : Padding(padding: const EdgeInsets.only(bottom: AppSpacing.lg), child: row);
+                        })
+                      else
+                        for (var row = 0; row < (items.length / columns).ceil(); row++)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                            child: IntrinsicHeight(
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  for (var i = 0; i < columns; i++) ...[
+                                    if (i > 0) const SizedBox(width: AppSpacing.lg),
+                                    Expanded(
+                                      child: row * columns + i < items.length
+                                          ? _savedRow(context, appState, user, items[row * columns + i])
+                                          : const SizedBox(),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                    ],
                   ),
           ),
         ],
       )),
+    );
+  }
+
+  Widget _savedRow(BuildContext context, AppState appState, User? user, Opportunity o) {
+    return OpportunityRow(
+      tag: o.type,
+      title: o.title,
+      subtitle: o.company,
+      meta: [o.location, o.stipend, o.duration],
+      matchLabel: o.matchLabelFor(user),
+      deadlineLabel: o.deadlineLabel,
+      deadlineUrgent: o.deadlineIsUrgent,
+      saved: appState.isOpportunitySaved(o.id),
+      applied: listApplications().any((a) => a.opportunityId == o.id),
+      onToggleSave: () => appState.toggleSavedOpportunity(o.id),
+      onTap: () => context.push('/opportunity/${o.id}'),
+      onApply: () => startApplyFlow(context, o, onApplied: () => setState(() {})),
     );
   }
 }

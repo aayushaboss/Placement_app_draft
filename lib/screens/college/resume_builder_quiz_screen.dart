@@ -10,11 +10,11 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../mockData/course_fields.dart';
-import '../../mockData/mock_applications.dart';
 import '../../mockData/mock_profile_options.dart';
 import '../../models/language_entry.dart';
 import '../../models/parsed_resume.dart';
 import '../../models/user.dart';
+import '../../services/apply_flow.dart';
 import '../../state/app_state.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
@@ -256,6 +256,11 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
   // entry is committed (or editing starts/ends), so a second entry always
   // starts fresh at the first question.
   int _eduQuestionIndex = 0;
+  // Bumped every time _eduQuestionIndex resets to 0 (add/edit/cancel) —
+  // captured by a scheduled auto-advance timer and re-checked when it
+  // fires, so a timer scheduled for one entry can never fire against a
+  // different entry that happens to land back on the same question index.
+  int _eduDurationGeneration = 0;
   // Non-null while an existing entry is loaded into the form above for
   // editing — set on tapping a card, cleared on save/cancel. The tapped
   // entry is pulled out of _educationEntries while this is set (so it
@@ -280,6 +285,8 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
   // Same purpose as _eduQuestionIndex: 0=Company, 1=Role, 2=Duration,
   // 3=Description.
   int _expQuestionIndex = 0;
+  // See _eduDurationGeneration — same purpose.
+  int _expDurationGeneration = 0;
   // Same editing pattern as education, see _editingEducationIndex.
   int? _editingExperienceIndex;
   WorkExperience? _editingExperienceOriginal;
@@ -298,6 +305,8 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
   bool _certOngoing = false;
   // Same purpose as _eduQuestionIndex: 0=Name, 1=Duration, 2=Image.
   int _certQuestionIndex = 0;
+  // See _eduDurationGeneration — same purpose.
+  int _certDurationGeneration = 0;
   int? _editingCertificationIndex;
   ResumeCertification? _editingCertificationOriginal;
   // Optional proof-of-certificate image — picked straight from the gallery
@@ -409,6 +418,15 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
 
   Future<void> _goTo(int page) async {
     if (page == _index || page < 0 || page >= _totalSteps) return;
+    // Leaving a step (Continue, Skip, or back) while an entry on that step
+    // is mid-edit used to silently drop it — it stays pulled out of its
+    // list forever since nothing re-inserts it. Auto-cancelling here (same
+    // as tapping each step's own "Cancel" button) is the one place every
+    // step transition passes through, so it catches every way of leaving,
+    // not just the footer button.
+    if (_editingEducationIndex != null) _cancelEditEducation();
+    if (_editingExperienceIndex != null) _cancelEditWorkExperience();
+    if (_editingCertificationIndex != null) _cancelEditCertification();
     await _pageController.animateToPage(page, duration: const Duration(milliseconds: 300), curve: Curves.easeOutCubic);
     if (!mounted) return;
     setState(() => _index = page);
@@ -453,7 +471,16 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
 
   Future<void> _saveDraft() async {
     if (!mounted || !_hasDraftContent) return;
-    await context.read<AppState>().updateProfile((current) => current.copyWith(resume: _resumeFromState(), languages: _languages));
+    try {
+      await context.read<AppState>().updateProfile((current) => current.copyWith(resume: _resumeFromState(), languages: _languages));
+    } catch (e) {
+      // Background autosave — the guard above keeps an oversized image
+      // path from ever reaching here, so a failure at this point is
+      // unexpected; fail quietly rather than interrupting the quiz with a
+      // snackbar on every step. The real dead-end this used to cause was
+      // at _finishBuilding, which does surface a failure to the user.
+      debugPrint('ResumeBuilderQuizScreen: autosave failed — $e');
+    }
   }
 
   void _back() {
@@ -473,14 +500,21 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
   }
 
   void _addSkillValue(String s) {
+    if (s.isEmpty) return;
     final alreadyAdded = _skills.any((existing) => existing.toLowerCase() == s.toLowerCase());
-    if (s.isNotEmpty && !alreadyAdded) {
+    if (alreadyAdded) {
+      // Used to just clear the input with nothing added and no
+      // explanation — looked like a UI glitch rather than "you already
+      // added this."
       HapticFeedback.selectionClick();
-      setState(() {
-        _skills = [..._skills, s];
-        _skillsError = null;
-      });
+      setState(() => _skillsError = 'Already added');
+      return;
     }
+    HapticFeedback.selectionClick();
+    setState(() {
+      _skills = [..._skills, s];
+      _skillsError = null;
+    });
   }
 
   void _continueFromSkills() {
@@ -492,9 +526,12 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     _goTo(5);
   }
 
+  bool get _eduDurationWasComplete => _eduStartYear != null && (_eduEndYear != null || _eduCurrentlyStudying);
+
   Future<void> _pickEduStartYear() async {
     final year = await showYearPickerSheet(context, minYear: 1990, maxYear: DateTime.now().year, initialYear: _eduStartYear, title: 'Start year');
     if (year == null) return;
+    final wasComplete = _eduDurationWasComplete;
     setState(() {
       _eduStartYear = year;
       // End year is only ever valid within start..start+6 now — clear it if
@@ -502,7 +539,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       // either direction (previously only checked the "too early" side).
       if (_eduEndYear != null && (_eduEndYear! < year || _eduEndYear! > year + 6)) _eduEndYear = null;
     });
-    _maybeAutoAdvanceEduDuration();
+    _maybeAutoAdvanceEduDuration(wasComplete: wasComplete);
   }
 
   Future<void> _pickEduEndYear() async {
@@ -521,17 +558,19 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       title: 'End year',
     );
     if (year == null) return;
+    final wasComplete = _eduDurationWasComplete;
     setState(() => _eduEndYear = year);
-    _maybeAutoAdvanceEduDuration();
+    _maybeAutoAdvanceEduDuration(wasComplete: wasComplete);
   }
 
   void _setEduCurrentlyStudying(bool value) {
     HapticFeedback.selectionClick();
+    final wasComplete = _eduDurationWasComplete;
     setState(() {
       _eduCurrentlyStudying = value;
       if (value) _eduEndYear = null;
     });
-    _maybeAutoAdvanceEduDuration();
+    _maybeAutoAdvanceEduDuration(wasComplete: wasComplete);
   }
 
   // Duration has no keyboard to submit — it's two date-picker sheets plus a
@@ -545,11 +584,20 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
   // re-checking the question index inside the callback guards against a
   // stale timer firing after the user has already moved past this question
   // some other way.
-  void _maybeAutoAdvanceEduDuration() {
-    if (_eduQuestionIndex != 2) return;
+  //
+  // [wasComplete] — true when the Duration answer was *already* complete
+  // before this particular change (i.e. the user tapped the fact-row to
+  // fix one field of an already-answered Duration, not answering it for
+  // the first time). In that case we deliberately don't arm the timer:
+  // re-editing one field of a complete answer would otherwise immediately
+  // re-satisfy the completeness check and yank the user forward mid-
+  // correction, before they get to the second field they meant to fix.
+  void _maybeAutoAdvanceEduDuration({required bool wasComplete}) {
+    if (_eduQuestionIndex != 2 || wasComplete) return;
     if (_eduStartYear == null || (_eduEndYear == null && !_eduCurrentlyStudying)) return;
+    final generation = _eduDurationGeneration;
     Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted && _eduQuestionIndex == 2) setState(() => _eduQuestionIndex = 3);
+      if (mounted && _eduQuestionIndex == 2 && generation == _eduDurationGeneration) setState(() => _eduQuestionIndex = 3);
     });
   }
 
@@ -606,6 +654,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _eduEndYear = null;
       _eduCurrentlyStudying = false;
       _eduQuestionIndex = 0;
+      _eduDurationGeneration++;
     });
   }
 
@@ -618,7 +667,19 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
   /// for editing — the list index is remembered so `_addEducation` can
   /// re-insert it in the same spot instead of appending it at the end.
   void _editEducation(int index) {
+    // Capture the actual tapped entry before anything else touches the
+    // list — cancelling an in-progress edit below re-inserts a different
+    // entry ahead of this one, which would shift `index` out from under a
+    // plain int lookup.
     final entry = _educationEntries[index];
+    // Tapping a different card while another edit is already in progress
+    // used to silently discard it — the in-progress entry was pulled out
+    // of the list and never re-inserted once a second _editEducation
+    // overwrote _editingEducationIndex/Original. Auto-cancelling (which
+    // re-inserts the original, same as tapping "Cancel" would) first means
+    // nothing is ever silently lost, just implicitly cancelled.
+    if (_editingEducationIndex != null) _cancelEditEducation();
+    index = _educationEntries.indexOf(entry);
     final parsed = _parseDurationRange(entry.duration);
     HapticFeedback.selectionClick();
     setState(() {
@@ -641,6 +702,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _eduEndYear = parsed.end;
       _eduCurrentlyStudying = parsed.isCurrent;
       _eduQuestionIndex = 0;
+      _eduDurationGeneration++;
     });
   }
 
@@ -662,6 +724,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _eduEndYear = null;
       _eduCurrentlyStudying = false;
       _eduQuestionIndex = 0;
+      _eduDurationGeneration++;
     });
   }
 
@@ -679,6 +742,8 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     }
   }
 
+  bool get _expDurationWasComplete => _expStartDate != null && (_expEndDate != null || _expCurrentlyWorking);
+
   Future<void> _pickExpStartDate() async {
     // A start date can't be in the future either — the same real-world
     // constraint as the end date, just less obviously so.
@@ -694,11 +759,12 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     );
     if (picked == null) return;
     final start = DateTime(picked.year, picked.month);
+    final wasComplete = _expDurationWasComplete;
     setState(() {
       _expStartDate = start;
       if (_expEndDate != null && _expEndDate!.isBefore(start)) _expEndDate = null;
     });
-    _maybeAutoAdvanceExpDuration();
+    _maybeAutoAdvanceExpDuration(wasComplete: wasComplete);
   }
 
   Future<void> _pickExpEndDate() async {
@@ -717,26 +783,30 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       maxDate: DateTime(now.year, now.month),
     );
     if (picked == null) return;
+    final wasComplete = _expDurationWasComplete;
     setState(() => _expEndDate = DateTime(picked.year, picked.month));
-    _maybeAutoAdvanceExpDuration();
+    _maybeAutoAdvanceExpDuration(wasComplete: wasComplete);
   }
 
   void _setExpCurrentlyWorking(bool value) {
     HapticFeedback.selectionClick();
+    final wasComplete = _expDurationWasComplete;
     setState(() {
       _expCurrentlyWorking = value;
       if (value) _expEndDate = null;
     });
-    _maybeAutoAdvanceExpDuration();
+    _maybeAutoAdvanceExpDuration(wasComplete: wasComplete);
   }
 
-  // See _maybeAutoAdvanceEduDuration — same reasoning, target index 3
-  // (Description) matches this section's own _question switch.
-  void _maybeAutoAdvanceExpDuration() {
-    if (_expQuestionIndex != 2) return;
+  // See _maybeAutoAdvanceEduDuration — same reasoning (including the
+  // wasComplete/generation guards), target index 3 (Description) matches
+  // this section's own _question switch.
+  void _maybeAutoAdvanceExpDuration({required bool wasComplete}) {
+    if (_expQuestionIndex != 2 || wasComplete) return;
     if (_expStartDate == null || (_expEndDate == null && !_expCurrentlyWorking)) return;
+    final generation = _expDurationGeneration;
     Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted && _expQuestionIndex == 2) setState(() => _expQuestionIndex = 3);
+      if (mounted && _expQuestionIndex == 2 && generation == _expDurationGeneration) setState(() => _expQuestionIndex = 3);
     });
   }
 
@@ -765,6 +835,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _expEndDate = null;
       _expCurrentlyWorking = false;
       _expQuestionIndex = 0;
+      _expDurationGeneration++;
     });
   }
 
@@ -774,7 +845,11 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
   }
 
   void _editWorkExperience(int index) {
+    // See _editEducation's own comment — same "capture entry, cancel any
+    // in-progress edit first, re-resolve index" fix.
     final entry = _workExperience[index];
+    if (_editingExperienceIndex != null) _cancelEditWorkExperience();
+    index = _workExperience.indexOf(entry);
     final parsed = _parseMonthYearDurationRange(entry.duration);
     HapticFeedback.selectionClick();
     setState(() {
@@ -788,6 +863,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _expEndDate = parsed.end;
       _expCurrentlyWorking = parsed.isCurrent;
       _expQuestionIndex = 0;
+      _expDurationGeneration++;
     });
   }
 
@@ -807,6 +883,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _expEndDate = null;
       _expCurrentlyWorking = false;
       _expQuestionIndex = 0;
+      _expDurationGeneration++;
     });
   }
 
@@ -828,6 +905,8 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     }
   }
 
+  bool get _certDurationWasComplete => _certStartDate != null && (_certEndDate != null || _certOngoing);
+
   Future<void> _pickCertStartDate() async {
     final now = DateTime.now();
     final picked = await showMonthYearPickerSheet(
@@ -840,11 +919,12 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     );
     if (picked == null) return;
     final start = DateTime(picked.year, picked.month);
+    final wasComplete = _certDurationWasComplete;
     setState(() {
       _certStartDate = start;
       if (_certEndDate != null && _certEndDate!.isBefore(start)) _certEndDate = null;
     });
-    _maybeAutoAdvanceCertDuration();
+    _maybeAutoAdvanceCertDuration(wasComplete: wasComplete);
   }
 
   Future<void> _pickCertEndDate() async {
@@ -862,26 +942,30 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       maxDate: DateTime(now.year, now.month),
     );
     if (picked == null) return;
+    final wasComplete = _certDurationWasComplete;
     setState(() => _certEndDate = DateTime(picked.year, picked.month));
-    _maybeAutoAdvanceCertDuration();
+    _maybeAutoAdvanceCertDuration(wasComplete: wasComplete);
   }
 
   void _setCertOngoing(bool value) {
     HapticFeedback.selectionClick();
+    final wasComplete = _certDurationWasComplete;
     setState(() {
       _certOngoing = value;
       if (value) _certEndDate = null;
     });
-    _maybeAutoAdvanceCertDuration();
+    _maybeAutoAdvanceCertDuration(wasComplete: wasComplete);
   }
 
-  // See _maybeAutoAdvanceEduDuration — same reasoning, target index 2
-  // (certificate image) matches this section's own _question switch.
-  void _maybeAutoAdvanceCertDuration() {
-    if (_certQuestionIndex != 1) return;
+  // See _maybeAutoAdvanceEduDuration — same reasoning (including the
+  // wasComplete/generation guards), target index 2 (certificate image)
+  // matches this section's own _question switch.
+  void _maybeAutoAdvanceCertDuration({required bool wasComplete}) {
+    if (_certQuestionIndex != 1 || wasComplete) return;
     if (_certStartDate == null || (_certEndDate == null && !_certOngoing)) return;
+    final generation = _certDurationGeneration;
     Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted && _certQuestionIndex == 1) setState(() => _certQuestionIndex = 2);
+      if (mounted && _certQuestionIndex == 1 && generation == _certDurationGeneration) setState(() => _certQuestionIndex = 2);
     });
   }
 
@@ -918,7 +1002,12 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       // _certExistingLink rather than silently dropping it just because
       // this field was touched.
       link: _certExistingLink,
-      imagePath: _certImagePath,
+      // A picked file's path can come back as a full base64 data: URI on
+      // web instead of a short blob: URL — persisting a large one blows
+      // the browser's per-origin storage quota and silently breaks every
+      // save from here on (see _saveDraft/_finishBuilding's own guards).
+      // Same cap profile_edit_screen.dart already uses for its photo.
+      imagePath: (_certImagePath != null && _certImagePath!.length > 20000) ? null : _certImagePath,
     );
     HapticFeedback.selectionClick();
     setState(() {
@@ -938,6 +1027,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _certImageFile = null;
       _certImagePath = null;
       _certQuestionIndex = 0;
+      _certDurationGeneration++;
     });
   }
 
@@ -947,7 +1037,10 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
   }
 
   void _editCertification(int index) {
+    // See _editEducation's own comment — same fix.
     final entry = _certifications[index];
+    if (_editingCertificationIndex != null) _cancelEditCertification();
+    index = _certifications.indexOf(entry);
     final parsed = _parseMonthYearDurationRange(entry.duration);
     HapticFeedback.selectionClick();
     setState(() {
@@ -962,6 +1055,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _certImagePath = entry.imagePath;
       _certImageFile = null;
       _certQuestionIndex = 0;
+      _certDurationGeneration++;
     });
   }
 
@@ -982,6 +1076,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       _certImageFile = null;
       _certImagePath = null;
       _certQuestionIndex = 0;
+      _certDurationGeneration++;
     });
   }
 
@@ -1118,11 +1213,29 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
   Future<void> _finishBuilding() async {
     final wasOnboarding = !_postOnboarding;
     final resume = _resumeFromState();
-    await context.read<AppState>().updateProfile((current) => (wasOnboarding
-        ? current.copyWith(resume: resume, languages: _languages, onboardingComplete: true)
-        : current.copyWith(resume: resume, languages: _languages)));
-    if (!mounted) return;
-    setState(() => _phase = _Phase.ready);
+    try {
+      await context.read<AppState>().updateProfile((current) => (wasOnboarding
+          ? current.copyWith(resume: resume, languages: _languages, onboardingComplete: true)
+          : current.copyWith(resume: resume, languages: _languages)));
+      if (!mounted) return;
+      setState(() => _phase = _Phase.ready);
+    } catch (e) {
+      // There was no catch here before — a failed save (the same
+      // storage-quota class of bug profile_edit_screen.dart is already
+      // guarded against) left the user permanently stranded on
+      // _BuildingView, which is deliberately unpoppable during this phase.
+      // Land back on the quiz instead, where "Build my resume" is a real
+      // retry, rather than a dead end with no way out but reloading.
+      debugPrint('ResumeBuilderQuizScreen: finishBuilding failed — $e');
+      if (!mounted) return;
+      setState(() => _phase = _Phase.quiz);
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: const Text("Couldn't save your resume — try again."),
+          action: SnackBarAction(label: 'Retry', textColor: AppColors.yellow, onPressed: _finishBuilding),
+        ));
+    }
   }
 
   // Resume is the last onboarding step (goals already happened before this
@@ -1135,18 +1248,26 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
   void _done() {
     final applyFor = widget.applyForOpportunityId;
     if (applyFor != null) {
-      final application = createApplication(applyFor);
-      if (application != null) {
-        context.go('/application/${application.id}');
-        return;
-      }
+      // Same screening sheet the direct-apply path uses, not a silent
+      // auto-submit with no note/answers — see apply_flow.dart's own doc
+      // comment on continueApplyAfterResume for why.
+      continueApplyAfterResume(context, applyFor);
+      return;
     }
     context.go('/tabs');
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_phase == _Phase.building) return _BuildingView(stepLabel: _buildingSteps[_buildingStep]);
+    if (_phase == _Phase.building) {
+      // Unlike every other phase, this one wasn't wrapped in a PopScope at
+      // all — the system/browser back gesture could pop the route while
+      // _finishBuilding()'s save is still in flight, racing a disposed
+      // context. Blocked outright (not just intercepted): there's no
+      // single "question" to step back to during this transitional phase
+      // anyway.
+      return PopScope(canPop: false, child: _BuildingView(stepLabel: _buildingSteps[_buildingStep]));
+    }
     if (_phase == _Phase.ready) return ResumeReadyView(user: _user, onDone: _done);
 
     final topInset = MediaQuery.of(context).padding.top;
@@ -1343,7 +1464,7 @@ class _IntroStep extends StatelessWidget {
       (Ionicons.person_outline, 'Name', user?.name ?? '—'),
       if ((user?.college ?? '').isNotEmpty) (Ionicons.business_outline, 'College', user!.college!),
       if ((user?.course ?? '').isNotEmpty) (Ionicons.book_outline, 'Course', user!.course!),
-      if ((user?.year ?? '').isNotEmpty) (Ionicons.calendar_outline, 'Year', user!.year!),
+      if ((user?.semester ?? '').isNotEmpty) (Ionicons.layers_outline, 'Semester', user!.semester!),
     ];
 
     return Column(
@@ -1378,8 +1499,13 @@ class _IntroStep extends StatelessWidget {
                                   children: [
                                     Icon(r.$1, size: 18, color: AppColors.blue),
                                     const SizedBox(width: AppSpacing.md),
+                                    // 92, not the original 64 — "Semester"
+                                    // (added for this row) doesn't fit 64
+                                    // without wrapping, same issue already
+                                    // hit and fixed for _FactRow's own
+                                    // label column elsewhere in this file.
                                     SizedBox(
-                                      width: 64,
+                                      width: 92,
                                       child: Text(r.$2, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5)),
                                     ),
                                     Expanded(
@@ -1493,6 +1619,13 @@ class _YearRangeRow extends StatelessWidget {
                 placeholder: 'End date',
                 icon: Ionicons.calendar_outline,
                 onTap: onPickEnd,
+                // Picking End before Start used to accept any year with no
+                // bound (the picker's minDate/minYear had nothing to floor
+                // against yet), then silently clear it the moment Start
+                // was picked afterward and made the range invalid —
+                // disabling End until Start exists removes that "why did
+                // my answer vanish" moment entirely.
+                disabled: startLabel == null,
               ),
             ),
           ],
@@ -1757,7 +1890,10 @@ class _EducationStep extends StatelessWidget {
       case 0:
         return _QuestionScaffold(
           key: const ValueKey('institution'),
-          label: 'Institution',
+          // Same wording as profile_edit_screen.dart and onboarding's
+          // micro_profile_screen.dart use for this same field — was
+          // "Institution" here, "College / University" there.
+          label: 'College / University',
           field: AutocompleteField(
             value: institutionController.text,
             controller: institutionController,
@@ -1775,7 +1911,7 @@ class _EducationStep extends StatelessWidget {
       case 1:
         return _QuestionScaffold(
           key: const ValueKey('degree'),
-          label: 'Degree',
+          label: 'Course / Degree',
           field: AutocompleteField(
             value: degreeController.text,
             controller: degreeController,
@@ -1820,6 +1956,13 @@ class _EducationStep extends StatelessWidget {
                   .toList(),
             ),
             Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                'Pick whichever your institution uses',
+                style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12),
+              ),
+            ),
+            Padding(
               padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: PillInput(
                 controller: gpaController,
@@ -1851,9 +1994,9 @@ class _EducationStep extends StatelessWidget {
   Widget _answeredRow(int index) {
     switch (index) {
       case 0:
-        return _FactRow(icon: Ionicons.business_outline, label: 'Institution', value: institutionController.text, onTap: () => onQuestionIndexChanged(0));
+        return _FactRow(icon: Ionicons.business_outline, label: 'College / University', value: institutionController.text, onTap: () => onQuestionIndexChanged(0));
       case 1:
-        return _FactRow(icon: Ionicons.school_outline, label: 'Degree', value: degreeController.text, onTap: () => onQuestionIndexChanged(1));
+        return _FactRow(icon: Ionicons.school_outline, label: 'Course / Degree', value: degreeController.text, onTap: () => onQuestionIndexChanged(1));
       default:
         final value = isCurrent ? '$startYear - Present' : (endYear != null ? '$startYear - $endYear' : '$startYear');
         return _FactRow(icon: Ionicons.calendar_outline, label: 'Duration', value: value, onTap: () => onQuestionIndexChanged(2));
@@ -1880,9 +2023,9 @@ class _EducationStep extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 if (isEditing) ...[
-                  const FieldLabel('Institution', tight: true),
+                  const FieldLabel('College / University', tight: true),
                   AutocompleteField(value: institutionController.text, controller: institutionController, placeholder: 'e.g. BITS Goa', icon: Ionicons.business_outline, options: mockColleges, onChanged: (_) {}),
-                  const FieldLabel('Degree', tight: true),
+                  const FieldLabel('Course / Degree', tight: true),
                   AutocompleteField(value: degreeController.text, controller: degreeController, placeholder: 'e.g. Bachelor of Design', icon: Ionicons.school_outline, options: mockCourses, onChanged: (_) {}),
                   const FieldLabel('Duration', tight: true),
                   _YearRangeRow(
@@ -1901,6 +2044,13 @@ class _EducationStep extends StatelessWidget {
                     children: GpaUnit.values
                         .map((u) => AppChip(label: _gpaUnitLabel(u), selected: gpaUnit == u, onPressed: () => onGpaUnitChanged(u)))
                         .toList(),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 4),
+                    child: Text(
+                      'Pick whichever your institution uses',
+                      style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12),
+                    ),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.sm),
@@ -2175,7 +2325,11 @@ class _ExperienceStep extends StatelessWidget {
                   child: Row(
                     children: [
                       Expanded(
-                        child: AppChip(label: 'Not yet', selected: hasExperience == false, onPressed: () => onSelectHasExperience(false)),
+                        // Disabled once entries exist — they're proof the
+                        // answer is yes, and switching to "Not yet" would
+                        // leave those same entries visibly listed under a
+                        // contradictory answer instead of removing them.
+                        child: AppChip(label: 'Not yet', selected: hasExperience == false, disabled: entries.isNotEmpty, onPressed: () => onSelectHasExperience(false)),
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
@@ -2310,8 +2464,12 @@ class _ExperienceStep extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
           decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
           child: PillButton(
-            label: entries.isEmpty ? 'Skip for now' : 'Continue',
-            variant: entries.isEmpty ? PillVariant.ghost : PillVariant.primary,
+            // "Yes, I do" + zero entries used to still read "Skip for
+            // now" — the wording never checked the actual yes/no answer,
+            // only the entry count.
+            label: hasExperience == true && entries.isEmpty ? 'Add at least one' : (entries.isEmpty ? 'Skip for now' : 'Continue'),
+            variant: entries.isEmpty && hasExperience != true ? PillVariant.ghost : PillVariant.primary,
+            disabled: hasExperience == true && entries.isEmpty,
             onPressed: onContinue,
           ),
         ),
@@ -2383,7 +2541,15 @@ class _CertificationsStep extends StatelessWidget {
           ? Image.network(imageFile!.path, width: 48, height: 48, fit: BoxFit.cover)
           : Image.file(File(imageFile!.path), width: 48, height: 48, fit: BoxFit.cover);
     }
-    return Image.network(imagePath!, width: 48, height: 48, fit: BoxFit.cover);
+    // imageFile is null whenever a pre-existing entry's image is being
+    // shown without having been re-picked this session (e.g. re-opening
+    // an entry to edit it — _editCertification sets imageFile back to
+    // null and only imagePath survives) — that path is a local filesystem
+    // path on non-web, not a URL, so Image.network here always rendered
+    // a broken image outside the browser.
+    return kIsWeb
+        ? Image.network(imagePath!, width: 48, height: 48, fit: BoxFit.cover)
+        : Image.file(File(imagePath!), width: 48, height: 48, fit: BoxFit.cover);
   }
 
   Widget _imagePickerRow(bool hasImage) {
@@ -2515,7 +2681,8 @@ class _CertificationsStep extends StatelessWidget {
                   child: Row(
                     children: [
                       Expanded(
-                        child: AppChip(label: 'Not yet', selected: hasCertifications == false, onPressed: () => onSelectHasCertifications(false)),
+                        // See _ExperienceStep's own "Not yet" — same guard.
+                        child: AppChip(label: 'Not yet', selected: hasCertifications == false, disabled: entries.isNotEmpty, onPressed: () => onSelectHasCertifications(false)),
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Expanded(
@@ -2628,8 +2795,10 @@ class _CertificationsStep extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
           decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
           child: PillButton(
-            label: entries.isEmpty ? 'Skip for now' : 'Continue',
-            variant: entries.isEmpty ? PillVariant.ghost : PillVariant.primary,
+            // See _ExperienceStep's own footer — same fix.
+            label: hasCertifications == true && entries.isEmpty ? 'Add at least one' : (entries.isEmpty ? 'Skip for now' : 'Continue'),
+            variant: entries.isEmpty && hasCertifications != true ? PillVariant.ghost : PillVariant.primary,
+            disabled: hasCertifications == true && entries.isEmpty,
             onPressed: onContinue,
           ),
         ),
@@ -2700,6 +2869,11 @@ class _SkillsStep extends StatelessWidget {
                         child: PillInput(
                           controller: controller,
                           placeholder: 'Or type your own…',
+                          // Every other free-text question in this flow
+                          // wires the keyboard's own submit — this one
+                          // didn't, so pressing Enter/Done silently did
+                          // nothing and only the separate "+" button worked.
+                          onSubmitted: (_) => onAdd(),
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),

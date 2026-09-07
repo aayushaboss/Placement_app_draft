@@ -199,12 +199,15 @@ class _DashboardCard extends StatelessWidget {
                         title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.bold, height: 1.3),
+                        style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium, height: 1.3),
                       ),
                     ),
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
-                      child: Text(meta, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12)),
+                      // gray500, not gray400 — gray400 on white is ~2.6:1
+                      // contrast (fails WCAG AA) for what's genuine caption
+                      // text here, not just a decorative tint.
+                      child: Text(meta, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                     ),
                   ],
                 ),
@@ -227,12 +230,12 @@ typedef _BoostTipData = ({String message, String cta, String route, IconData ico
 // Icon per profileChecklist item id — matches the icon already assigned to
 // that same section's row on the Profile tab, so the nudge and the
 // checklist read as one consistent system.
+// 'employment'/'languages'/'itSkills' entries removed — profile_readiness.dart's
+// profileChecklist only ever produces basic/resume/goals/video/preferences
+// ids, so those three could never actually be looked up; dead entries.
 const _boostIcons = {
   'resume': Ionicons.document_text_outline,
   'goals': Ionicons.flag_outline,
-  'employment': Ionicons.briefcase_outline,
-  'languages': Ionicons.globe_outline,
-  'itSkills': Ionicons.code_slash_outline,
   'video': Ionicons.videocam_outline,
   'preferences': Ionicons.options_outline,
 };

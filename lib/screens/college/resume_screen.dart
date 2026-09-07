@@ -5,10 +5,11 @@ import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../mockData/mock_applications.dart';
+import '../../mockData/mock_opportunities.dart';
 import '../../mockData/mock_resume.dart';
 import '../../models/parsed_resume.dart';
 import '../../models/profile_readiness.dart';
+import '../../services/apply_flow.dart';
 import '../../state/app_state.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
@@ -16,6 +17,7 @@ import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
 import '../../utils/no_orphan.dart';
 import '../../widgets/back_chevron.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/expandable_text.dart';
 import '../../widgets/pill_button.dart';
 import '../../widgets/pill_input.dart';
@@ -45,6 +47,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
   int? _pdfBytes;
 
   final _nameController = TextEditingController();
+  String? _nameError;
   final _skillInputController = TextEditingController();
   List<String> _skills = [];
   List<ResumeEducation> _education = [];
@@ -138,6 +141,26 @@ class _ResumeScreenState extends State<ResumeScreen> {
       setState(() => _error = 'Upload your resume PDF first.');
       return;
     }
+    // Re-analyzing (e.g. the user went review → back → picked a different
+    // PDF) used to silently overwrite skills/education/projects even if
+    // the user had already hand-edited them in the review stage — nothing
+    // ever asked first. Only prompt when there's actually something to
+    // lose; a first-time parse on an empty screen has nothing to confirm.
+    if (_skills.isNotEmpty || _education.isNotEmpty || _projects.isNotEmpty) {
+      final replace = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Replace your current edits?'),
+          content: const Text('Analyzing this file will overwrite the skills, education, and projects you already have here.'),
+          actions: [
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.of(dialogContext).pop(true), child: const Text('Replace')),
+          ],
+        ),
+      );
+      if (replace != true) return;
+      if (!mounted) return;
+    }
     final profileName = context.read<AppState>().user?.name;
     setState(() {
       _error = null;
@@ -211,12 +234,12 @@ class _ResumeScreenState extends State<ResumeScreen> {
     final applyFor = widget.applyForOpportunityId;
     if (applyFor != null) {
       // Resume just went from missing to saved — the application this
-      // screen was opened for can now actually go through.
-      final application = createApplication(applyFor);
-      if (application != null) {
-        context.go('/application/${application.id}');
-        return;
-      }
+      // screen was opened for can now actually go through. Routes through
+      // the same screening sheet the direct-apply path uses (instead of
+      // silently auto-submitting with no note/answers) — the sheet's own
+      // success flow handles confirmation and navigation from here.
+      continueApplyAfterResume(context, applyFor);
+      return;
     }
     // No pending application to submit — confirm the save with the same
     // success screen the guided builder ends on, then land on Home for
@@ -234,6 +257,13 @@ class _ResumeScreenState extends State<ResumeScreen> {
   }
 
   Future<void> _save() async {
+    // Was accepted silently — only ever masked by falling back to
+    // user.name at PDF-export time and by the "Basic info" checklist item
+    // only checking `resume != null`, not that a name was actually filled.
+    if (_nameController.text.trim().isEmpty) {
+      setState(() => _nameError = 'Enter your name');
+      return;
+    }
     setState(() => _loading = true);
     try {
       final appState = context.read<AppState>();
@@ -255,6 +285,13 @@ class _ResumeScreenState extends State<ResumeScreen> {
           specializations: current.resume?.specializations ?? const [],
           summary: current.resume?.summary,
           workExperience: current.resume?.workExperience ?? const [],
+          // Same reasoning as the fields above — a PDF (re-)upload never
+          // touches these either, so re-uploading over a quiz-built resume
+          // used to silently wipe out any certifications/portfolio link
+          // that were already saved.
+          certifications: current.resume?.certifications ?? const [],
+          portfolioLink: current.resume?.portfolioLink,
+          portfolioFileName: current.resume?.portfolioFileName,
         );
         return wasOnboarding ? current.copyWith(resume: resume, onboardingComplete: true) : current.copyWith(resume: resume);
       });
@@ -449,7 +486,16 @@ class _ResumeScreenState extends State<ResumeScreen> {
           ),
           Expanded(
             child: resume == null
-                ? Center(child: Text('No resume saved yet.', style: AppTextStyles.body.copyWith(color: AppColors.gray500)))
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl).copyWith(top: AppSpacing.xxxl),
+                    child: EmptyState(
+                      icon: Ionicons.document_text_outline,
+                      title: 'No resume saved yet',
+                      subtitle: 'Build one from scratch or upload an existing PDF.',
+                      buttonLabel: 'Build my resume',
+                      onButtonTap: () => context.push('/college/resume/build'),
+                    ),
+                  )
                 : ListView(
                     padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
                     children: [
@@ -545,9 +591,43 @@ class _ResumeScreenState extends State<ResumeScreen> {
     final hasPdf = _pdfName != null;
     final sizeLabel = _prettySize(_pdfBytes);
 
+    // A reminder for "Not now" on the apply gate — don't show it if this
+    // resume screen *is* that exact pending flow already (applyForOpportunityId
+    // would be set to the same id in that case, and continueApplyAfterResume
+    // is about to fire on save anyway).
+    final pendingId = context.watch<AppState>().pendingApplyOpportunityId;
+    final pendingOpportunity = pendingId != null && pendingId != widget.applyForOpportunityId ? getOpportunityById(pendingId) : null;
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
       children: [
+        if (pendingOpportunity != null) ...[
+          GestureDetector(
+            onTap: () {
+              context.read<AppState>().setPendingApplyOpportunity(null);
+              context.push('/opportunity/${pendingOpportunity.id}');
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(AppSpacing.md),
+              decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.lg)),
+              child: Row(
+                children: [
+                  const Icon(Ionicons.briefcase_outline, size: 18, color: AppColors.blue),
+                  const SizedBox(width: AppSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Finish this to apply to ${pendingOpportunity.title}',
+                      style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12.5, fontWeight: AppFontWeight.medium),
+                    ),
+                  ),
+                  const Icon(Ionicons.chevron_forward, size: 16, color: AppColors.blue),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
         Container(
           padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.lg)),
@@ -762,7 +842,15 @@ class _ResumeScreenState extends State<ResumeScreen> {
       children: [
         Text('Full name', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium)),
         const SizedBox(height: AppSpacing.sm),
-        PillInput(controller: _nameController, placeholder: 'Your name', icon: Ionicons.person_outline, onChanged: (_) => setState(() {})),
+        PillInput(
+          controller: _nameController,
+          placeholder: 'Your name',
+          icon: Ionicons.person_outline,
+          error: _nameError,
+          onChanged: (_) => setState(() {
+            if (_nameError != null) _nameError = null;
+          }),
+        ),
         Padding(
           padding: const EdgeInsets.only(top: AppSpacing.lg),
           child: Text('Skills', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium)),

@@ -45,6 +45,18 @@ class _LandingScreenState extends State<LandingScreen> {
       final user = await appState.mockGoogleSignIn();
       if (!mounted) return;
       context.go(routeForUser(user));
+    } catch (_) {
+      // No failure path existed here at all — mockGoogleSignIn was assumed
+      // to always succeed. Once real auth lands this is where a genuine
+      // failure (network, cancelled consent, etc.) needs to land somewhere
+      // visible instead of the loading state just quietly resetting.
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text("Couldn't sign in with Google"),
+          action: SnackBarAction(label: 'Retry', textColor: AppColors.yellow, onPressed: _continueWithGoogle),
+        ),
+      );
     } finally {
       if (mounted) setState(() => _googleLoading = false);
     }
@@ -53,7 +65,15 @@ class _LandingScreenState extends State<LandingScreen> {
   // No `mode` query param — LoginScreen's own default (startOnEmail: false,
   // per router.dart) is the phone field, so this lands there directly
   // instead of on email.
-  void _continueWithPhone() => context.push('/auth/login');
+  void _continueWithPhone() {
+    // Without this, tapping Phone right after Google (before the mock
+    // sign-in's 500ms resolves) let the delayed Google callback fire once
+    // this screen is still mounted underneath the just-pushed login
+    // screen, forcibly navigating away from whatever the user is now
+    // doing there.
+    if (_googleLoading) return;
+    context.push('/auth/login');
+  }
 
   void _goToReturningLogin() => context.push('/auth/login?returning=1');
 
@@ -66,7 +86,15 @@ class _LandingScreenState extends State<LandingScreen> {
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.blue,
-        body: ResponsiveBody(child: Column(
+        // Hero sits outside ResponsiveBody, not wrapped along with
+        // everything else — ResponsiveBody's own doc comment says a
+        // genuine full-bleed banner should wrap only its scrollable
+        // content in it, leaving the banner outside; this screen was
+        // doing the opposite; the hero got pillarboxed to the same
+        // capped width as the text/buttons below it on any browser
+        // ≥600px, breaking the "immersive, edge-to-edge" intent the
+        // comment right below describes.
+        body: Column(
           children: [
             // Bleeds under the status bar on purpose — an immersive,
             // edge-to-edge hero instead of a photo inset with margins on
@@ -93,7 +121,7 @@ class _LandingScreenState extends State<LandingScreen> {
               ),
             ),
             Expanded(
-              child: Container(
+              child: ResponsiveBody(child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
                 color: AppColors.blue,
@@ -138,14 +166,19 @@ class _LandingScreenState extends State<LandingScreen> {
                         label: 'Continue with Phone Number',
                         variant: PillVariant.outlineWhite,
                         icon: Ionicons.call_outline,
+                        disabled: _googleLoading,
                         onPressed: _continueWithPhone,
                       ),
                     ),
                     Center(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
-                        child: GestureDetector(
-                          onTap: _goToReturningLogin,
+                      child: GestureDetector(
+                        onTap: _goToReturningLogin,
+                        // Padding lives inside the tap target now, not just
+                        // around it — this was the one other action on the
+                        // screen sized to its own text line, next to two
+                        // full 44px pill buttons.
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg, horizontal: AppSpacing.md),
                           child: Text(
                             noOrphan('Already have an account? Log in'),
                             style: AppTextStyles.body.copyWith(color: AppColors.white, fontSize: 14, fontWeight: AppFontWeight.medium),
@@ -156,14 +189,14 @@ class _LandingScreenState extends State<LandingScreen> {
                     const Spacer(),
                   ],
                 ),
-              ),
+              )),
             ),
             // Stat bar removed for now — left as empty space at the bottom
             // of the blue panel (via the Spacer above) rather than filled
             // with a placeholder.
             SizedBox(height: bottomInset + AppSpacing.lg),
           ],
-        )),
+        ),
       ),
     );
   }

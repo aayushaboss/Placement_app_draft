@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../mockData/mock_applications.dart';
@@ -9,6 +10,7 @@ import '../../mockData/mock_courses.dart';
 import '../../mockData/mock_opportunities.dart';
 import '../../models/application.dart';
 import '../../models/course.dart';
+import '../../state/app_state.dart';
 import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
@@ -20,6 +22,7 @@ import '../../utils/relative_time.dart';
 import '../../utils/scroll_to_top_registry.dart';
 import '../../widgets/badges.dart';
 import '../../widgets/company_mark.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/pill_button.dart';
 import '../../widgets/prep_course_card.dart';
 import '../../widgets/responsive_body.dart';
@@ -126,6 +129,10 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
     // same restoreApplication(id).
     removeApplication(a.id);
     setState(() => _apps = listApplications());
+    // Other kept-alive tabs (Home's Applied badges) only recompute from
+    // listApplications() on their own next build — bump so they notice
+    // this change instead of showing a stale Applied state.
+    context.read<AppState>().bumpDataVersion();
     // Removing more than one card back-to-back otherwise queues a fresh
     // SnackBar behind whichever one is still showing (ScaffoldMessenger's
     // default) instead of replacing it — each 4s toast waits for the last
@@ -142,6 +149,7 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
             onPressed: () {
               restoreApplication(a.id);
               setState(() => _apps = listApplications());
+              context.read<AppState>().bumpDataVersion();
             },
           ),
           duration: const Duration(seconds: 4),
@@ -165,16 +173,34 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
           children: [
             Padding(
               padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.md),
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Applications', textAlign: TextAlign.left, style: AppTextStyles.h1.copyWith(color: AppColors.ink)),
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xs / 2),
-                    child: Text(
-                      '${_apps.length} active application${_apps.length != 1 ? 's' : ''}',
-                      textAlign: TextAlign.left,
-                      style: AppTextStyles.body.copyWith(color: AppColors.gray500),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Applications', textAlign: TextAlign.left, style: AppTextStyles.h1.copyWith(color: AppColors.ink)),
+                        Padding(
+                          padding: const EdgeInsets.only(top: AppSpacing.xs / 2),
+                          child: Text(
+                            '${_apps.length} active application${_apps.length != 1 ? 's' : ''}',
+                            textAlign: TextAlign.left,
+                            style: AppTextStyles.body.copyWith(color: AppColors.gray500),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // A real, always-visible entry point — the swipe-delete
+                  // undo snackbar covers the immediate "oops," but this is
+                  // the actual backstop once that 4s toast is missed, and
+                  // previously only existed on Profile, a different tab.
+                  GestureDetector(
+                    onTap: () => context.push('/applications/recently-deleted'),
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs, left: AppSpacing.sm),
+                      child: Icon(Ionicons.trash_outline, size: 22, color: AppColors.gray400),
                     ),
                   ),
                 ],
@@ -197,36 +223,12 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
                         children: [
                           Padding(
                             padding: const EdgeInsets.only(top: AppSpacing.xxxl),
-                            child: Column(
-                              children: [
-                                Container(
-                                  width: AppSpacing.xxxl + AppSpacing.xl,
-                                  height: AppSpacing.xxxl + AppSpacing.xl,
-                                  alignment: Alignment.center,
-                                  decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
-                                  child: const Icon(Ionicons.paper_plane_outline, size: AppSpacing.xxl + AppSpacing.xs / 2, color: AppColors.blue),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(top: AppSpacing.md),
-                                  child: Text('No applications yet', style: AppTextStyles.h3.copyWith(color: AppColors.ink)),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(top: AppSpacing.sm),
-                                  child: Text(
-                                    "Explore opportunities and apply — they'll show up here.",
-                                    textAlign: TextAlign.center,
-                                    style: AppTextStyles.body.copyWith(color: AppColors.gray500),
-                                  ),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(top: AppSpacing.xl),
-                                  child: PillButton(
-                                    label: 'Explore opportunities',
-                                    full: false,
-                                    onPressed: () => context.go('/tabs'),
-                                  ),
-                                ),
-                              ],
+                            child: EmptyState(
+                              icon: Ionicons.paper_plane_outline,
+                              title: 'No applications yet',
+                              subtitle: "Explore opportunities and apply — they'll show up here.",
+                              buttonLabel: 'Explore opportunities',
+                              onButtonTap: () => context.go('/tabs'),
                             ),
                           ),
                         ],
@@ -411,7 +413,7 @@ class _ApplicationCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(a.opportunity.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14.5, fontWeight: AppFontWeight.bold)),
+                          Text(a.opportunity.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14.5, fontWeight: AppFontWeight.medium)),
                           Padding(
                             padding: const EdgeInsets.only(top: 1),
                             child: Text(a.opportunity.company, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5)),
@@ -419,6 +421,18 @@ class _ApplicationCard extends StatelessWidget {
                         ],
                       ),
                     ),
+                    // Always-visible fallback for the swipe-to-delete
+                    // gesture, which is otherwise discoverable only via a
+                    // one-time fading hint banner — a returning user who
+                    // missed that hint had no other way to find this at all.
+                    GestureDetector(
+                      onTap: onRemove,
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(Ionicons.trash_outline, size: 18, color: AppColors.gray400),
+                      ),
+                    ),
+                    const SizedBox(width: 2),
                     const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
                   ],
                 ),
@@ -435,7 +449,7 @@ class _ApplicationCard extends StatelessWidget {
                           'Applied ${relativeTimeLabel(DateTime.tryParse(a.createdAt) ?? DateTime.now())}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12, fontWeight: AppFontWeight.medium),
+                          style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
                         ),
                       ),
                       const SizedBox(width: AppSpacing.sm),
@@ -457,6 +471,17 @@ class _ApplicationCard extends StatelessWidget {
                   // linked anywhere else) and "Prep for this interview"
                   // caption (added a text row without adding information —
                   // Mock/Q&A are self-explanatory next to their icons).
+                  //
+                  // Mock/Prep are only relevant while an application is
+                  // still live — a Rejected or Offer application has
+                  // nothing left to interview-prep for, so those two are
+                  // hidden once it's Rejected. Offer keeps them, though —
+                  // unlike Rejected, an Offer here doesn't mean the
+                  // student's done interviewing everywhere; Mock/Prep are
+                  // still directly useful for their other, still-open
+                  // applications. "Similar" stays for every status:
+                  // discovering similar roles is relevant regardless of
+                  // how this particular application ended.
                   Wrap(
                     spacing: AppSpacing.sm,
                     runSpacing: AppSpacing.sm,
@@ -469,21 +494,23 @@ class _ApplicationCard extends StatelessWidget {
                           queryParameters: {'title': 'Similar roles', if (opportunity != null) 'category': opportunity.category},
                         ).toString()),
                       ),
-                      _actionChip(
-                        icon: Ionicons.mic_outline,
-                        label: 'Mock',
-                        onTap: () => context.push('/booking?kind=placement'),
-                      ),
-                      _actionChip(
-                        icon: Ionicons.book_outline,
-                        label: 'Prep',
-                        onTap: () => _showPrepSheet(
-                          context,
-                          prepCoursesForOpportunities(opportunity != null ? [opportunity] : const []),
-                          heading: 'Prep for this interview',
-                          subtitle: 'Aerostar Edge picks for the ${a.opportunity.title} role.',
+                      if (a.status != 'Rejected') ...[
+                        _actionChip(
+                          icon: Ionicons.mic_outline,
+                          label: 'Mock',
+                          onTap: () => context.push('/booking?kind=placement'),
                         ),
-                      ),
+                        _actionChip(
+                          icon: Ionicons.book_outline,
+                          label: 'Prep',
+                          onTap: () => _showPrepSheet(
+                            context,
+                            prepCoursesForOpportunities(opportunity != null ? [opportunity] : const []),
+                            heading: 'Prep for this interview',
+                            subtitle: 'Aerostar Edge picks for the ${a.opportunity.title} role.',
+                          ),
+                        ),
+                      ],
                     ],
                   ),
               ],

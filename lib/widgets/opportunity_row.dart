@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 
+import '../models/opportunity_match.dart';
 import '../theme/colors.dart';
 import '../theme/shadows.dart';
 import '../theme/spacing.dart';
@@ -57,113 +58,138 @@ class OpportunityRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final deadlineColor = deadlineUrgent ? AppColors.error : AppColors.gray500;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        key: testKey,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            boxShadow: AppShadows.card,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (tag != null && tag!.isNotEmpty) AppTag(label: tag!, color: AppColors.blue, bg: AppColors.blueA10),
-                  const Spacer(),
-                  if (onToggleSave != null)
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: onToggleSave,
-                      child: Icon(
-                        saved ? Ionicons.bookmark : Ionicons.bookmark_outline,
-                        size: 18,
-                        color: saved ? AppColors.blue : AppColors.gray400,
-                      ),
-                    ),
-                ],
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.sm),
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 16),
-                ),
-              ),
-              if (subtitle != null && subtitle!.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(
-                    subtitle!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13),
-                  ),
-                ),
-              if (meta.where((m) => m.trim().isNotEmpty).isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.sm),
-                  child: Wrap(
-                    spacing: AppSpacing.md,
-                    runSpacing: 4,
-                    children: [
-                      for (var i = 0; i < meta.length; i++)
-                        if (meta[i].trim().isNotEmpty)
-                          _MetaItem(icon: i < _metaIcons.length ? _metaIcons[i] : Ionicons.ellipse_outline, label: meta[i]),
-                    ],
-                  ),
-                ),
-              if (!applied && (matchLabel != null || deadlineLabel != null))
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.sm),
-                  child: Wrap(
-                    spacing: AppSpacing.md,
-                    runSpacing: 2,
-                    children: [
-                      if (matchLabel != null) _MetaItem(icon: Ionicons.star, label: matchLabel!, color: AppColors.blue),
-                      if (deadlineLabel != null) _MetaItem(icon: Ionicons.time_outline, label: deadlineLabel!, color: deadlineColor),
-                    ],
-                  ),
-                ),
-              if (onApply != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.lg),
-                  child: Row(
-                    children: [
+    return Semantics(
+      button: onTap != null,
+      label: subtitle == null || subtitle!.isEmpty ? title : '$title, $subtitle',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          key: testKey,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          onTap: onTap,
+          // Visible on keyboard focus (InkWell already supports Tab-focus and
+          // paints this automatically) — Round V's accessibility bootstrap;
+          // no new interaction, just making the built-in behavior visible.
+          focusColor: AppColors.blueA10,
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (tag != null && tag!.isNotEmpty) AppTag(label: tag!, color: AppColors.blue, bg: AppColors.blueA10),
+                    const Spacer(),
+                    if (onToggleSave != null)
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTap: onTap,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'View details',
-                              style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium),
-                            ),
-                            const SizedBox(width: 2),
-                            const Icon(Ionicons.arrow_forward, size: 13, color: AppColors.blue),
-                          ],
+                        onTap: onToggleSave,
+                        child: Icon(
+                          saved ? Ionicons.bookmark : Ionicons.bookmark_outline,
+                          size: 18,
+                          color: saved ? AppColors.blue : AppColors.gray400,
                         ),
                       ),
-                      const Spacer(),
-                      if (applied)
-                        PillButton(label: 'Applied', icon: Ionicons.checkmark_circle, variant: PillVariant.secondary, full: false, compact: true, disabled: true, onPressed: null)
-                      else
-                        PillButton(label: 'Apply', variant: PillVariant.secondary, full: false, compact: true, onPressed: onApply),
-                    ],
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    // medium, not bold, and 15px not 16 — see
+                    // opportunity_carousel_card.dart's own note; 16 would tie
+                    // this row's title with an h3 section heading exactly
+                    // (e.g. "Similar roles" on opportunity_detail_screen.dart,
+                    // which renders this same widget directly beneath it), so
+                    // it needs a real size gap too, not just a weight one.
+                    style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 15),
                   ),
                 ),
-            ],
+                if (subtitle != null && subtitle!.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      subtitle!,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13),
+                    ),
+                  ),
+                if (meta.where((m) => m.trim().isNotEmpty).isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.sm),
+                    child: Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: 4,
+                      children: [
+                        for (var i = 0; i < meta.length; i++)
+                          if (meta[i].trim().isNotEmpty)
+                            _MetaItem(icon: i < _metaIcons.length ? _metaIcons[i] : Ionicons.ellipse_outline, label: meta[i]),
+                      ],
+                    ),
+                  ),
+                if (!applied && (matchLabel != null || deadlineLabel != null))
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.sm),
+                    child: Wrap(
+                      spacing: AppSpacing.md,
+                      runSpacing: 2,
+                      children: [
+                        if (matchLabel != null)
+                          Tooltip(
+                            message: matchExplanation,
+                            // tap, not the default long-press — see the same
+                            // fix on OpportunityCarouselCard.
+                            triggerMode: TooltipTriggerMode.tap,
+                            child: _MetaItem(icon: Ionicons.star, label: matchLabel!, color: AppColors.blue),
+                          ),
+                        if (deadlineLabel != null) _MetaItem(icon: Ionicons.time_outline, label: deadlineLabel!, color: deadlineColor),
+                      ],
+                    ),
+                  ),
+                if (onApply != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.lg),
+                    child: Row(
+                      children: [
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: onTap,
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'View details',
+                                style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium),
+                              ),
+                              const SizedBox(width: 2),
+                              const Icon(Ionicons.arrow_forward, size: 13, color: AppColors.blue),
+                            ],
+                          ),
+                        ),
+                        const Spacer(),
+                        if (applied)
+                          PillButton(
+                            label: 'Applied',
+                            icon: Ionicons.checkmark_circle,
+                            variant: PillVariant.secondary,
+                            full: false,
+                            compact: true,
+                            disabled: true,
+                            onPressed: null,
+                          )
+                        else
+                          PillButton(label: 'Apply', variant: PillVariant.secondary, full: false, compact: true, onPressed: onApply),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       ),
@@ -184,7 +210,10 @@ class _MetaItem extends StatelessWidget {
       children: [
         Icon(icon, size: 13, color: color),
         const SizedBox(width: AppSpacing.xs),
-        Text(label, style: AppTextStyles.caption.copyWith(color: color, fontSize: 12.5, fontWeight: AppFontWeight.medium)),
+        Text(
+          label,
+          style: AppTextStyles.caption.copyWith(color: color, fontSize: 12.5, fontWeight: AppFontWeight.medium),
+        ),
       ],
     );
   }

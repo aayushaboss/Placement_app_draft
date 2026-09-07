@@ -13,6 +13,7 @@ import '../../theme/text_styles.dart';
 import '../../utils/no_orphan.dart';
 import '../../widgets/app_chip.dart';
 import '../../widgets/autocomplete_field.dart';
+import '../../widgets/date_picker_field.dart';
 import '../../widgets/field_label.dart';
 import '../../widgets/pill_button.dart';
 import '../../widgets/pill_input.dart';
@@ -20,7 +21,6 @@ import '../../widgets/responsive_body.dart';
 
 const _classOptions = ['Class 11', 'Class 12', 'Below 11'];
 const _boardOptions = ['CBSE', 'State', 'IB', 'Other'];
-const _yearOptions = ['1st Year', '2nd Year', '3rd Year', 'Final Year'];
 const _priorExperienceOptions = ['Fresher', '1-2 yrs', '3-5 yrs', '5+ yrs'];
 const _qualificationOptions = ['Below 10th', '10th pass', '12th pass', 'Diploma', 'Graduate', 'Postgraduate'];
 const _educatedQualifications = {'Diploma', 'Graduate', 'Postgraduate'};
@@ -54,7 +54,7 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
   String _course = '';
   String _currentClass = '';
   String _board = '';
-  String _year = '';
+  String _semester = '';
   String _priorExperience = '';
   // Only relevant when _priorExperience == '5+ yrs' — an optional refinement
   // on top of the bucket chip, not a replacement for it (see
@@ -68,36 +68,41 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
   bool get _isWorking => _segment == Segment.working;
   bool get _isEducatedWorking => _isWorking && _educatedQualifications.contains(_highestQualification);
 
+  // City/College/Course are free-text (AutocompleteField), unlike the
+  // chip-selected fields below them — trimming before every emptiness
+  // check on these three (matching how Name already does) stops a
+  // whitespace-only entry from counting as "filled" and slipping into the
+  // saved profile.
   List<bool> get _filled {
-    final base = [_nameController.text.trim().isNotEmpty, _city.isNotEmpty, _segment != null];
+    final base = [_nameController.text.trim().isNotEmpty, _city.trim().isNotEmpty, _segment != null];
     if (_segment == null) return base;
     if (_isSchool) return [...base, _currentClass.isNotEmpty, _board.isNotEmpty];
     if (_isWorking) {
       return [
         ...base,
         _highestQualification.isNotEmpty,
-        if (_isEducatedWorking) ...[_college.isNotEmpty, _course.isNotEmpty],
+        if (_isEducatedWorking) ...[_college.trim().isNotEmpty, _course.trim().isNotEmpty],
       ];
     }
     return [
       ...base,
-      _college.isNotEmpty,
-      _course.isNotEmpty,
-      if (_segment != Segment.pg) _year.isNotEmpty,
+      _college.trim().isNotEmpty,
+      _course.trim().isNotEmpty,
+      if (_segment != Segment.pg) _semester.isNotEmpty,
     ];
   }
 
   double get _progress => _filled.where((f) => f).length / _filled.length;
 
   bool get _canContinue {
-    if (_nameController.text.trim().isEmpty || _city.isEmpty || _segment == null) return false;
+    if (_nameController.text.trim().isEmpty || _city.trim().isEmpty || _segment == null) return false;
     if (_isSchool) return _currentClass.isNotEmpty && _board.isNotEmpty;
     if (_isWorking) {
       if (_highestQualification.isEmpty) return false;
-      return !_isEducatedWorking || (_college.isNotEmpty && _course.isNotEmpty);
+      return !_isEducatedWorking || (_college.trim().isNotEmpty && _course.trim().isNotEmpty);
     }
-    final yearOk = _segment == Segment.pg || _year.isNotEmpty;
-    return _college.isNotEmpty && _course.isNotEmpty && yearOk;
+    final semesterOk = _segment == Segment.pg || _semester.isNotEmpty;
+    return _college.trim().isNotEmpty && _course.trim().isNotEmpty && semesterOk;
   }
 
   @override
@@ -114,6 +119,33 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
     _nameController.text = user.name ?? '';
     _city = user.city ?? '';
     _signInMethod = user.signInMethod;
+    // Previously only name/city/signInMethod were restored here — every
+    // other field defaulted to blank on every visit, so the very likely
+    // "Goals has nothing to pop, falls back to context.go('/onboarding/
+    // profile')" back-navigation path landed on a form that had silently
+    // forgotten everything the user just filled in, even though the
+    // backing User record still had it all. Restoring the rest here too
+    // (only when this is genuinely a re-visit — `user.segment != null`)
+    // treats that path as resuming an edit, not starting fresh.
+    if (user.segment != null) {
+      _segment = user.segment;
+      _currentClass = user.currentClass ?? '';
+      _board = user.board ?? '';
+      _college = user.college ?? '';
+      _course = user.course ?? '';
+      _semester = user.semester ?? '';
+      _highestQualification = user.highestQualification ?? '';
+      // Same "5+ yrs" exact-figure restoration already established in
+      // profile_edit_screen.dart's own _hydrate — kept in sync deliberately.
+      final rawPriorExperience = user.priorExperience ?? '';
+      if (rawPriorExperience.isNotEmpty && !_priorExperienceOptions.contains(rawPriorExperience)) {
+        _priorExperience = '5+ yrs';
+        final leadingDigits = RegExp(r'^\d+').firstMatch(rawPriorExperience)?.group(0);
+        if (leadingDigits != null) _priorExperienceExactController.text = leadingDigits;
+      } else {
+        _priorExperience = rawPriorExperience;
+      }
+    }
   }
 
   @override
@@ -179,7 +211,7 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
       if (s == Segment.school) {
         _college = '';
         _course = '';
-        _year = '';
+        _semester = '';
         _priorExperience = '';
         _priorExperienceExactController.clear();
         _highestQualification = '';
@@ -188,13 +220,23 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
         _board = '';
         _college = '';
         _course = '';
-        _year = '';
+        _semester = '';
         _priorExperience = '';
         _priorExperienceExactController.clear();
       } else {
         _currentClass = '';
         _board = '';
         _highestQualification = '';
+        // Semester is asked for UG only (never shown or collected for
+        // PG) — clearing it unconditionally here, not just when leaving
+        // this branch, is what stops a semester picked while on UG from
+        // silently surviving a switch to PG and getting saved onto a
+        // profile whose own form never displayed or asked for it.
+        // _college/_course aren't cleared the same way: both UG and PG
+        // (and Working+educated) ask for genuinely the same two fields,
+        // so carrying that value across a UG<->PG change of mind is
+        // correct, not stale.
+        if (s == Segment.pg) _semester = '';
         if (s != Segment.pg) {
           _priorExperience = '';
           _priorExperienceExactController.clear();
@@ -202,6 +244,18 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
       }
       _segment = s;
     });
+  }
+
+  Future<void> _pickSemester() async {
+    final picked = await showOptionListSheet(
+      context,
+      options: mockSemesters,
+      currentValue: _semester.isEmpty ? null : _semester,
+      title: 'Select semester',
+    );
+    if (picked == null) return;
+    HapticFeedback.selectionClick();
+    setState(() => _semester = picked);
   }
 
   void _back() {
@@ -222,7 +276,7 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
       await appState.updateProfile((current) => isSchool
           ? current.copyWith(
               name: _nameController.text.trim(),
-              city: _city,
+              city: _city.trim(),
               segment: _segment,
               currentClass: _currentClass,
               board: _board,
@@ -233,20 +287,20 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
           : isWorking
               ? current.copyWith(
                   name: _nameController.text.trim(),
-                  city: _city,
+                  city: _city.trim(),
                   segment: _segment,
                   highestQualification: _highestQualification,
-                  college: _isEducatedWorking && _college.isNotEmpty ? _college : null,
-                  course: _isEducatedWorking && _course.isNotEmpty ? _course : null,
+                  college: _isEducatedWorking && _college.trim().isNotEmpty ? _college.trim() : null,
+                  course: _isEducatedWorking && _course.trim().isNotEmpty ? _course.trim() : null,
                   priorExperience: _isEducatedWorking && _priorExperience.isNotEmpty ? _effectivePriorExperience : null,
                 )
               : current.copyWith(
                   name: _nameController.text.trim(),
-                  city: _city,
+                  city: _city.trim(),
                   segment: _segment,
-                  college: _college,
-                  course: _course,
-                  year: _year,
+                  college: _college.trim(),
+                  course: _course.trim(),
+                  semester: _semester,
                   priorExperience: _segment == Segment.pg && _priorExperience.isNotEmpty ? _effectivePriorExperience : null,
                 ));
       if (!mounted) return;
@@ -390,7 +444,14 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                             .toList(),
                       ),
                       if (_isEducatedWorking) ...[
-                        const FieldLabel('Which institution did you attend?'),
+                        // Same wording as profile_edit_screen.dart and the
+                        // resume builder use for this same concept — three
+                        // different phrasings for one field (institution/
+                        // specialize vs college-or-university/studying vs
+                        // Institution/Degree) read as inconsistent when a
+                        // user moves between onboarding, profile edit, and
+                        // the resume builder for the exact same data.
+                        const FieldLabel('College / University'),
                         AutocompleteField(
                           value: _college,
                           placeholder: 'e.g. BITS Goa',
@@ -398,7 +459,7 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                           options: mockColleges,
                           onChanged: (v) => setState(() => _college = v),
                         ),
-                        const FieldLabel('What did you specialize in?'),
+                        const FieldLabel('Course / Degree'),
                         AutocompleteField(
                           value: _course,
                           placeholder: 'e.g. B.Tech, B.Com, Diploma in Mechanical, MBA…',
@@ -409,7 +470,7 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                         ..._priorExperienceField('Total work experience (optional)'),
                       ],
                     ] else if (_segment != null) ...[
-                      const FieldLabel('Which college or university?'),
+                      const FieldLabel('College / University'),
                       AutocompleteField(
                         value: _college,
                         placeholder: 'e.g. BITS Goa',
@@ -417,7 +478,7 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                         options: mockColleges,
                         onChanged: (v) => setState(() => _college = v),
                       ),
-                      FieldLabel(_segment == Segment.pg ? "What's your specialization?" : 'What are you studying?'),
+                      const FieldLabel('Course / Degree'),
                       AutocompleteField(
                         value: _course,
                         placeholder: _segment == Segment.pg ? 'e.g. Finance, Marketing, HR, Data Science…' : 'e.g. B.Tech, MBA, B.Sc…',
@@ -426,11 +487,12 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                         onChanged: (v) => setState(() => _course = v),
                       ),
                       if (_segment != Segment.pg) ...[
-                        const FieldLabel('Which year are you in?'),
-                        Wrap(
-                          spacing: AppSpacing.sm,
-                          runSpacing: AppSpacing.sm,
-                          children: _yearOptions.map((o) => AppChip(label: o, selected: _year == o, onPressed: () => setState(() => _year = o))).toList(),
+                        const FieldLabel('Which semester are you in?'),
+                        DatePickerField(
+                          value: _semester.isEmpty ? null : _semester,
+                          placeholder: 'Select semester',
+                          icon: Ionicons.layers_outline,
+                          onTap: _pickSemester,
                         ),
                       ],
                       if (_segment == Segment.pg) ..._priorExperienceField('Work experience before this program (optional)'),

@@ -22,16 +22,16 @@ class ProfileChecklistItem {
 /// Pure readiness helpers for college profile completion + apply gate.
 extension ProfileReadiness on User {
   /// Segment-aware, deliberately mirroring micro_profile_screen.dart's own
-  /// `_canContinue` — a single blanket "name/city/college/course/year all
-  /// required" check used to be unsatisfiable for whole segments, since
+  /// `_canContinue` — a single blanket "name/city/college/course/semester
+  /// all required" check used to be unsatisfiable for whole segments, since
   /// onboarding never even asks some of those fields depending on segment
   /// (or, for Working, qualification): School asks currentClass+board
-  /// instead of college/course/year entirely; Working only asks
+  /// instead of college/course/semester entirely; Working only asks
   /// college/course when the qualification is Diploma/Graduate/Postgraduate,
-  /// and never asks year at all; PG asks college/course but not year (only
-  /// UG asks all three). Without this, e.g. a School user or a Working user
-  /// with a sub-Diploma qualification could never show as "done" no matter
-  /// what they filled in.
+  /// and never asks semester at all; PG asks college/course but not
+  /// semester (only UG asks all three). Without this, e.g. a School user or
+  /// a Working user with a sub-Diploma qualification could never show as
+  /// "done" no matter what they filled in.
   bool get hasBasicInfo {
     final n = name?.trim() ?? '';
     final c = city?.trim() ?? '';
@@ -49,15 +49,21 @@ extension ProfileReadiness on User {
       case Segment.ug:
       case Segment.pg:
         final hasCollegeCourse = (college?.trim().isNotEmpty ?? false) && (course?.trim().isNotEmpty ?? false);
-        final yearOk = segment == Segment.pg || (year?.trim().isNotEmpty ?? false);
-        return hasCollegeCourse && yearOk;
+        final semesterOk = segment == Segment.pg || (semester?.trim().isNotEmpty ?? false);
+        return hasCollegeCourse && semesterOk;
     }
   }
 
   bool get hasResume {
     final r = resume;
     if (r == null) return false;
-    return r.name.trim().isNotEmpty || r.skills.isNotEmpty || r.education.isNotEmpty || r.projects.isNotEmpty;
+    // Deliberately not `r.name.isNotEmpty` on its own — the quiz's own
+    // autosave (resume_builder_quiz_screen.dart's _saveDraft) always sets
+    // `name` from the profile the instant *any* optional field is touched
+    // (e.g. just typing a headline on step 1), which used to be enough to
+    // flip this true — and therefore satisfy the apply-flow gate — without
+    // the user ever having filled in an actual section of the resume.
+    return r.skills.isNotEmpty || r.education.isNotEmpty || r.projects.isNotEmpty || r.workExperience.isNotEmpty || r.certifications.isNotEmpty;
   }
 
   bool get hasPhoto => (photoUrl?.trim() ?? '').isNotEmpty;

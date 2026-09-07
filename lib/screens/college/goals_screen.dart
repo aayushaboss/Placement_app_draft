@@ -67,15 +67,22 @@ class _GoalsScreenState extends State<GoalsScreen> {
   void initState() {
     super.initState();
     final appState = context.read<AppState>();
+    final user = appState.user;
     // Only default on first-time onboarding — a post-onboarding revisit to
     // edit goals should never silently override a choice the user already
-    // made and saved (this screen doesn't hydrate _goal from user.goal at
-    // all today, so leaving it blank there is the pre-existing behavior).
-    if (appState.user?.onboardingComplete == true) return;
+    // made and saved. Previously this screen didn't hydrate _goal/roles
+    // from the saved user at all on that path, leaving both blank — which
+    // meant tapping Continue/Save without touching anything would silently
+    // overwrite a real saved goal/roles with an empty one. Hydrate instead.
+    if (user?.onboardingComplete == true) {
+      _goal = user?.goal ?? '';
+      _selectedRoles = List.of(user?.roles ?? const <String>[]);
+      return;
+    }
     // Postgrads are more often job-hunting than internship-hunting, and
     // vice versa for undergrads — a reasonable starting point, not a
     // restriction; still a single tap to change either way.
-    final segment = appState.user?.segment;
+    final segment = user?.segment;
     if (segment == Segment.pg) {
       _goal = 'job';
     } else if (segment == Segment.ug) {

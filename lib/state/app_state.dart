@@ -17,6 +17,7 @@ class AppState extends ChangeNotifier {
   static const _demoUsersKey = 'aerostar_demo_users';
   static const _savedOpportunitiesKey = 'saved_opportunities';
   static const _viewedStoriesKey = 'viewed_skill_stories';
+  static const _readNotificationsKey = 'read_notifications';
 
   /// DEV-ONLY toggle: while true, every fresh app load starts signed out so
   /// onboarding can be retested end-to-end on every refresh. The
@@ -39,6 +40,7 @@ class AppState extends ChangeNotifier {
   bool _loading = true;
   List<String> _savedOpportunityIds = [];
   List<String> _viewedStoryIds = [];
+  List<String> _readNotificationIds = [];
   String? _appLanguage;
 
   User? get user => _user;
@@ -56,6 +58,7 @@ class AppState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     _savedOpportunityIds = prefs.getStringList(_savedOpportunitiesKey) ?? [];
     _viewedStoryIds = prefs.getStringList(_viewedStoriesKey) ?? [];
+    _readNotificationIds = prefs.getStringList(_readNotificationsKey) ?? [];
     _appLanguage = prefs.getString(appLanguagePrefsKey);
 
     if (_devAlwaysStartSignedOut) {
@@ -77,7 +80,14 @@ class AppState extends ChangeNotifier {
     }
     // TODO: replace with real API call
     final identifier = token.startsWith('demo:') ? token.substring(5) : 'guest';
-    final saved = await _loadSessionUser(prefs) ?? await _getSavedUser(prefs, identifier);
+    // Unlike verifyOtp's own _getSavedUser lookup (which must stay
+    // strictly plain-keyed — see _accountMapKey), this recovery fallback
+    // only runs when the primary session cache (_demoUserKey) is already
+    // gone, and at that point there's no way to know which sign-in method
+    // originally created the account for this token — checking the
+    // Google-namespaced key too here is what keeps a lost Google session
+    // recoverable, without reopening the OTP-side collision.
+    final saved = await _loadSessionUser(prefs) ?? await _getSavedUser(prefs, identifier) ?? await _getSavedUser(prefs, 'google:$identifier');
     _user = saved ?? _makeNewUser(identifier);
     _loading = false;
     notifyListeners();
@@ -98,6 +108,35 @@ class AppState extends ChangeNotifier {
     });
   }
 
+  /// Bumped whenever mock data mutates outside of AppState's own fields
+  /// (an application deleted/restored, a booking created/cancelled/
+  /// rescheduled) — a generic "something a kept-alive tab's cached state
+  /// depends on just changed elsewhere" signal, distinct from [refresh]
+  /// (which re-reads session/user state specifically). Screens that derive
+  /// their view from listApplications()/listBookings() etc. should
+  /// `context.watch<AppState>()` and re-run their own load on change,
+  /// since StatefulShellRoute.indexedStack keeps every tab's State alive
+  /// and nothing else tells a backgrounded tab its data is stale.
+  int _dataVersion = 0;
+  int get dataVersion => _dataVersion;
+  void bumpDataVersion() {
+    _dataVersion++;
+    notifyListeners();
+  }
+
+  // In-memory only, not persisted — a lightweight "you were applying to
+  // X" reminder for the resume gate's "Not now" dismiss, not a durable
+  // cross-session record. Set when the user backs out of the gate sheet
+  // without finishing their resume; cleared once they act on the
+  // reminder or start a genuinely different apply flow.
+  String? _pendingApplyOpportunityId;
+  String? get pendingApplyOpportunityId => _pendingApplyOpportunityId;
+  void setPendingApplyOpportunity(String? id) {
+    if (_pendingApplyOpportunityId == id) return;
+    _pendingApplyOpportunityId = id;
+    notifyListeners();
+  }
+
   bool isOpportunitySaved(String id) => _savedOpportunityIds.contains(id);
 
   Future<void> toggleSavedOpportunity(String id) async {
@@ -107,6 +146,27 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_savedOpportunitiesKey, _savedOpportunityIds);
+  }
+
+  bool isNotificationRead(String id) => _readNotificationIds.contains(id);
+
+  /// True once every notification in [ids] has been marked read — used to
+  /// drive the Home bell's unread dot from real state instead of a
+  /// hardcoded `unread: true`.
+  bool hasUnreadNotifications(List<String> ids) =>
+      ids.any((id) => !_readNotificationIds.contains(id));
+
+  /// Marks every id in [ids] read in one batch — called when the
+  /// Notifications screen opens, mirroring how markStoryViewed marks a
+  /// single story read on open, just bulked since a whole list is shown
+  /// at once here rather than one story at a time.
+  Future<void> markNotificationsRead(List<String> ids) async {
+    final newlyRead = ids.where((id) => !_readNotificationIds.contains(id));
+    if (newlyRead.isEmpty) return;
+    _readNotificationIds = [..._readNotificationIds, ...newlyRead];
+    notifyListeners();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(_readNotificationsKey, _readNotificationIds);
   }
 
   bool isStoryViewed(String id) => _viewedStoryIds.contains(id);
@@ -153,23 +213,6 @@ class AppState extends ChangeNotifier {
     return name.isEmpty ? null : name;
   }
 
-  /// Prototype stand-in for an account that already finished onboarding.
-  User _makeReturningUser(String identifier) => User(
-        id: 'demo-$identifier',
-        identifier: identifier,
-        name: 'Aayusha',
-        city: 'Bengaluru',
-        appLanguage: _appLanguage,
-        segment: Segment.ug,
-        college: 'VIT Vellore',
-        course: 'B.Tech',
-        year: '3rd Year',
-        fieldOfStudy: 'Computer Science',
-        goal: 'internship',
-        roles: const ['Software', 'Product'],
-        onboardingComplete: true,
-      );
-
   Future<Map<String, dynamic>> _loadUsersMap(SharedPreferences prefs) async {
     final raw = prefs.getString(_demoUsersKey);
     if (raw == null || raw.isEmpty) return {};
@@ -185,6 +228,13 @@ class AppState extends ChangeNotifier {
     await prefs.setString(_demoUsersKey, jsonEncode(map));
   }
 
+  // Strictly the plain (non-namespaced) key — this is also what verifyOtp's
+  // "returning" login path looks up by, and it must stay strict: checking
+  // the 'google:' variant too here would silently re-open the exact
+  // collision _accountMapKey exists to prevent (typing the fixed Google
+  // demo email into the OTP flow would "become" that account). bootstrap()'s
+  // own recovery fallback checks both keys itself, separately, since it
+  // has a different, safe reason to.
   Future<User?> _getSavedUser(SharedPreferences prefs, String identifier) async {
     final map = await _loadUsersMap(prefs);
     final raw = map[identifier];
@@ -192,11 +242,20 @@ class AppState extends ChangeNotifier {
     return User.fromJson(raw as Map<String, dynamic>);
   }
 
+  // Google-created accounts are namespaced in the shared demo-users map so
+  // typing that exact fixed demo email into the OTP phone/email flow can
+  // never coincidentally load the Google-created record — the two sign-in
+  // methods share no real verification in this prototype, so without this
+  // the identifier alone would be enough to "become" that other account.
+  // OTP-created accounts keep their plain identifier as the key, matching
+  // what _getSavedUser (called only from the OTP flow) already looks up.
+  String _accountMapKey(User user) => user.signInMethod == 'google' ? 'google:${user.identifier}' : user.identifier;
+
   Future<void> _persistUser(User user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_demoUserKey, jsonEncode(user.toJson()));
     final map = await _loadUsersMap(prefs);
-    map[user.identifier] = user.toJson();
+    map[_accountMapKey(user)] = user.toJson();
     await _saveUsersMap(prefs, map);
   }
 
@@ -238,7 +297,15 @@ class AppState extends ChangeNotifier {
     User next;
     if (returning) {
       final saved = await _getSavedUser(prefs, identifier);
-      next = (saved != null && saved.onboardingComplete) ? saved : _makeReturningUser(identifier);
+      // Whether complete or still mid-onboarding, a genuinely saved
+      // profile for this identifier is resumed as-is. Only when nothing
+      // is saved at all do we fall through to a new signup — this used to
+      // silently substitute a hardcoded fixture profile instead (a
+      // different name/city/college, already marked onboarded), dropping
+      // anyone here — a genuinely new user who mis-tapped "I already have
+      // an account," or anyone testing this path — straight into someone
+      // else's fake completed profile with onboarding skipped entirely.
+      next = saved ?? _makeNewUser(identifier);
     } else {
       // New signup: always start fresh onboarding — do not reuse a previous completed profile.
       next = _makeNewUser(identifier);

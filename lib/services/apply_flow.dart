@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../mockData/mock_applications.dart';
+import '../mockData/mock_opportunities.dart';
 import '../models/opportunity.dart';
+import '../models/opportunity_match.dart';
 import '../models/profile_readiness.dart';
 import '../models/user.dart';
 import '../state/app_state.dart';
@@ -35,12 +37,44 @@ Future<void> startApplyFlow(
     return;
   }
 
+  // Strictly negative, not <= 0 — day 0 is "closing today" (per
+  // deadlineLabel), still a valid day to apply; only a deadline that has
+  // fully elapsed should block.
+  final daysLeft = opportunity.daysUntilDeadline;
+  if (daysLeft != null && daysLeft < 0) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("This opportunity's deadline has passed.")),
+    );
+    return;
+  }
+
   final user = context.read<AppState>().user;
   if (user == null || !user.canApply) {
     _showApplyGateSheet(context, user, opportunity);
     return;
   }
 
+  _showScreeningSheet(context, opportunity, onApplied);
+}
+
+/// Resumes an apply flow that was interrupted for the resume-gate step —
+/// called once the resume screen finishes saving with a pending
+/// `applyFor` id. Previously the two call sites (resume_screen.dart,
+/// resume_builder_quiz_screen.dart) each called createApplication directly
+/// with no note/screening answers, so an application submitted via this
+/// path was structurally different from one submitted directly (no
+/// screening step at all). Routes through the exact same screening sheet
+/// the direct-apply path uses instead, so every application goes through
+/// one consistent flow regardless of which path got the user there.
+void continueApplyAfterResume(BuildContext context, String opportunityId, {VoidCallback? onApplied}) {
+  final opportunity = getOpportunityById(opportunityId);
+  if (opportunity == null) {
+    // A stale/unresolvable id (e.g. a bookmarked deep link) previously
+    // made this a silent no-op — the resume screen's "Done" button would
+    // visibly do nothing at all.
+    context.go('/tabs');
+    return;
+  }
   _showScreeningSheet(context, opportunity, onApplied);
 }
 
@@ -143,7 +177,14 @@ void _showApplyGateSheet(BuildContext context, User? user, Opportunity opportuni
           // third blue pill here read as an equally-weighted third option
           // instead of the dismiss action it actually is.
           GestureDetector(
-            onTap: () => Navigator.of(sheetContext).pop(),
+            onTap: () {
+              // Remember what they were applying to — without this, coming
+              // back to the resume screen later through a different entry
+              // point (Profile, a direct link) gave zero indication there
+              // was an apply in progress; the intent was just lost.
+              context.read<AppState>().setPendingApplyOpportunity(opportunity.id);
+              Navigator.of(sheetContext).pop();
+            },
             child: Text(
               'Not now',
               textAlign: TextAlign.center,
@@ -242,12 +283,19 @@ class _ScreeningSheet extends StatefulWidget {
 class _ScreeningSheetState extends State<_ScreeningSheet> {
   late final List<TextEditingController> _answerControllers;
   late final TextEditingController _noteController;
+  // Explicit per-question "which chip did they actually tap" state — not
+  // derived from string-equality against the typed text, which used to
+  // highlight a chip whenever a manually-typed answer happened to match an
+  // option's wording, and un-highlight a genuinely tapped chip the instant
+  // it was edited by one character.
+  late final List<String?> _selectedChip;
   bool _sending = false;
 
   @override
   void initState() {
     super.initState();
     _answerControllers = List.generate(widget.opportunity.screeningQuestions.length, (_) => TextEditingController());
+    _selectedChip = List.filled(widget.opportunity.screeningQuestions.length, null);
     _noteController = TextEditingController();
   }
 
@@ -274,12 +322,25 @@ class _ScreeningSheetState extends State<_ScreeningSheet> {
       note: note.isEmpty ? null : note,
       screeningAnswers: answers.isEmpty ? null : answers,
     );
+    // Clear a pending "you were applying to X" reminder once that exact
+    // apply actually goes through — read before any context.mounted check
+    // below, for the same reason onApplied fires unconditionally.
+    final appState = context.read<AppState>();
+    if (appState.pendingApplyOpportunityId == widget.opportunity.id) {
+      appState.setPendingApplyOpportunity(null);
+    }
     HapticFeedback.heavyImpact();
+    // Fire onApplied unconditionally, before any context-dependent step —
+    // the application record already exists at this point regardless of
+    // whether this widget is still mounted, so the caller's own state
+    // (e.g. a card's Applied badge) should update either way. Previously
+    // this was gated behind the same mounted check as the pop/success
+    // sheet below, so navigating away in the instant between tap and here
+    // left the record created but every bit of UI unaware of it.
+    widget.onApplied?.call();
     final parentContext = context;
     if (!parentContext.mounted) return;
     Navigator.of(parentContext).pop();
-    widget.onApplied?.call();
-    if (!parentContext.mounted) return;
     _showSuccessSheet(parentContext);
   }
 
@@ -315,7 +376,15 @@ class _ScreeningSheetState extends State<_ScreeningSheet> {
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.xs),
                 child: Text(
-                  noOrphan('${o.company} would like to know a bit more.'),
+                  // Most opportunities in the mock catalog set no screening
+                  // questions at all — the "would like to know a bit more"
+                  // framing only makes sense when questions actually follow
+                  // it below; otherwise it read as a broken promise.
+                  noOrphan(
+                    o.screeningQuestions.isNotEmpty
+                        ? '${o.company} would like to know a bit more.'
+                        : 'Add a quick note before you apply (optional).',
+                  ),
                   style: AppTextStyles.body.copyWith(color: AppColors.gray500),
                 ),
               ),
@@ -334,8 +403,11 @@ class _ScreeningSheetState extends State<_ScreeningSheet> {
                           children: (i < o.screeningQuestionOptions.length ? o.screeningQuestionOptions[i] : const <String>[])
                               .map((opt) => AppChip(
                                     label: opt,
-                                    selected: _answerControllers[i].text == opt,
-                                    onPressed: () => setState(() => _answerControllers[i].text = opt),
+                                    selected: _selectedChip[i] == opt,
+                                    onPressed: () => setState(() {
+                                      _selectedChip[i] = opt;
+                                      _answerControllers[i].text = opt;
+                                    }),
                                   ))
                               .toList(),
                         ),
@@ -344,12 +416,19 @@ class _ScreeningSheetState extends State<_ScreeningSheet> {
                         padding: const EdgeInsets.only(top: AppSpacing.sm),
                         child: TextField(
                           controller: _answerControllers[i],
-                          onChanged: (_) => setState(() {}),
+                          // A manual edit means whatever was tapped (if
+                          // anything) no longer reflects what's actually in
+                          // the field — clear the explicit selection so no
+                          // chip stays lit for text the user has since
+                          // changed.
+                          onChanged: (_) => setState(() => _selectedChip[i] = null),
                           maxLength: 200,
                           style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14),
+                          // No counterText override — hiding the built-in
+                          // counter meant keystrokes silently stopped
+                          // registering at the cap with no visible reason.
                           decoration: InputDecoration(
                             isDense: true,
-                            counterText: '',
                             hintText: 'Or type your own answer',
                             hintStyle: AppTextStyles.body.copyWith(color: AppColors.gray400, fontSize: 14),
                             contentPadding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
@@ -378,7 +457,6 @@ class _ScreeningSheetState extends State<_ScreeningSheet> {
                     decoration: InputDecoration(
                       isDense: true,
                       border: InputBorder.none,
-                      counterText: '',
                       hintText: 'e.g. Available to start immediately',
                       hintStyle: AppTextStyles.body.copyWith(color: AppColors.gray400, fontSize: 14),
                     ),
@@ -388,6 +466,21 @@ class _ScreeningSheetState extends State<_ScreeningSheet> {
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.xl),
                 child: PillButton(label: 'Send Application', onPressed: _send, loading: _sending),
+              ),
+              // Same de-emphasized dismiss link as the gate sheet one step
+              // earlier — without it, this sheet was the one step in the
+              // apply flow with no way to back out short of dragging it
+              // closed or tapping the scrim.
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.md),
+                child: GestureDetector(
+                  onTap: _sending ? null : () => Navigator.of(context).pop(),
+                  child: Text(
+                    'Not now',
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.body.copyWith(color: AppColors.gray400, fontSize: 13, fontWeight: AppFontWeight.medium),
+                  ),
+                ),
               ),
             ],
           ),

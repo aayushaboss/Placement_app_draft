@@ -31,10 +31,13 @@ DateTime recruiterLastActiveFor(Application app) {
   return DateTime.now().subtract(Duration(hours: hoursAgo));
 }
 
-/// Naukri-style "how this application compares" strip — six categories,
-/// each a donut broken into shares with the applicant's own slice called
+/// Naukri-style "how this application compares" strip — one donut per
+/// category, each broken into shares with the applicant's own slice called
 /// out, plus whether that specific criterion is one this application
 /// already satisfies (drives the summary checklist above the carousel).
+/// Only categories genuinely computed from the user's real resume/
+/// opportunity data belong here — see the comment below on the three that
+/// used to be seeded random noise.
 List<ApplicationInsight> applicationInsightsFor(Application app, User? user) {
   final opportunity = getOpportunityById(app.opportunityId);
   final seed = app.id;
@@ -50,11 +53,16 @@ List<ApplicationInsight> applicationInsightsFor(Application app, User? user) {
   final skillHits = skills.where((s) => requirements.contains(s.toLowerCase())).length;
   final keySkillsShare = requirements.isEmpty ? 0 : (skillHits * 100 / (skills.isEmpty ? 1 : skills.length)).clamp(0, 100).round();
 
-  final earlyShare = 20 + _seeded(seed, 4) % 40;
-  final isEarly = earlyShare >= 30;
-
-  final departmentShare = 45 + _seeded(seed, 5) % 40;
-  final industryShare = 60 + _seeded(seed, 6) % 35;
+  // Department, Industry, and Early Applicant used to be here too, each
+  // driven entirely by seeded random noise (matched: departmentShare >=
+  // 50, etc.) with no real comparator population anywhere in this app to
+  // actually derive them from — Opportunity doesn't even carry a posting
+  // date, so "applied within 1 week of the job posting" couldn't be
+  // computed honestly even with real backend data. All three fed directly
+  // into the "$matchedCount out of ${insights.length}" headline a student
+  // reads as an objective assessment, especially right after a rejection
+  // — removed rather than left fabricated. The three below are all
+  // genuinely computed from the user's real resume/opportunity data.
 
   return [
     ApplicationInsight(
@@ -76,24 +84,6 @@ List<ApplicationInsight> applicationInsightsFor(Application app, User? user) {
       ],
     ),
     ApplicationInsight(
-      title: 'Department',
-      icon: Ionicons.people_outline,
-      matched: departmentShare >= 50,
-      segments: [
-        InsightSegment(label: opportunity?.category ?? 'This field', percent: departmentShare.toDouble(), color: AppColors.blue, isYou: true),
-        InsightSegment(label: 'Other', percent: (100 - departmentShare).toDouble(), color: AppColors.gray200),
-      ],
-    ),
-    ApplicationInsight(
-      title: 'Industry',
-      icon: Ionicons.business_outline,
-      matched: industryShare >= 60,
-      segments: [
-        InsightSegment(label: opportunity?.category ?? 'This industry', percent: industryShare.toDouble(), color: AppColors.blue, isYou: true),
-        InsightSegment(label: 'Other', percent: (100 - industryShare).toDouble(), color: AppColors.gray200),
-      ],
-    ),
-    ApplicationInsight(
       title: 'Key Skills',
       icon: Ionicons.ribbon_outline,
       matched: keySkillsShare >= 40,
@@ -104,16 +94,6 @@ List<ApplicationInsight> applicationInsightsFor(Application app, User? user) {
       description: keySkillsShare >= 40
           ? 'Your profile covers most of the key skills this role asks for.'
           : "Your profile is missing some key skills required for this job.",
-    ),
-    ApplicationInsight(
-      title: 'Early Applicant',
-      icon: Ionicons.trending_up_outline,
-      matched: isEarly,
-      segments: [
-        InsightSegment(label: 'You', percent: earlyShare.toDouble(), color: AppColors.blue, isYou: true),
-        InsightSegment(label: 'Other', percent: (100 - earlyShare).toDouble(), color: AppColors.gray200),
-      ],
-      description: 'Applicants including you applied within 1 week of the job posting.',
     ),
   ];
 }

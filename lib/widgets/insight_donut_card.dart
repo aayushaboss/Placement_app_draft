@@ -41,7 +41,7 @@ class InsightDonutCard extends StatelessWidget {
             insight.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 14),
+            style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 14),
           ),
           const SizedBox(height: AppSpacing.md),
           Row(

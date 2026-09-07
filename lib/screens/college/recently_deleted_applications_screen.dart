@@ -11,6 +11,7 @@ import '../../utils/relative_time.dart';
 import '../../widgets/back_chevron.dart';
 import '../../widgets/badges.dart';
 import '../../widgets/company_mark.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/pill_button.dart';
 import '../../widgets/responsive_body.dart';
 
@@ -109,28 +110,10 @@ class _RecentlyDeletedApplicationsScreenState extends State<RecentlyDeletedAppli
                     children: [
                       Padding(
                         padding: const EdgeInsets.only(top: AppSpacing.xxxl),
-                        child: Column(
-                          children: [
-                            Container(
-                              width: 72,
-                              height: 72,
-                              alignment: Alignment.center,
-                              decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
-                              child: const Icon(Ionicons.trash_outline, size: 34, color: AppColors.blue),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(top: AppSpacing.md),
-                              child: Text('Nothing here', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 18, fontWeight: AppFontWeight.medium)),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.only(top: AppSpacing.sm),
-                              child: Text(
-                                'Applications you swipe-delete will show up here so you can restore them.',
-                                textAlign: TextAlign.center,
-                                style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
-                              ),
-                            ),
-                          ],
+                        child: const EmptyState(
+                          icon: Ionicons.trash_outline,
+                          title: 'Nothing here',
+                          subtitle: 'Applications you swipe-delete will show up here so you can restore them.',
                         ),
                       ),
                     ],
@@ -185,7 +168,7 @@ class _DeletedApplicationCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(a.opportunity.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14.5, fontWeight: AppFontWeight.bold)),
+                    Text(a.opportunity.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14.5, fontWeight: AppFontWeight.medium)),
                     Padding(
                       padding: const EdgeInsets.only(top: 1),
                       child: Text(a.opportunity.company, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5)),

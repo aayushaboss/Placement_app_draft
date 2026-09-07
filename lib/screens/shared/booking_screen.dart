@@ -114,7 +114,12 @@ class _BookingScreenState extends State<BookingScreen> {
     super.dispose();
   }
 
-  bool get _valid => _nameController.text.trim().isNotEmpty && _time.isNotEmpty && _date.isNotEmpty;
+  // _date must actually be one of the currently-visible upcoming days —
+  // a reschedule's initialDate can predate that list entirely (the
+  // original session already passed), and without this check _valid
+  // would accept that stale date as-is, letting "Update Booking" silently
+  // re-confirm a lapsed date/time with no active pick required.
+  bool get _valid => _nameController.text.trim().isNotEmpty && _time.isNotEmpty && _date.isNotEmpty && _days.any((d) => d.key == _date);
 
   Future<void> _confirm() async {
     if (!_valid) return;
@@ -130,17 +135,31 @@ class _BookingScreenState extends State<BookingScreen> {
           date: _date,
           time: _time,
         );
+      } else {
+        booking = createBooking(
+          kind: widget.isPlacement ? 'placement' : 'counseling',
+          mode: _mode,
+          sessionType: widget.isPlacement ? _sessionType : null,
+          date: _date,
+          time: _time,
+          name: _nameController.text,
+          phone: _phoneController.text,
+          email: _emailController.text,
+        );
       }
-      booking ??= createBooking(
-        kind: widget.isPlacement ? 'placement' : 'counseling',
-        mode: _mode,
-        sessionType: widget.isPlacement ? _sessionType : null,
-        date: _date,
-        time: _time,
-        name: _nameController.text,
-        phone: _phoneController.text,
-        email: _emailController.text,
-      );
+      // A null result means the slot is already taken (createBooking/
+      // updateBooking's own conflict check) — previously this branch
+      // didn't exist at all (a plain `booking ??= createBooking(...)`
+      // fallback), so a failed reschedule would silently create a whole
+      // new duplicate booking instead of reporting the conflict.
+      if (booking == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('That slot is no longer available — pick another.')),
+        );
+        return;
+      }
+      context.read<AppState>().bumpDataVersion();
       if (!mounted) return;
       final route = Uri(path: '/booking-confirmed', queryParameters: {
         'kind': booking.kind,
@@ -369,10 +388,14 @@ class _BookingScreenState extends State<BookingScreen> {
                     child: Wrap(
                       spacing: AppSpacing.sm,
                       runSpacing: AppSpacing.sm,
-                      children: mockBookingSlots.asMap().entries.map((entry) {
-                        final i = entry.key;
-                        final s = entry.value;
-                        final disabled = i == 2;
+                      children: mockBookingSlots.map((s) {
+                        // Was `i == 2` — a hardcoded index that disabled the
+                        // same slot on every single day regardless of what
+                        // was actually booked, so every other slot on every
+                        // other day always read as free even when it
+                        // wasn't. excludeBookingId so editing an existing
+                        // booking doesn't see its own current slot as taken.
+                        final disabled = isSlotTaken(_date, s, excludeBookingId: widget.bookingId);
                         final selected = _time == s;
                         return GestureDetector(
                           onTap: disabled ? null : () => setState(() => _time = s),

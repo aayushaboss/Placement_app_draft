@@ -14,6 +14,7 @@ import '../../theme/text_styles.dart';
 import '../../widgets/badges.dart';
 import '../../widgets/pill_button.dart';
 import '../../widgets/responsive_body.dart';
+import '../../widgets/skeleton_loader.dart';
 
 /// Mirrors frontend/app/school/results.tsx (Results).
 class ResultsScreen extends StatefulWidget {
@@ -39,7 +40,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
   void initState() {
     super.initState();
     final saved = context.read<AppState>().user?.aptitudeResults;
-    _results = saved ?? mockAptitudeResults;
+    // Defensive fallback for reaching this screen with no saved results at
+    // all (shouldn't normally happen via routing) — computed from an empty
+    // answer set rather than a fabricated non-zero result, so it honestly
+    // reads as "nothing scored yet" instead of implying a real assessment.
+    _results = saved ?? computeAptitudeResults(const {});
     for (final m in _results!.matches) {
       _matchKeys[m.cluster] = GlobalKey();
     }
@@ -76,7 +81,20 @@ class _ResultsScreenState extends State<ResultsScreen> {
     if (results == null) {
       return const Scaffold(
         backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Center(child: CircularProgressIndicator(color: AppColors.blue))),
+        body: ResponsiveBody(child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.all(AppSpacing.xl),
+            child: Column(
+              children: [
+                SkeletonMatchRow(),
+                SizedBox(height: AppSpacing.lg),
+                SkeletonMatchRow(),
+                SizedBox(height: AppSpacing.lg),
+                SkeletonMatchRow(),
+              ],
+            ),
+          ),
+        )),
       );
     }
 

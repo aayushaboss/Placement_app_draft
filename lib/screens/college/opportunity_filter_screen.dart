@@ -211,33 +211,34 @@ class _OpportunityFilterScreenState extends State<OpportunityFilterScreen> {
                 const FieldLabel('Category', tight: true),
                 GestureDetector(
                   onTap: _pickRoles,
-                  child: Container(
-                    constraints: const BoxConstraints(minHeight: 54),
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
-                    decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(999)),
-                    child: Row(
-                      children: [
-                        const Icon(Ionicons.briefcase_outline, size: 18, color: AppColors.gray500),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          // Real badges, not a comma-joined string — matches
-                          // "Preferred cities" below visually (blueA10 pill,
-                          // blue text), just read-only: this row's own tap
-                          // target already opens the picker screen, which is
-                          // the only place roles are actually edited, so a
-                          // badge here doesn't need its own remove `x`.
-                          child: _roles.isEmpty
-                              ? Text('All roles', style: AppTextStyles.bodyLg.copyWith(fontSize: 16, color: AppColors.gray400, fontWeight: AppFontWeight.regular))
-                              : Wrap(
-                                  spacing: AppSpacing.sm,
-                                  runSpacing: AppSpacing.sm,
-                                  children: _roles.map((r) => _roleBadge(r)).toList(),
-                                ),
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
-                      ],
-                    ),
+                  // No wrapping pill/background here — a single oversized
+                  // rounded shape around a whole cluster of badges read as
+                  // a giant, oddly-shaped badge of its own. Kept as plain as
+                  // "Preferred cities" below: just the badges (or the
+                  // placeholder), with a trailing chevron as the only
+                  // signal this row opens the picker.
+                  child: Row(
+                    // Top-aligned, not centered — with several badges
+                    // wrapping onto 2-3 lines, a vertically-centered chevron
+                    // drifts down next to the middle row instead of reading
+                    // as "this whole block is tappable, here's the arrow."
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _roles.isEmpty
+                            ? Text('All roles', style: AppTextStyles.bodyLg.copyWith(fontSize: 16, color: AppColors.gray400, fontWeight: AppFontWeight.regular))
+                            : Wrap(
+                                spacing: AppSpacing.sm,
+                                runSpacing: AppSpacing.sm,
+                                children: _roles.map((r) => _roleBadge(r)).toList(),
+                              ),
+                      ),
+                      const SizedBox(width: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 9),
+                        child: const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
+                      ),
+                    ],
                   ),
                 ),
                 const FieldLabel('Internship or full-time'),

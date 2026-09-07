@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../mockData/mock_applications.dart';
 import '../../mockData/mock_bookings.dart';
 import '../../mockData/mock_courses.dart';
+import '../../mockData/mock_notifications.dart';
 import '../../mockData/mock_opportunities.dart';
 import '../../mockData/related_roles.dart';
 import '../../models/booking.dart';
@@ -22,12 +23,14 @@ import '../../theme/text_styles.dart';
 import '../../utils/no_orphan.dart';
 import '../../utils/scroll_to_top_registry.dart';
 import '../../widgets/course_carousel_section.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/fomo_notification_card.dart';
 import '../../widgets/home_dashboard_cards.dart';
 import '../../widgets/home_header.dart';
 import '../../widgets/opportunity_carousel_section.dart';
 import '../../widgets/opportunity_row.dart';
 import '../../widgets/responsive_body.dart';
+import '../../widgets/skeleton_loader.dart';
 
 const _weekdayShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const _monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -47,6 +50,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
   List<Booking> _bookings = [];
   bool _loading = true;
   final _scrollController = ScrollController();
+  int _lastSeenDataVersion = -1;
 
   @override
   void initState() {
@@ -186,8 +190,10 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
         opportunities: capped,
         matchLabel: (o) => o.matchLabelFor(user),
         isApplied: (o) => isOpportunityApplied(o.id),
+        isSaved: (o) => appState.isOpportunitySaved(o.id),
         onTapCard: (o) => context.push('/opportunity/${o.id}'),
         onApply: (o) => startApplyFlow(context, o, onApplied: () => setState(() {})),
+        onToggleSave: (o) => appState.toggleSavedOpportunity(o.id),
         onViewAll: () => context.push(Uri(
           path: '/opportunities',
           queryParameters: {'title': title, if (category != null) 'category': category},
@@ -228,7 +234,11 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     if (upskillCourses.isNotEmpty) {
       if (sections.isNotEmpty) sections.add(const SizedBox(height: AppSpacing.xl));
       sections.add(CourseCarouselSection(
-        title: 'Boost your chances',
+        // Explicitly says "courses" — "Boost your chances" gave no signal
+        // this section was a different content type from the job carousels
+        // right above it, and with an identical card shell, that left the
+        // heading as the only thing that could have disambiguated it.
+        title: 'Courses to boost your profile',
         courses: upskillCourses,
         onViewAll: () => context.go('/tabs/explore'),
       ));
@@ -241,6 +251,16 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
   Widget build(BuildContext context) {
     final user = context.watch<AppState>().user;
     final appState = context.watch<AppState>();
+    // A booking made/cancelled on the Sessions screen (or an application
+    // deleted on the Applications tab), both kept alive in the background,
+    // otherwise wouldn't update this screen's Upcoming Session card or
+    // Applied badges until a manual pull-to-refresh.
+    if (appState.dataVersion != _lastSeenDataVersion) {
+      _lastSeenDataVersion = appState.dataVersion;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
     // Work mode / employment type / preferred cities have no home in the
     // sectioned carousel view below, unlike Category/Goal (which already
     // reshape it via _sections()'s per-role rows and _load()'s own type
@@ -252,6 +272,17 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     // onboarded user.
     final prefs = user?.preferences;
     final isFiltering = prefs != null && (prefs.workMode != null || prefs.employmentType != null || prefs.cities.isNotEmpty);
+    // _bookings is sorted ascending by real date/time, but nothing
+    // previously excluded a session whose date had already passed — a
+    // lapsed booking could sit in this "upcoming" slot indefinitely.
+    final now = DateTime.now();
+    final upcoming = _bookings.cast<Booking?>().firstWhere(
+          (b) {
+            final dt = parseBookingDateTime(b!.date, b.time);
+            return dt == null || dt.isAfter(now);
+          },
+          orElse: () => null,
+        );
 
     // Only the slim top bar (avatar/greeting/bell) stays pinned, matching
     // Naukri's own home scroll — search, the stat-card strip, and the type
@@ -276,11 +307,35 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
               onSearchTap: () => context.push('/search'),
               onFilterTap: _openFilter,
               isFiltering: isFiltering,
+              unread: appState.hasUnreadNotifications(
+                mockNotifications.map((n) => n.id).toList(),
+              ),
             ),
             Expanded(
               child: _loading
-                  ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.blue),
+                  ? ListView(
+                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                          child: SkeletonBox(width: 180, height: 18),
+                        ),
+                        const SizedBox(height: AppSpacing.lg),
+                        SizedBox(
+                          height: 222 + AppShadows.cardBuffer * 2,
+                          child: ListView(
+                            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppShadows.cardBuffer, AppSpacing.lg, AppShadows.cardBuffer),
+                            scrollDirection: Axis.horizontal,
+                            physics: const NeverScrollableScrollPhysics(),
+                            children: const [
+                              SkeletonCarouselCard(),
+                              SizedBox(width: AppSpacing.md),
+                              SkeletonCarouselCard(),
+                            ],
+                          ),
+                        ),
+                      ],
                     )
                   : RefreshIndicator(
                       color: AppColors.blue,
@@ -293,6 +348,36 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                           // search_screen.dart, reached via the header's
                           // icon) — no inline bar taking up feed space here.
                           //
+                          // The goal-derived scoping (_load()'s _type,
+                          // set from onboarding/the filter screen's Goal
+                          // field) silently narrowed the whole feed with
+                          // no on-screen indication at all — this is that
+                          // indication, tappable straight into the filter
+                          // screen where it's actually changed. Deliberately
+                          // not folded into isFiltering/_clearFilters (see
+                          // their own comments) — Goal is an identity facet,
+                          // not a filter, so it stays out of that mechanism;
+                          // this chip only adds visibility, not a new way
+                          // to clear it.
+                          if (_type != 'All')
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.md),
+                              child: GestureDetector(
+                                onTap: _openFilter,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                                  decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Ionicons.funnel_outline, size: 13, color: AppColors.blue),
+                                      const SizedBox(width: AppSpacing.sm),
+                                      Text('Showing: $_type', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12.5, fontWeight: AppFontWeight.medium)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
                           // No leading spacer here — HomeHeader's own bottom
                           // padding now supplies the gap under it directly
                           // (a shared fix, since school_home_screen.dart had
@@ -305,7 +390,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                           // placement session needs a reminder here too —
                           // otherwise it's effectively invisible until the
                           // day of.
-                          if (_bookings.isNotEmpty) ...[
+                          if (upcoming != null) ...[
                             GestureDetector(
                               onTap: () => context.go('/tabs/sessions'),
                               child: Container(
@@ -341,14 +426,14 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                           Padding(
                                             padding: const EdgeInsets.only(top: 2),
                                             child: Text(
-                                              _bookings.first.kind == 'placement' ? (_bookings.first.sessionType ?? 'Placement session') : 'Counseling with ${_bookings.first.counselor}',
+                                              upcoming.kind == 'placement' ? (upcoming.sessionType ?? 'Placement session') : 'Counseling with ${upcoming.counselor}',
                                               style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.bold),
                                             ),
                                           ),
                                           Padding(
                                             padding: const EdgeInsets.only(top: 2),
                                             child: Text(
-                                              '${_prettyDate(_bookings.first.date)} • ${_bookings.first.time} • ${_bookings.first.mode == 'online' ? 'Online' : 'Offline'}',
+                                              '${_prettyDate(upcoming.date)} • ${upcoming.time} • ${upcoming.mode == 'online' ? 'Online' : 'Offline'}',
                                               style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
                                             ),
                                           ),
@@ -360,7 +445,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                               ),
                             ),
                           ],
-                          if (_bookings.isEmpty) ...[
+                          if (upcoming == null) ...[
                             GestureDetector(
                               onTap: () => context.push('/booking?kind=placement'),
                               child: Container(
@@ -395,31 +480,13 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                           HomeDashboardCards(user: user),
                           if (_opps.isEmpty)
                             Padding(
-                              padding: const EdgeInsets.only(top: AppSpacing.xxxl),
-                              child: Column(
-                                children: [
-                                  const Icon(
-                                    Ionicons.briefcase_outline,
-                                    size: 40,
-                                    color: AppColors.gray400,
-                                  ),
-                                  const SizedBox(height: AppSpacing.md),
-                                  Text(
-                                    'No opportunities match your filters.',
-                                    textAlign: TextAlign.center,
-                                    style: AppTextStyles.body.copyWith(
-                                      color: AppColors.gray500,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                  if (isFiltering) ...[
-                                    const SizedBox(height: AppSpacing.md),
-                                    GestureDetector(
-                                      onTap: _clearFilters,
-                                      child: Text('Clear filters', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
-                                    ),
-                                  ],
-                                ],
+                              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl).copyWith(top: AppSpacing.xxxl),
+                              child: EmptyState(
+                                icon: Ionicons.briefcase_outline,
+                                title: 'No opportunities match your filters',
+                                subtitle: 'Try widening your search or clearing a filter to see more.',
+                                buttonLabel: isFiltering ? 'Clear filters' : null,
+                                onButtonTap: isFiltering ? _clearFilters : null,
                               ),
                             )
                           else if (isFiltering)

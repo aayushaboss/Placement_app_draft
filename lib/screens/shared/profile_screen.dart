@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../models/profile_readiness.dart';
 import '../../models/user.dart';
@@ -16,6 +17,7 @@ import '../../theme/text_styles.dart';
 import '../../utils/initials.dart';
 import '../../utils/no_orphan.dart';
 import '../../utils/scroll_to_top_registry.dart';
+import '../../utils/support_hint_prefs_key.dart';
 import '../../widgets/badges.dart';
 import '../../widgets/progress_ring.dart';
 import '../../widgets/responsive_body.dart';
@@ -36,16 +38,15 @@ class _ProfileRow {
 
 /// "Saved" is college-only — school users never bookmark opportunities.
 List<_ProfileRow> _rowsFor(bool isSchool) => [
-      if (!isSchool) const _ProfileRow(icon: Ionicons.bookmark_outline, label: 'Saved', route: '/saved'),
-      const _ProfileRow(icon: Ionicons.calendar_outline, label: 'Bookings', route: '/tabs/sessions'),
-      // College-only, same as Saved — school users have no Applications tab
-      // to have swipe-deleted anything from in the first place.
-      if (!isSchool) const _ProfileRow(icon: Ionicons.trash_outline, label: 'Recently Deleted', route: '/applications/recently-deleted'),
-      // 'Support & Help' (routed to '/support') is on hold until there's
-      // real company content behind it — see the note on that route in
-      // router.dart. Re-add the row here once it's back.
-    ];
-
+  if (!isSchool) const _ProfileRow(icon: Ionicons.bookmark_outline, label: 'Saved', route: '/saved'),
+  const _ProfileRow(icon: Ionicons.calendar_outline, label: 'Bookings', route: '/tabs/sessions'),
+  // College-only, same as Saved — school users have no Applications tab
+  // to have swipe-deleted anything from in the first place.
+  if (!isSchool) const _ProfileRow(icon: Ionicons.trash_outline, label: 'Recently Deleted', route: '/applications/recently-deleted'),
+  // Re-enabled — see router.dart's /support route comment. Without
+  // this, neither segment had any Help/Support entry point at all.
+  const _ProfileRow(icon: Ionicons.help_circle_outline, label: 'Support & Help', route: '/support'),
+];
 
 /// Mirrors frontend/src/screens/ProfileScreen.tsx (ProfileScreen).
 /// Hosted as the "Profile" tab in TabsScaffold. Naukri-style: information
@@ -61,6 +62,12 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _scrollController = ScrollController();
+  // Defaults true (hint hidden) so nothing flashes on screen before the
+  // real saved value loads — same "seen once" idiom as the Applications
+  // swipe hint, gating a single targeted badge on "Support & Help" (which
+  // had zero prior exposure to any user before Round U re-enabled it), not
+  // a general tour system.
+  bool _supportHintSeen = true;
 
   @override
   void initState() {
@@ -71,6 +78,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
       }
     });
+    _loadSupportHint();
+  }
+
+  Future<void> _loadSupportHint() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _supportHintSeen = prefs.getBool(supportHintSeenPrefsKey) ?? false);
+  }
+
+  Future<void> _markSupportHintSeen() async {
+    if (_supportHintSeen) return;
+    setState(() => _supportHintSeen = true);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(supportHintSeenPrefsKey, true);
   }
 
   @override
@@ -81,6 +102,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _logout(BuildContext context) async {
+    // Same confirm-dialog shell as the "Delete forever?" dialog in
+    // recently_deleted_applications_screen.dart, but blue, not red, for
+    // the "Log out" action — logging out is reversible (sign back in any
+    // time), unlike a permanent delete, so it doesn't need the same
+    // severity signal.
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
+        title: Text(
+          'Log out?',
+          style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 17, fontWeight: AppFontWeight.semibold),
+        ),
+        content: Text(
+          "You'll need to sign in again to get back to your account.",
+          style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text(
+              'Cancel',
+              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontWeight: AppFontWeight.medium),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              'Log out',
+              style: AppTextStyles.body.copyWith(color: AppColors.blue, fontWeight: AppFontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !context.mounted) return;
     final appState = context.read<AppState>();
     await appState.logout();
     if (!context.mounted) return;
@@ -100,12 +158,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final isSchool = user?.segment == Segment.school;
     final rows = [
       ..._rowsFor(isSchool),
-      _ProfileRow(
-        icon: Ionicons.language_outline,
-        label: 'App language',
-        route: '/language-select?edit=1',
-        trailing: user?.appLanguage ?? 'English',
-      ),
+      _ProfileRow(icon: Ionicons.language_outline, label: 'App language', route: '/language-select?edit=1', trailing: user?.appLanguage ?? 'English'),
     ];
     final topInset = MediaQuery.of(context).padding.top;
     final resume = user?.resume;
@@ -117,119 +170,126 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(child: ListView(
-        controller: _scrollController,
-        padding: EdgeInsets.zero,
-        children: [
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),
-            decoration: const BoxDecoration(
-              color: AppColors.blue,
-              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
-            ),
-            child: Column(
-              children: [
-                Container(
-                  width: 84,
-                  height: 84,
-                  alignment: Alignment.center,
-                  decoration: const BoxDecoration(color: AppColors.yellow, shape: BoxShape.circle),
-                  child: user?.photoUrl != null
-                      ? ClipOval(child: Image.network(user!.photoUrl!, width: 84, height: 84, fit: BoxFit.cover))
-                      : Text(initialsFor(user?.name), style: AppTextStyles.h1.copyWith(color: AppColors.blue, fontSize: 30, fontWeight: AppFontWeight.semibold)),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.md),
-                  child: Text(user?.name ?? 'Student', style: AppTextStyles.h2.copyWith(color: AppColors.white, fontSize: 22, fontWeight: AppFontWeight.extrabold)),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: 2),
-                  child: Text(user?.identifier ?? '', style: AppTextStyles.body.copyWith(color: AppColors.whiteA70, fontSize: 14)),
-                ),
-                Container(
-                  margin: const EdgeInsets.only(top: AppSpacing.md),
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                  decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.pill)),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Ionicons.ribbon, size: 13, color: AppColors.blue),
-                      const SizedBox(width: 5),
-                      Text(
-                        _segmentLabels[user?.segment] ?? 'Student',
-                        style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium),
-                      ),
-                    ],
+      body: ResponsiveBody(
+        child: ListView(
+          controller: _scrollController,
+          padding: EdgeInsets.zero,
+          children: [
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),
+              decoration: const BoxDecoration(
+                color: AppColors.blue,
+                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
+              ),
+              child: Column(
+                children: [
+                  Container(
+                    width: 84,
+                    height: 84,
+                    alignment: Alignment.center,
+                    decoration: const BoxDecoration(color: AppColors.yellow, shape: BoxShape.circle),
+                    child: user?.photoUrl != null
+                        ? ClipOval(child: Image.network(user!.photoUrl!, width: 84, height: 84, fit: BoxFit.cover))
+                        : Text(
+                            initialsFor(user?.name),
+                            style: AppTextStyles.h1.copyWith(color: AppColors.blue, fontSize: 30, fontWeight: AppFontWeight.semibold),
+                          ),
                   ),
-                ),
-                // School users' Profile tab only ever has the one Basic
-                // details section (see profile_readiness.dart's segment
-                // branch on profileChecklist), so a completion dial here
-                // would just be a permanent, meaningless 100-or-0 — skip it
-                // rather than show a ring that can't say anything useful.
-                if (!isSchool)
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.md),
+                    child: Text(
+                      user?.name ?? 'Student',
+                      style: AppTextStyles.h2.copyWith(color: AppColors.white, fontSize: 22, fontWeight: AppFontWeight.extrabold),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(user?.identifier ?? '', style: AppTextStyles.body.copyWith(color: AppColors.whiteA70, fontSize: 14)),
+                  ),
+                  Container(
+                    margin: const EdgeInsets.only(top: AppSpacing.md),
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.pill)),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        ProgressRing(
-                          percent: user?.profileProgressPercent ?? 0,
-                          size: 36,
-                          background: AppColors.whiteA20,
-                          valueColor: AppColors.yellow,
-                          textColor: AppColors.white,
-                        ),
-                        const SizedBox(width: AppSpacing.sm),
+                        const Icon(Ionicons.ribbon, size: 13, color: AppColors.blue),
+                        const SizedBox(width: 5),
                         Text(
-                          '${user?.profileCompletedCount ?? 0}/${user?.profileTotalCount ?? 0} sections complete',
-                          style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12, fontWeight: AppFontWeight.medium),
+                          _segmentLabels[user?.segment] ?? 'Student',
+                          style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium),
                         ),
                       ],
                     ),
                   ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (!isSchool)
-                  _SectionCard(
-                    title: 'Resume',
-                    icon: Ionicons.document_text_outline,
-                    done: checklist['resume'],
-                    onTap: () => _editResume(context),
-                    child: hasResume
-                        ? Text(
-                            _skillsSummary(resume?.skills ?? const []),
-                            style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5),
-                          )
-                        : Text(
-                            'Add your resume so recruiters can find you.',
-                            style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5),
+                  // School users' Profile tab only ever has the one Basic
+                  // details section (see profile_readiness.dart's segment
+                  // branch on profileChecklist), so a completion dial here
+                  // would just be a permanent, meaningless 100-or-0 — skip it
+                  // rather than show a ring that can't say anything useful.
+                  if (!isSchool)
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.md),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ProgressRing(
+                            percent: user?.profileProgressPercent ?? 0,
+                            size: 36,
+                            background: AppColors.whiteA20,
+                            valueColor: AppColors.yellow,
+                            textColor: AppColors.white,
                           ),
-                  ),
-                // Basic details and Goals & roles used to be two separate
-                // cards, but both ever did was open the same /profile-edit
-                // form at a different scroll position — reading as two
-                // things when it's really one edit destination. Combined
-                // into a single card; Employment below keeps its own card
-                // since it now opens a genuinely distinct screen.
-                _SectionCard(
-                  title: 'Basic details',
-                  icon: Ionicons.person_outline,
-                  // Represents both checklist items this one card covers
-                  // (see the comment above about why they're merged).
-                  done: isSchool ? checklist['basic'] : ((checklist['basic'] ?? false) && (checklist['goals'] ?? false)),
-                  onTap: () => _editBasics(context),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      ..._basicDetailLines(user, isSchool).asMap().entries.map((e) => Padding(
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(
+                            '${user?.profileCompletedCount ?? 0}/${user?.profileTotalCount ?? 0} sections complete',
+                            style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12, fontWeight: AppFontWeight.medium),
+                          ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.xl),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (!isSchool)
+                    _SectionCard(
+                      title: 'Resume',
+                      icon: Ionicons.document_text_outline,
+                      done: checklist['resume'],
+                      onTap: () => _editResume(context),
+                      child: hasResume
+                          ? Text(
+                              _skillsSummary(resume?.skills ?? const []),
+                              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5),
+                            )
+                          : Text(
+                              'Add your resume so recruiters can find you.',
+                              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5),
+                            ),
+                    ),
+                  // Basic details and Goals & roles used to be two separate
+                  // cards, but both ever did was open the same /profile-edit
+                  // form at a different scroll position — reading as two
+                  // things when it's really one edit destination. Combined
+                  // into a single card.
+                  _SectionCard(
+                    title: 'Basic details',
+                    icon: Ionicons.person_outline,
+                    // Represents both checklist items this one card covers
+                    // (see the comment above about why they're merged).
+                    done: isSchool ? checklist['basic'] : ((checklist['basic'] ?? false) && (checklist['goals'] ?? false)),
+                    onTap: () => _editBasics(context),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ..._basicDetailLines(user, isSchool).asMap().entries.map(
+                          (e) => Padding(
                             padding: const EdgeInsets.only(bottom: 2),
                             child: Text(
                               noOrphan(e.value),
@@ -241,123 +301,177 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ? AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14.5, fontWeight: AppFontWeight.medium)
                                   : AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5),
                             ),
-                          )),
-                      if (!isSchool) ...[
-                        Padding(
-                          padding: const EdgeInsets.only(top: AppSpacing.sm),
-                          child: Text(_goalLabel(user?.goal), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
+                          ),
                         ),
-                        if (user?.roles?.isNotEmpty ?? false)
+                        if (!isSchool) ...[
                           Padding(
                             padding: const EdgeInsets.only(top: AppSpacing.sm),
-                            child: Wrap(
-                              spacing: AppSpacing.sm,
-                              runSpacing: AppSpacing.sm,
-                              children: user!.roles!.map((r) => AppTag(label: r)).toList(),
+                            child: Text(_goalLabel(user?.goal), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
+                          ),
+                          if (user?.roles?.isNotEmpty ?? false)
+                            Padding(
+                              padding: const EdgeInsets.only(top: AppSpacing.sm),
+                              child: Wrap(
+                                spacing: AppSpacing.sm,
+                                runSpacing: AppSpacing.sm,
+                                children: user!.roles!.map((r) => AppTag(label: r)).toList(),
+                              ),
                             ),
-                          ),
-                      ],
-                    ],
-                  ),
-                ),
-                // College-only — a video pitch is a recruiter-facing
-                // signal. School users aren't applying to jobs yet, so this
-                // card stays out of their profile screen entirely — it
-                // should look exactly like it did before.
-                if (!isSchool)
-                  _SectionCard(
-                    title: 'Video profile',
-                    icon: Ionicons.videocam_outline,
-                    done: checklist['video'],
-                    onTap: () => showVideoProfileSheet(context),
-                    child: (user?.videoIntroUrl?.trim().isNotEmpty ?? false)
-                        ? Row(
-                            children: [
-                              const Icon(Ionicons.play_circle, size: 16, color: AppColors.blue),
-                              const SizedBox(width: AppSpacing.sm),
-                              Text('Video profile added', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 13.5, fontWeight: AppFontWeight.medium)),
-                            ],
-                          )
-                        : Text(noOrphan('Pitch yourself with a short video.'), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
-                  ),
-                // The old standalone "Career preferences" card is gone —
-                // that concept now lives inline on college Home's filter
-                // icon instead (see college_feed_screen.dart /
-                // opportunity_filter_screen.dart). checklist['preferences']
-                // still exists and still counts toward the completion
-                // percentage above; it just has no dedicated card here
-                // anymore, the same way completing it now happens on Home.
-                Container(
-                  decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.xl), boxShadow: AppShadows.soft),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    children: [
-                      const _NotificationToggleRow(),
-                      ...rows.asMap().entries.map((entry) {
-                      final i = entry.key;
-                      final r = entry.value;
-                      return GestureDetector(
-                        onTap: r.route == null
-                            ? null
-                            : () => r.route!.startsWith('/tabs') ? context.go(r.route!) : context.push(r.route!),
-                        child: Container(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          decoration: BoxDecoration(
-                            border: i < rows.length - 1 ? const Border(bottom: BorderSide(color: AppColors.border, width: 1)) : null,
-                          ),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 38,
-                                height: 38,
-                                alignment: Alignment.center,
-                                decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
-                                child: Icon(r.icon, size: 20, color: AppColors.blue),
-                              ),
-                              const SizedBox(width: AppSpacing.md),
-                              Expanded(
-                                child: Text(r.label, style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium)),
-                              ),
-                              if (r.trailing != null)
-                                Padding(
-                                  padding: const EdgeInsets.only(right: AppSpacing.sm),
-                                  child: Text(r.trailing!, style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
-                                ),
-                              const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
-                            ],
-                          ),
-                        ),
-                      );
-                      }),
-                    ],
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => _logout(context),
-                  child: Container(
-                    margin: const EdgeInsets.only(top: AppSpacing.xl),
-                    height: 54,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(borderRadius: BorderRadius.circular(AppRadius.pill), border: Border.all(color: AppColors.error, width: 1.5)),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Ionicons.log_out_outline, size: 20, color: AppColors.error),
-                        const SizedBox(width: AppSpacing.sm),
-                        Text('Log out', style: AppTextStyles.bodyLg.copyWith(color: AppColors.error, fontSize: 16, fontWeight: AppFontWeight.medium)),
+                        ],
                       ],
                     ),
                   ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.xl),
-                  child: Text('Aerostar Edge • v1.0.0', style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12)),
-                ),
-              ],
+                  // College-only — a video pitch is a recruiter-facing
+                  // signal. School users aren't applying to jobs yet, so this
+                  // card stays out of their profile screen entirely — it
+                  // should look exactly like it did before.
+                  if (!isSchool)
+                    _SectionCard(
+                      title: 'Video profile',
+                      icon: Ionicons.videocam_outline,
+                      done: checklist['video'],
+                      onTap: () => showVideoProfileSheet(context),
+                      child: (user?.videoIntroUrl?.trim().isNotEmpty ?? false)
+                          ? Row(
+                              children: [
+                                const Icon(Ionicons.play_circle, size: 16, color: AppColors.blue),
+                                const SizedBox(width: AppSpacing.sm),
+                                Text(
+                                  'Video profile added',
+                                  style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 13.5, fontWeight: AppFontWeight.medium),
+                                ),
+                              ],
+                            )
+                          : Text(
+                              noOrphan('Pitch yourself with a short video.'),
+                              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5),
+                            ),
+                    ),
+                  // The old standalone "Career preferences" card is gone —
+                  // that concept now lives inline on college Home's filter
+                  // icon instead (see college_feed_screen.dart /
+                  // opportunity_filter_screen.dart). checklist['preferences']
+                  // still exists and still counts toward the completion
+                  // percentage above; it just has no dedicated card here
+                  // anymore, the same way completing it now happens on Home.
+                  Container(
+                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.xl), boxShadow: AppShadows.soft),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        const _NotificationToggleRow(),
+                        ...rows.asMap().entries.map((entry) {
+                          final i = entry.key;
+                          final r = entry.value;
+                          final showSupportHint = r.route == '/support' && !_supportHintSeen;
+                          return Semantics(
+                            button: r.route != null,
+                            label: r.label,
+                            child: GestureDetector(
+                              onTap: r.route == null
+                                  ? null
+                                  : () {
+                                      if (r.route == '/support') _markSupportHintSeen();
+                                      r.route!.startsWith('/tabs') ? context.go(r.route!) : context.push(r.route!);
+                                    },
+                              child: Container(
+                                padding: const EdgeInsets.all(AppSpacing.lg),
+                                decoration: BoxDecoration(
+                                  border: i < rows.length - 1 ? const Border(bottom: BorderSide(color: AppColors.border, width: 1)) : null,
+                                ),
+                                child: Row(
+                                  children: [
+                                    Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        Container(
+                                          width: 38,
+                                          height: 38,
+                                          alignment: Alignment.center,
+                                          decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
+                                          child: Icon(r.icon, size: 20, color: AppColors.blue),
+                                        ),
+                                        // One-time discovery badge — same dot
+                                        // visual language as the header's
+                                        // filter/notification badges (blue
+                                        // fill, white ring), gone for good
+                                        // once this row is tapped once.
+                                        if (showSupportHint)
+                                          Positioned(
+                                            top: -1,
+                                            right: -1,
+                                            child: Container(
+                                              width: 10,
+                                              height: 10,
+                                              decoration: BoxDecoration(
+                                                color: AppColors.blue,
+                                                shape: BoxShape.circle,
+                                                border: Border.all(color: AppColors.white, width: 1.5),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    const SizedBox(width: AppSpacing.md),
+                                    Expanded(
+                                      child: Text(
+                                        r.label,
+                                        style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium),
+                                      ),
+                                    ),
+                                    if (r.trailing != null)
+                                      Padding(
+                                        padding: const EdgeInsets.only(right: AppSpacing.sm),
+                                        child: Text(r.trailing!, style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
+                                      ),
+                                    const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => _logout(context),
+                    child: Container(
+                      margin: const EdgeInsets.only(top: AppSpacing.xl),
+                      height: 54,
+                      alignment: Alignment.center,
+                      // Neutral, not error-red — logging out isn't data-
+                      // destructive (nothing is lost or unrecoverable), unlike
+                      // "Delete forever" in Recently Deleted, which genuinely
+                      // is and correctly uses this same red elsewhere. Red
+                      // here overstated the severity of a routine action.
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(AppRadius.pill),
+                        border: Border.all(color: AppColors.gray400, width: 1.5),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Ionicons.log_out_outline, size: 20, color: AppColors.gray500),
+                          const SizedBox(width: AppSpacing.sm),
+                          Text(
+                            'Log out',
+                            style: AppTextStyles.bodyLg.copyWith(color: AppColors.gray500, fontSize: 16, fontWeight: AppFontWeight.medium),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.xl),
+                    child: Text('Aerostar Edge • v1.0.0', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-      )),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -390,7 +504,7 @@ List<String> _basicDetailLines(User? user, bool isSchool) {
     final classBoard = [user?.currentClass, user?.board].where((s) => s != null && s.trim().isNotEmpty).join(' • ');
     lines.add(classBoard.isEmpty ? 'Class & board not set' : classBoard);
   } else {
-    final collegeLine = [user?.college, user?.course, user?.year].where((s) => s != null && s.trim().isNotEmpty).join(' • ');
+    final collegeLine = [user?.college, user?.course, user?.semester].where((s) => s != null && s.trim().isNotEmpty).join(' • ');
     lines.add(collegeLine.isEmpty ? 'College details not set' : collegeLine);
   }
   return lines;
@@ -414,11 +528,7 @@ class _SectionCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: AppSpacing.lg),
         padding: const EdgeInsets.all(AppSpacing.lg),
-        decoration: BoxDecoration(
-          color: AppColors.white,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          boxShadow: AppShadows.card,
-        ),
+        decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -426,19 +536,23 @@ class _SectionCard extends StatelessWidget {
               children: [
                 Icon(icon, size: 18, color: AppColors.blue),
                 const SizedBox(width: AppSpacing.sm),
-                Expanded(child: Text(title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 15))),
-                if (done != null) ...[
-                  Icon(
-                    done! ? Ionicons.checkmark_circle : Ionicons.ellipse_outline,
-                    size: 16,
-                    color: done! ? AppColors.success : AppColors.gray400,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 15),
                   ),
+                ),
+                if (done != null) ...[
+                  Icon(done! ? Ionicons.checkmark_circle : Ionicons.ellipse_outline, size: 16, color: done! ? AppColors.success : AppColors.gray400),
                   const SizedBox(width: AppSpacing.sm),
                 ],
                 if (onTap != null) const Icon(Ionicons.chevron_forward, size: 16, color: AppColors.gray400),
               ],
             ),
-            Padding(padding: const EdgeInsets.only(top: AppSpacing.sm), child: child),
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.sm),
+              child: child,
+            ),
           ],
         ),
       ),
@@ -476,14 +590,18 @@ class _NotificationToggleRowState extends State<_NotificationToggleRow> {
     }
   }
 
+  // Once granted, the switch can't actually turn permission back off — the
+  // browser doesn't let JS revoke it, only the user can from site
+  // settings. Showing the switch as still-interactive (able to animate to
+  // "off" on tap, then snap back once _enabled is recomputed from the
+  // unchanged real permission) misrepresented what tapping it did. It's
+  // rendered as effectively read-only in that state instead — see build().
+  void _explainCannotDisable() {
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Turn off notifications from your browser settings.')));
+  }
+
   Future<void> _toggle(bool value) async {
     if (!kIsWeb) return;
-    if (!value) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Turn off notifications from your browser settings.')),
-      );
-      return;
-    }
     String result = 'default';
     try {
       result = await html.Notification.requestPermission();
@@ -493,13 +611,13 @@ class _NotificationToggleRowState extends State<_NotificationToggleRow> {
     if (!mounted) return;
     setState(() => _enabled = _permissionGranted());
     if (result == 'denied' && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Notifications are blocked for this site — allow them from your browser's site settings.")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Notifications are blocked for this site — allow them from your browser's site settings.")));
     } else if (result != 'granted' && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't turn on notifications here — try from your device's browser settings.")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Couldn't turn on notifications here — try from your device's browser settings.")));
     }
   }
 
@@ -507,7 +625,9 @@ class _NotificationToggleRowState extends State<_NotificationToggleRow> {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: const BoxDecoration(border: Border(bottom: BorderSide(color: AppColors.border, width: 1))),
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
+      ),
       child: Row(
         children: [
           Container(
@@ -519,9 +639,19 @@ class _NotificationToggleRowState extends State<_NotificationToggleRow> {
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
-            child: Text('Push notifications', style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium)),
+            child: Text(
+              'Push notifications',
+              style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium),
+            ),
           ),
-          Switch(value: _enabled, onChanged: _toggle, activeThumbColor: AppColors.blue),
+          // onChanged: null when already granted — a disabled Switch can't
+          // animate toward a value that's just going to bounce back, and
+          // ignores taps outright instead of looking briefly interactive.
+          // The GestureDetector still catches that tap to explain why.
+          GestureDetector(
+            onTap: _enabled ? _explainCannotDisable : null,
+            child: Switch(value: _enabled, onChanged: _enabled ? null : _toggle, activeThumbColor: AppColors.blue),
+          ),
         ],
       ),
     );

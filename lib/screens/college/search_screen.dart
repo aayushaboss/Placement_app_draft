@@ -11,8 +11,10 @@ import '../../mockData/mock_opportunities.dart';
 import '../../mockData/mock_profile_options.dart';
 import '../../models/opportunity.dart';
 import '../../models/opportunity_match.dart';
+import '../../models/user.dart';
 import '../../services/apply_flow.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -92,12 +94,21 @@ class _SearchScreenState extends State<SearchScreen> {
   // Reads both fields directly rather than taking a param — Location is a
   // separate, independent filter from the main query now (AND, not OR), so
   // every search needs both values regardless of which field just changed.
+  // Also folds in the user's saved job preferences (work mode/employment
+  // type/preferred cities) — filterOpportunities already accepted these
+  // params independently (used by the Home filter screen), this just wires
+  // a search here to respect them too instead of ignoring them.
   void _runSearch() {
     final appliedIds = listApplications().map((a) => a.opportunityId).toSet();
-    final results = filterOpportunities(query: _controller.text, location: _locationController.text)
-        .where((o) => !appliedIds.contains(o.id))
-        .toList();
     final user = context.read<AppState>().user;
+    final prefs = user?.preferences;
+    final results = filterOpportunities(
+      query: _controller.text,
+      location: _locationController.text,
+      workMode: prefs?.workMode,
+      employmentType: prefs?.employmentType,
+      locations: prefs?.cities,
+    ).where((o) => !appliedIds.contains(o.id)).toList();
     results.sort((a, b) => b.matchScoreFor(user).compareTo(a.matchScoreFor(user)));
     setState(() {
       _results = results;
@@ -119,10 +130,13 @@ class _SearchScreenState extends State<SearchScreen> {
     final appState = context.watch<AppState>();
     final user = appState.user;
     final topInset = MediaQuery.of(context).padding.top;
+    // Results are a flat list of uniform cards, same shape as Applications/
+    // Saved — reuse their exact 2-column-at-tablet-width treatment.
+    final columns = MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet ? 2 : 1;
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(child: SafeArea(
+      body: ResponsiveBody(maxWidth: 720, child: SafeArea(
         bottom: false,
         // start, not the Column default of center — the chevron is the
         // only child here that doesn't already stretch to the full width
@@ -253,34 +267,59 @@ class _SearchScreenState extends State<SearchScreen> {
                             ),
                           ),
                         )
-                      : ListView.separated(
+                      : ListView(
                           padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xxxl),
-                          itemCount: _results.length,
-                          separatorBuilder: (_, _) => const SizedBox(height: AppSpacing.lg),
-                          itemBuilder: (context, i) {
-                            final o = _results[i];
-                            return OpportunityRow(
-                              tag: o.type,
-                              title: o.title,
-                              subtitle: o.company,
-                              meta: [o.location, o.stipend, o.duration],
-                              matchLabel: o.matchLabelFor(user),
-                              deadlineLabel: o.deadlineLabel,
-                              deadlineUrgent: o.deadlineIsUrgent,
-                              saved: appState.isOpportunitySaved(o.id),
-                              onToggleSave: () => appState.toggleSavedOpportunity(o.id),
-                              onTap: () {
-                                _saveRecentSearch(_controller.text);
-                                context.push('/opportunity/${o.id}');
-                              },
-                              onApply: () => startApplyFlow(context, o, onApplied: _runSearch),
-                            );
-                          },
+                          children: [
+                            if (columns == 1)
+                              ...List.generate(_results.length, (i) {
+                                final row = _resultRow(context, appState, user, _results[i]);
+                                return i == _results.length - 1 ? row : Padding(padding: const EdgeInsets.only(bottom: AppSpacing.lg), child: row);
+                              })
+                            else
+                              for (var row = 0; row < (_results.length / columns).ceil(); row++)
+                                Padding(
+                                  padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                                  child: IntrinsicHeight(
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        for (var i = 0; i < columns; i++) ...[
+                                          if (i > 0) const SizedBox(width: AppSpacing.lg),
+                                          Expanded(
+                                            child: row * columns + i < _results.length
+                                                ? _resultRow(context, appState, user, _results[row * columns + i])
+                                                : const SizedBox(),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                          ],
                         ),
             ),
           ],
         ),
       )),
+    );
+  }
+
+  Widget _resultRow(BuildContext context, AppState appState, User? user, Opportunity o) {
+    return OpportunityRow(
+      tag: o.type,
+      title: o.title,
+      subtitle: o.company,
+      meta: [o.location, o.stipend, o.duration],
+      matchLabel: o.matchLabelFor(user),
+      deadlineLabel: o.deadlineLabel,
+      deadlineUrgent: o.deadlineIsUrgent,
+      saved: appState.isOpportunitySaved(o.id),
+      onToggleSave: () => appState.toggleSavedOpportunity(o.id),
+      onTap: () {
+        _saveRecentSearch(_controller.text);
+        context.push('/opportunity/${o.id}');
+      },
+      onApply: () => startApplyFlow(context, o, onApplied: _runSearch),
     );
   }
 }
@@ -327,7 +366,7 @@ class _CompanyTile extends StatelessWidget {
                       company.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, fontWeight: AppFontWeight.bold),
+                      style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, fontWeight: AppFontWeight.medium),
                     ),
                   ),
                 ],

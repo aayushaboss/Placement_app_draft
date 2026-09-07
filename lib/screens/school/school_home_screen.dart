@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../mockData/mock_articles.dart';
 import '../../mockData/mock_bookings.dart';
 import '../../mockData/mock_courses.dart';
+import '../../mockData/mock_notifications.dart';
 import '../../models/article.dart';
 import '../../models/booking.dart';
 import '../../models/course.dart';
@@ -40,6 +42,7 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
   List<Article> _articles = [];
   List<Booking> _bookings = [];
   final _scrollController = ScrollController();
+  int _lastSeenDataVersion = -1;
 
   @override
   void initState() {
@@ -88,10 +91,31 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final user = context.watch<AppState>().user;
+    final appState = context.watch<AppState>();
+    final user = appState.user;
     final clusters = user?.aptitudeResults?.matches.map((m) => m.cluster).toList() ?? const <String>[];
     final showAptitudeCta = user?.aptitudeResults == null;
-    final upcoming = _bookings.isNotEmpty ? _bookings.first : null;
+    // _bookings is sorted ascending by real date/time, but nothing
+    // previously excluded a session whose date had already passed — a
+    // lapsed booking could sit in this "upcoming" slot indefinitely,
+    // still showing its confirmed checkmark and Reschedule/Cancel actions.
+    final now = DateTime.now();
+    final upcoming = _bookings.cast<Booking?>().firstWhere(
+          (b) {
+            final dt = parseBookingDateTime(b!.date, b.time);
+            return dt == null || dt.isAfter(now);
+          },
+          orElse: () => null,
+        );
+    // A booking made/cancelled on the Sessions tab (kept alive in the
+    // background) otherwise wouldn't update this card until a manual
+    // pull-to-refresh — see sessions_screen.dart's identical pattern.
+    if (appState.dataVersion != _lastSeenDataVersion) {
+      _lastSeenDataVersion = appState.dataVersion;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
 
     return Scaffold(
       backgroundColor: AppColors.white,
@@ -106,6 +130,9 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
               subtitle: 'Your career journey',
               onAvatarTap: () => context.go('/tabs/profile'),
               onBellTap: () => context.push('/notifications'),
+              unread: appState.hasUnreadNotifications(
+                mockSchoolNotifications.map((n) => n.id).toList(),
+              ),
             ),
             Expanded(
               child: RefreshIndicator(
@@ -253,7 +280,14 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
                             GestureDetector(
                               behavior: HitTestBehavior.opaque,
                               onTap: () => context.push('/school/aptitude-intro'),
-                              child: Text('Retake test', style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                              // Padding inside the tap target, not just
+                              // text sized to its own line — was well
+                              // under the ~40-44px minimum this app
+                              // otherwise aims for.
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
+                                child: Text('Retake test', style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                              ),
                             ),
                           ],
                         ),
@@ -294,7 +328,30 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
                         children: _articles
                             .map((a) => Padding(
                                   padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                                  child: Container(
+                                  // Was a bare Container with no tap handler
+                                  // at all — visually identical to every
+                                  // other tappable card in the app (white
+                                  // fill, shadow, tag+title+meta), so it
+                                  // read as content you could open, but
+                                  // tapping did nothing. No article-detail
+                                  // screen/route exists yet in this app to
+                                  // wire a real destination to, so this at
+                                  // least gives real feedback instead of a
+                                  // silent no-op — same "Coming soon"
+                                  // convention support_screen.dart already
+                                  // uses for its own not-yet-built actions.
+                                  child: Material(
+                                    color: AppColors.white,
+                                    borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.sm),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.sm),
+                                      onTap: () {
+                                        HapticFeedback.selectionClick();
+                                        ScaffoldMessenger.of(context)
+                                          ..hideCurrentSnackBar()
+                                          ..showSnackBar(const SnackBar(content: Text('Full article — coming soon.')));
+                                      },
+                                      child: Container(
                                     padding: const EdgeInsets.all(AppSpacing.sm),
                                     // Concentric with the inner ClipRRect: outerRadius = innerRadius (AppRadius.md) + the padding between them.
                                     decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.sm), boxShadow: AppShadows.soft),
@@ -323,12 +380,14 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
                                               ),
                                               Padding(
                                                 padding: const EdgeInsets.only(top: 4),
-                                                child: Text(a.readTime, style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12)),
+                                                child: Text(a.readTime, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                                               ),
                                             ],
                                           ),
                                         ),
                                       ],
+                                    ),
+                                  ),
                                     ),
                                   ),
                                 ))

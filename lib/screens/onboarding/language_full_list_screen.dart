@@ -7,6 +7,7 @@ import '../../mockData/mock_profile_options.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/pill_input.dart';
 import '../../widgets/responsive_body.dart';
 
@@ -71,8 +72,9 @@ class _LanguageFullListScreenState extends State<LanguageFullListScreen> {
           ),
           Expanded(
             child: results.isEmpty
-                ? Center(
-                    child: Text('No languages match "$query".', style: AppTextStyles.body.copyWith(color: AppColors.gray500)),
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl).copyWith(top: AppSpacing.xxxl),
+                    child: EmptyState(icon: Ionicons.language_outline, title: 'No languages found', subtitle: 'No languages match "$query".'),
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.xxxl),

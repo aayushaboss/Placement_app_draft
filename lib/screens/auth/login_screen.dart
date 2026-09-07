@@ -45,7 +45,10 @@ class _LoginScreenState extends State<LoginScreen> {
     _mode = widget.startOnEmail ? _LoginMode.email : _LoginMode.phone;
   }
 
-  static final _emailPattern = RegExp(r'^[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}$');
+  // Was `^[\w.+-]+@[\w-]+\.[a-zA-Z]{2,}$` — only ever allowed one dot in
+  // the domain, rejecting exactly the multi-label college-email formats
+  // (.ac.in, .edu.in) this app's own student audience most commonly uses.
+  static final _emailPattern = RegExp(r'^[\w.+-]+@[\w-]+(\.[\w-]+)*\.[a-zA-Z]{2,}$');
 
   bool get _valid {
     final value = _controller.text.trim();
@@ -69,7 +72,13 @@ class _LoginScreenState extends State<LoginScreen> {
     });
     try {
       final appState = context.read<AppState>();
-      final value = _controller.text;
+      // Was the raw controller text — `_valid` above checks a
+      // trimmed/digit-stripped value, but this actually-sent identifier
+      // used to keep any stray whitespace or padding intact, so it could
+      // land in the URL, on the OTP screen, and as the saved-user map key
+      // with garbage baked in that "looks the same" as a clean re-entry
+      // but isn't.
+      final value = _controller.text.trim();
       await appState.requestOtp(value);
       if (!mounted) return;
       final route = Uri(path: '/auth/otp', queryParameters: {

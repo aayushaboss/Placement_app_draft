@@ -22,12 +22,34 @@ const _typeIcons = {
 };
 
 /// Mirrors frontend/app/notifications.tsx (Notifications).
-class NotificationsScreen extends StatelessWidget {
+class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
 
   @override
+  State<NotificationsScreen> createState() => _NotificationsScreenState();
+}
+
+class _NotificationsScreenState extends State<NotificationsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Opening this screen is enough to mark everything currently listed as
+    // read — same "seeing it is enough" convention as markStoryViewed.
+    // Scheduled post-frame since it reads the segment-specific list, which
+    // itself depends on AppState (available via context only after the
+    // first build).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final isSchool = context.read<AppState>().user?.segment == Segment.school;
+      final notifications = isSchool ? mockSchoolNotifications : mockNotifications;
+      context.read<AppState>().markNotificationsRead(notifications.map((n) => n.id).toList());
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final isSchool = context.watch<AppState>().user?.segment == Segment.school;
+    final appState = context.watch<AppState>();
+    final isSchool = appState.user?.segment == Segment.school;
     final notifications = isSchool ? mockSchoolNotifications : mockNotifications;
     final topInset = MediaQuery.of(context).padding.top;
     final groups = <String>[];
@@ -131,7 +153,7 @@ class NotificationsScreen extends StatelessWidget {
                                             crossAxisAlignment:
                                                 CrossAxisAlignment.center,
                                             children: [
-                                              if (n.unread)
+                                              if (!appState.isNotificationRead(n.id))
                                                 Container(
                                                   width: 8,
                                                   height: 8,
@@ -174,6 +196,10 @@ class NotificationsScreen extends StatelessWidget {
                                                   children: [
                                                     Text(
                                                       n.title,
+                                                      // medium, not bold — same
+                                                      // card-title hierarchy fix
+                                                      // as the rest of the app
+                                                      // (see opportunity_row.dart).
                                                       style: AppTextStyles
                                                           .bodyLg
                                                           .copyWith(
@@ -182,7 +208,7 @@ class NotificationsScreen extends StatelessWidget {
                                                             fontSize: 15,
                                                             fontWeight:
                                                                 AppFontWeight
-                                                                    .bold,
+                                                                    .medium,
                                                           ),
                                                     ),
                                                     Padding(

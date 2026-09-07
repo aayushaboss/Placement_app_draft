@@ -77,24 +77,28 @@ class HomeHeader extends StatelessWidget {
       // and a long name truncates instead of displacing them.
       child: Row(
         children: [
-          GestureDetector(
-            onTap: onAvatarTap,
-            child: ClipOval(
-              child: Container(
-                width: 44,
-                height: 44,
-                color: AppColors.blue,
-                alignment: Alignment.center,
-                child: photoUrl != null
-                    ? Image.network(photoUrl!, width: 44, height: 44, fit: BoxFit.cover)
-                    : Text(
-                        initialsFor(name),
-                        style: AppTextStyles.bodyLg.copyWith(
-                          color: AppColors.white,
-                          fontSize: 16,
-                          fontWeight: AppFontWeight.semibold,
+          Semantics(
+            button: true,
+            label: 'Profile',
+            child: GestureDetector(
+              onTap: onAvatarTap,
+              child: ClipOval(
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  color: AppColors.blue,
+                  alignment: Alignment.center,
+                  child: photoUrl != null
+                      ? Image.network(photoUrl!, width: 44, height: 44, fit: BoxFit.cover)
+                      : Text(
+                          initialsFor(name),
+                          style: AppTextStyles.bodyLg.copyWith(
+                            color: AppColors.white,
+                            fontSize: 16,
+                            fontWeight: AppFontWeight.semibold,
+                          ),
                         ),
-                      ),
+                ),
               ),
             ),
           ),
@@ -139,20 +143,27 @@ class HomeHeader extends StatelessWidget {
               // established tap target (the 40px boost-tip CTA in
               // home_dashboard_cards.dart).
               if (onSearchTap != null) ...[
-                GestureDetector(
-                  onTap: onSearchTap,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    alignment: Alignment.center,
-                    decoration: const BoxDecoration(color: AppColors.offWhite, shape: BoxShape.circle),
-                    child: const Icon(Ionicons.search_outline, size: 20, color: AppColors.ink),
+                Semantics(
+                  button: true,
+                  label: 'Search',
+                  child: GestureDetector(
+                    onTap: onSearchTap,
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      alignment: Alignment.center,
+                      decoration: const BoxDecoration(color: AppColors.offWhite, shape: BoxShape.circle),
+                      child: const Icon(Ionicons.search_outline, size: 20, color: AppColors.ink),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 6),
               ],
               if (onFilterTap != null) ...[
-                GestureDetector(
+                Semantics(
+                  button: true,
+                  label: 'Filter',
+                  child: GestureDetector(
                   onTap: onFilterTap,
                   child: Stack(
                     clipBehavior: Clip.none,
@@ -193,38 +204,43 @@ class HomeHeader extends StatelessWidget {
                       ),
                     ],
                   ),
+                  ),
                 ),
                 const SizedBox(width: 6),
               ],
-              GestureDetector(
-                onTap: onBellTap,
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: const BoxDecoration(color: AppColors.offWhite, shape: BoxShape.circle),
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      const Center(child: Icon(Ionicons.notifications_outline, size: 22, color: AppColors.ink)),
-                      if (unread)
-                        Positioned(
-                          // Scaled down from the old 44px circle's (11, 12)
-                          // offset to match this button's smaller 40px size
-                          // — otherwise the dot drifts toward the edge
-                          // instead of sitting on the icon's shoulder.
-                          top: 9,
-                          right: 10,
-                          child: Container(
-                            width: 9,
-                            height: 9,
-                            decoration: BoxDecoration(
-                              color: AppColors.error,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.offWhite, width: 1.5),
+              Semantics(
+                button: true,
+                label: 'Notifications',
+                child: GestureDetector(
+                  onTap: onBellTap,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: const BoxDecoration(color: AppColors.offWhite, shape: BoxShape.circle),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Center(child: Icon(Ionicons.notifications_outline, size: 22, color: AppColors.ink)),
+                        if (unread)
+                          Positioned(
+                            // Scaled down from the old 44px circle's (11, 12)
+                            // offset to match this button's smaller 40px size
+                            // — otherwise the dot drifts toward the edge
+                            // instead of sitting on the icon's shoulder.
+                            top: 9,
+                            right: 10,
+                            child: Container(
+                              width: 9,
+                              height: 9,
+                              decoration: BoxDecoration(
+                                color: AppColors.error,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.offWhite, width: 1.5),
+                              ),
                             ),
                           ),
-                        ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),

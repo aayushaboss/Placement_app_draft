@@ -2,23 +2,48 @@ import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../mockData/mock_courses.dart';
 import '../../models/course.dart';
 import '../../models/user.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
+import '../../utils/recent_course_searches_prefs_key.dart';
 import '../../utils/scroll_to_top_registry.dart';
 import '../../widgets/auto_carousel.dart';
 import '../../widgets/content_card.dart';
 import '../../widgets/course_carousel_section.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/pill_input.dart';
 import '../../widgets/responsive_body.dart';
 import 'course_filter_screen.dart';
 
+const _maxRecentCourseSearches = 5;
+
 const _categories = ['Counseling', 'Technology', 'Design', 'Finance', 'Science', 'Placement'];
+
+// aptitudeResults (the real source for "Recommended for you") is only ever
+// populated via the school-only /school/aptitude flow — for college this
+// carousel was silently dead every time, since `clusters` was always
+// empty. College has no aptitude test, but it does have `user.roles`
+// (interested-roles, set at onboarding) — mapped here to the nearest
+// course cluster so college gets an equivalent, if coarser, signal
+// instead of just never seeing this section.
+const _roleToClusterFallback = {
+  'Software': 'Technology & Computer Science',
+  'Data': 'Technology & Computer Science',
+  'Product': 'Technology & Computer Science',
+  'Research': 'Technology & Computer Science',
+  'Design': 'Design & Creative',
+  'Operations': 'Commerce & Finance',
+  'Sales': 'Commerce & Finance',
+  'Consulting': 'Commerce & Finance',
+  'HR': 'Humanities & Law',
+};
 
 /// Mirrors frontend/src/screens/CoursesExplore.tsx (CoursesExplore).
 /// School user's "Explore" tab — also the college "Courses" tab.
@@ -46,10 +71,45 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
   int? _registeredBranchIndex;
 
   CourseFilterSelection _filter = const CourseFilterSelection();
+  List<String> _recentSearches = [];
 
   Future<void> _openFilter() async {
     final result = await context.push<CourseFilterSelection>('/school/course-filter', extra: _filter);
     if (result != null) setState(() => _filter = result);
+  }
+
+  // Mirrors search_screen.dart's own recent-searches mechanism exactly —
+  // same load/save/cap-at-5/dedupe shape, just against this screen's own
+  // prefs key since Courses previously had no recent-searches at all.
+  Future<void> _loadRecentSearches() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() => _recentSearches = prefs.getStringList(recentCourseSearchesPrefsKey) ?? []);
+  }
+
+  Future<void> _saveRecentSearch(String query) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    final updated = [trimmed, ..._recentSearches.where((s) => s.toLowerCase() != trimmed.toLowerCase())].take(_maxRecentCourseSearches).toList();
+    await prefs.setStringList(recentCourseSearchesPrefsKey, updated);
+    if (!mounted) return;
+    setState(() => _recentSearches = updated);
+  }
+
+  Future<void> _clearRecentSearches() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(recentCourseSearchesPrefsKey);
+    if (!mounted) return;
+    setState(() => _recentSearches = []);
+  }
+
+  void _selectSearch(String query) {
+    setState(() {
+      _searchController.text = query;
+      _searchController.selection = TextSelection.collapsed(offset: query.length);
+    });
+    _saveRecentSearch(query);
   }
 
   @override
@@ -62,6 +122,7 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
         _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
       }
     });
+    _loadRecentSearches();
   }
 
   @override
@@ -81,7 +142,7 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
   // scrollable list, so they scroll away with everything else." No new
   // scroll-direction-tracking code needed — scrolling back up naturally
   // brings them back the same way it brings back any earlier list content.
-  List<Widget> _headerItems(double topInset, bool isFiltering) => [
+  List<Widget> _headerItems(double topInset, bool isFiltering, bool isSchool) => [
         Padding(
           padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.sm, AppSpacing.xl, 0),
           child: Text('Courses', textAlign: TextAlign.left, style: AppTextStyles.h1.copyWith(color: AppColors.ink)),
@@ -94,23 +155,46 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
             // decorative here (unlike Home's 2-card boost-tip carousel,
             // where they're the only signal a second card exists).
             showDots: false,
-            cards: const [
-              _CredibilityCard(
-                icon: Ionicons.school_outline,
-                title: 'NEP 2020 Aligned',
-                caption: 'Courses mapped to the National Education Policy 2020.',
-              ),
-              _CredibilityCard(
-                icon: Ionicons.ribbon_outline,
-                title: 'Skill India Certified',
-                caption: "Content aligned with Skill India's competency framework.",
-              ),
-              _CredibilityCard(
-                icon: Ionicons.shield_checkmark_outline,
-                title: 'NSDC Approved',
-                caption: 'Backed by the National Skill Development Corporation.',
-              ),
-            ],
+            // "NEP 2020" (the National Education Policy) reads as K-12
+            // curriculum framing — fine for a school-stage audience, but
+            // this screen is shared with college/placement-stage students
+            // who saw the exact same badge unchanged. College gets a
+            // placement-relevant equivalent instead.
+            cards: isSchool
+                ? const [
+                    _CredibilityCard(
+                      icon: Ionicons.school_outline,
+                      title: 'NEP 2020 Aligned',
+                      caption: 'Courses mapped to the National Education Policy 2020.',
+                    ),
+                    _CredibilityCard(
+                      icon: Ionicons.ribbon_outline,
+                      title: 'Skill India Certified',
+                      caption: "Content aligned with Skill India's competency framework.",
+                    ),
+                    _CredibilityCard(
+                      icon: Ionicons.shield_checkmark_outline,
+                      title: 'NSDC Approved',
+                      caption: 'Backed by the National Skill Development Corporation.',
+                    ),
+                  ]
+                : const [
+                    _CredibilityCard(
+                      icon: Ionicons.ribbon_outline,
+                      title: 'Industry-recognized certification',
+                      caption: 'Certificates recruiters actually look for.',
+                    ),
+                    _CredibilityCard(
+                      icon: Ionicons.shield_checkmark_outline,
+                      title: 'Skill India Certified',
+                      caption: "Content aligned with Skill India's competency framework.",
+                    ),
+                    _CredibilityCard(
+                      icon: Ionicons.briefcase_outline,
+                      title: 'Built for placement season',
+                      caption: 'Interview, resume, and aptitude prep included.',
+                    ),
+                  ],
           ),
         ),
         Padding(
@@ -118,7 +202,12 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
           child: Row(
             children: [
               Expanded(
-                child: PillInput(controller: _searchController, placeholder: 'Search courses', onChanged: (_) => setState(() {})),
+                child: PillInput(
+                  controller: _searchController,
+                  placeholder: 'Search courses',
+                  onChanged: (_) => setState(() {}),
+                  onSubmitted: _saveRecentSearch,
+                ),
               ),
               const SizedBox(width: AppSpacing.sm),
               GestureDetector(
@@ -171,93 +260,108 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
         ),
       ];
 
+  Widget _resultCard(Course c) {
+    return ContentCard(
+      icon: categoryIcons[c.category],
+      tag: c.category,
+      title: c.title,
+      meta: [c.duration, '${c.modules} modules'],
+      linkLabel: 'View syllabus',
+      onTap: () => context.push('/course/${c.id}'),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
     final query = _searchController.text.trim().toLowerCase();
     final isSearching = query.isNotEmpty;
-    final searchResults = isSearching ? mockCourses.where((c) => c.title.toLowerCase().contains(query)).toList() : const <Course>[];
 
     final user = context.watch<AppState>().user;
-    final clusters = user?.aptitudeResults?.matches.map((m) => m.cluster).toList() ?? const <String>[];
+    final isSchool = user?.segment == Segment.school;
+    final aptitudeClusters = user?.aptitudeResults?.matches.map((m) => m.cluster).toList() ?? const <String>[];
+    // College fallback — see _roleToClusterFallback's own comment.
+    final roleClusters = (user?.roles ?? const <String>[]).map((r) => _roleToClusterFallback[r]).whereType<String>().toSet().toList();
+    final clusters = aptitudeClusters.isNotEmpty ? aptitudeClusters : roleClusters;
     final recommended = clusters.isNotEmpty ? recommendedCourses(clusters) : const <Course>[];
 
     final isFiltering = !_filter.isEmpty;
-    final filteredResults = isFiltering
-        ? filterCoursesAdvanced(categories: _filter.categories, durationBuckets: _filter.durationBuckets)
+    // Search and the active filter now combine (AND) instead of being
+    // mutually exclusive modes — filterCoursesAdvanced already supports a
+    // query alongside its facets (Round V), so both narrow the same result
+    // set together.
+    final hasQuery = isSearching || isFiltering;
+    final results = hasQuery
+        ? filterCoursesAdvanced(categories: _filter.categories, durationBuckets: _filter.durationBuckets, query: isSearching ? query : null)
         : const <Course>[];
+    final columns = MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet ? 2 : 1;
+
+    String emptyMessage() {
+      if (isSearching && isFiltering) return 'No courses match "$query" with these filters.';
+      if (isSearching) return 'No courses match "$query".';
+      return 'No courses match these filters.';
+    }
 
     // Every state below renders as exactly one ListView — the previous
     // isFiltering branch used to nest a second, independently-scrolling
     // ListView inside a fixed "N courses found" row; that's flattened here
     // too, so there's never more than one scrollable region on this screen.
     late final List<Widget> bodyItems;
-    if (isSearching) {
+    if (hasQuery) {
       bodyItems = [
-        ..._headerItems(topInset, isFiltering),
-        if (searchResults.isEmpty)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxxl, AppSpacing.xl, 0),
-            child: Center(
-              child: Text('No courses match "$query".', style: AppTextStyles.body.copyWith(color: AppColors.gray500)),
-            ),
-          )
-        else
-          ...searchResults.map((c) => Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
-                child: ContentCard(
-                  icon: categoryIcons[c.category],
-                  tag: c.category,
-                  title: c.title,
-                  meta: [c.duration, '${c.modules} modules'],
-                  linkLabel: 'View syllabus',
-                  onTap: () => context.push('/course/${c.id}'),
-                ),
-              )),
-      ];
-    } else if (isFiltering) {
-      bodyItems = [
-        ..._headerItems(topInset, isFiltering),
+        ..._headerItems(topInset, isFiltering, isSchool),
         Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.sm),
           child: Row(
             children: [
               Expanded(
                 child: Text(
-                  '${filteredResults.length} ${filteredResults.length == 1 ? 'course' : 'courses'} found',
+                  '${results.length} ${results.length == 1 ? 'course' : 'courses'} found',
                   style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, fontWeight: AppFontWeight.medium),
                 ),
               ),
-              GestureDetector(
-                onTap: () => setState(() => _filter = const CourseFilterSelection()),
-                child: Text('Clear filters', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
-              ),
+              if (isSearching)
+                GestureDetector(
+                  onTap: () => setState(_searchController.clear),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
+                    child: Text('Clear search', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                  ),
+                ),
+              if (isFiltering)
+                GestureDetector(
+                  onTap: () => setState(() => _filter = const CourseFilterSelection()),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
+                    child: Text('Clear filters', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                  ),
+                ),
             ],
           ),
         ),
-        if (filteredResults.isEmpty)
+        if (results.isEmpty)
           Padding(
-            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxxl, AppSpacing.xl, 0),
-            child: Center(
-              child: Text(
-                'No courses match these filters.',
-                textAlign: TextAlign.center,
-                style: AppTextStyles.body.copyWith(color: AppColors.gray500),
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl).copyWith(top: AppSpacing.xxxl),
+            child: EmptyState(icon: Ionicons.search_outline, title: 'No courses found', subtitle: emptyMessage()),
+          )
+        else if (columns == 1)
+          ...results.map((c) => Padding(padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg), child: _resultCard(c)))
+        else
+          for (var row = 0; row < (results.length / columns).ceil(); row++)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < columns; i++) ...[
+                      if (i > 0) const SizedBox(width: AppSpacing.lg),
+                      Expanded(child: row * columns + i < results.length ? _resultCard(results[row * columns + i]) : const SizedBox()),
+                    ],
+                  ],
+                ),
               ),
             ),
-          )
-        else
-          ...filteredResults.map((c) => Padding(
-                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
-                child: ContentCard(
-                  icon: categoryIcons[c.category],
-                  tag: c.category,
-                  title: c.title,
-                  meta: [c.duration, '${c.modules} modules'],
-                  linkLabel: 'View syllabus',
-                  onTap: () => context.push('/course/${c.id}'),
-                ),
-              )),
       ];
     } else {
       final carousels = [
@@ -265,7 +369,34 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
         for (final category in _categories) CourseCarouselSection(title: category, courses: filterCourses(category)),
       ];
       bodyItems = [
-        ..._headerItems(topInset, isFiltering),
+        ..._headerItems(topInset, isFiltering, isSchool),
+        // Recent searches — same "quick re-run a past search" convenience
+        // the opportunity Search screen already offers, only shown once
+        // there's actually something to show and before any query/filter
+        // is active.
+        if (_recentSearches.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.md),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Recent searches', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 15)),
+                GestureDetector(
+                  onTap: _clearRecentSearches,
+                  child: Text('Clear', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xl),
+            child: Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.sm,
+              children: _recentSearches.map((s) => _RecentSearchChip(label: s, onTap: () => _selectSearch(s))).toList(),
+            ),
+          ),
+        ],
         // AppSpacing.xl between each stacked carousel — same fix as
         // college_feed_screen.dart's _sections(), same reason: each
         // carousel's own built-in clearance (AppShadows.cardBuffer) is
@@ -280,11 +411,39 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(child: ListView(
+      body: ResponsiveBody(maxWidth: hasQuery ? 720 : AppBreakpoints.maxContentWidth, child: ListView(
         controller: _scrollController,
         padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
         children: bodyItems,
       )),
+    );
+  }
+}
+
+/// Plain tappable chip for a past Courses search — same visual language as
+/// search_screen.dart's own `_SearchChip`, kept as a separate small widget
+/// here rather than importing that screen's private class.
+class _RecentSearchChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _RecentSearchChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.pill)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Ionicons.time_outline, size: 14, color: AppColors.gray500),
+            const SizedBox(width: AppSpacing.sm),
+            Text(label, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, fontWeight: AppFontWeight.medium)),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -320,7 +479,7 @@ class _CredibilityCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, fontWeight: AppFontWeight.bold)),
+                Text(title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, fontWeight: AppFontWeight.medium)),
                 const SizedBox(height: 2),
                 Text(
                   caption,

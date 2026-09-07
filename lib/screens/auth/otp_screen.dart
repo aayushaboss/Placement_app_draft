@@ -35,6 +35,8 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
   bool _loading = false;
   int _timer = 30;
   Timer? _countdown;
+  bool _resendLoading = false;
+  String? _resendError;
   late final AnimationController _shakeController;
   late final Animation<double> _shakeAnimation;
 
@@ -69,6 +71,12 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
   }
 
   Future<void> _verify(String code) async {
+    // The 6-digit field auto-submits from onChanged the instant it fills,
+    // and that's known to sometimes fire twice for the same final value
+    // (SMS-autofill/paste on some platforms) — without this guard, a
+    // second concurrent call could spuriously fail (the first call already
+    // nulls the pending code on success) or double-navigate.
+    if (_loading) return;
     setState(() {
       _loading = true;
       _error = null;
@@ -78,12 +86,14 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
       final user = await appState.verifyOtp(widget.identifier, code, returning: widget.returning);
       if (!mounted) return;
       final route = routeForUser(user);
-      // Keep stack for unfinished onboarding so Back works; clear stack for home.
-      if (route == '/tabs') {
-        context.go(route);
-      } else {
-        context.push(route);
-      }
+      // `go`, not `push`, on every branch — this screen's own pending
+      // code is single-use (verifyOtp nulls it on success), so leaving it
+      // reachable via back would show a stale screen that throws a
+      // confusing "expired" error on any second attempt. Every onboarding
+      // screen already has its own explicit fallback for "nothing to pop"
+      // (see BackChevron's fallbackRoute), so nothing relies on OTP
+      // staying in the stack for back navigation to work correctly.
+      context.go(route);
     } catch (e) {
       setState(() {
         _error = e.toString().contains('expired')
@@ -109,14 +119,29 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
   }
 
   Future<void> _resend() async {
-    if (_timer > 0) return;
-    await context.read<AppState>().requestOtp(widget.identifier);
-    setState(() => _timer = 30);
+    if (_timer > 0 || _resendLoading) return;
+    setState(() {
+      _resendLoading = true;
+      _resendError = null;
+    });
+    try {
+      await context.read<AppState>().requestOtp(widget.identifier);
+      if (!mounted) return;
+      setState(() => _timer = 30);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _resendError = "Couldn't send a new code — try again");
+    } finally {
+      if (mounted) setState(() => _resendLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
+    // Same identifier already used to send the code — an email sign-in
+    // should never be told to "verify your number".
+    final isEmail = widget.identifier.contains('@');
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -134,9 +159,9 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text.rich(
+                  Text.rich(
                     TextSpan(
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontFamily: kFontFamily,
                         color: AppColors.white,
                         fontSize: 32,
@@ -144,8 +169,11 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                         height: 38 / 32,
                       ),
                       children: [
-                        TextSpan(text: 'Verify your\n'),
-                        TextSpan(text: 'number', style: TextStyle(color: AppColors.yellow)),
+                        const TextSpan(text: 'Verify your\n'),
+                        TextSpan(
+                          text: isEmail ? 'email' : 'number',
+                          style: const TextStyle(color: AppColors.yellow),
+                        ),
                       ],
                     ),
                   ),
@@ -237,17 +265,33 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                       padding: const EdgeInsets.only(top: AppSpacing.lg),
                       child: GestureDetector(
                         onTap: _resend,
-                        child: Text(
-                          _timer > 0 ? 'Resend code in ${_timer}s' : 'Resend code',
-                          style: AppTextStyles.body.copyWith(
-                            color: _timer == 0 ? AppColors.yellow : AppColors.whiteA70,
-                            fontSize: 14,
-                            fontWeight: AppFontWeight.medium,
-                          ),
-                        ),
+                        child: _resendLoading
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(color: AppColors.whiteA70, strokeWidth: 2),
+                              )
+                            : Text(
+                                _timer > 0 ? 'Resend code in ${_timer}s' : 'Resend code',
+                                style: AppTextStyles.body.copyWith(
+                                  color: _timer == 0 ? AppColors.yellow : AppColors.whiteA70,
+                                  fontSize: 14,
+                                  fontWeight: AppFontWeight.medium,
+                                ),
+                              ),
                       ),
                     ),
                   ),
+                  if (_resendError != null)
+                    Center(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.sm),
+                        child: Text(
+                          _resendError!,
+                          style: AppTextStyles.body.copyWith(color: AppColors.yellow, fontSize: 13, fontWeight: AppFontWeight.medium),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

@@ -65,7 +65,9 @@ class LanguageSelectScreen extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.sm),
               child: Text(
-                noOrphan('You can change this later in Settings.'),
+                // Was "in Settings" — this app has no Settings screen; the
+                // real destination is the "App language" row on Profile.
+                noOrphan('You can change this later from Profile.'),
                 style: AppTextStyles.bodyLg.copyWith(color: AppColors.gray500),
               ),
             ),
@@ -96,30 +98,37 @@ class _LanguageRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: AppSpacing.md),
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(
-            color: AppColors.offWhite,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            border: Border.all(color: AppColors.border, width: 1),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
-                child: Icon(icon, size: 20, color: AppColors.blue),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Text(label, style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium)),
-              ),
-              const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
-            ],
+      // Material+InkWell, not a bare GestureDetector — almost every other
+      // tappable row in the app gives a ripple/pressed-state on tap; this
+      // was the one row with no feedback beyond the haptic + navigation.
+      child: Material(
+        color: AppColors.offWhite,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: Container(
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: AppColors.border, width: 1),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
+                  child: Icon(icon, size: 20, color: AppColors.blue),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Text(label, style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium)),
+                ),
+                const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
+              ],
+            ),
           ),
         ),
       ),
