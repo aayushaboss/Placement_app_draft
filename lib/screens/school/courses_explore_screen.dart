@@ -12,6 +12,7 @@ import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
+import '../../utils/group_by_category.dart';
 import '../../utils/recent_course_searches_prefs_key.dart';
 import '../../utils/scroll_to_top_registry.dart';
 import '../../widgets/auto_carousel.dart';
@@ -271,6 +272,59 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
     );
   }
 
+  // 1-column or 2-column-at-tablet-width rendering for one list of cards —
+  // shared between the flat (ungrouped) case and each category group below,
+  // so both lay out identically.
+  List<Widget> _cardsFor(List<Course> items, int columns) {
+    if (columns == 1) {
+      return items.map((c) => Padding(padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg), child: _resultCard(c))).toList();
+    }
+    return [
+      for (var row = 0; row < (items.length / columns).ceil(); row++)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var i = 0; i < columns; i++) ...[
+                  if (i > 0) const SizedBox(width: AppSpacing.lg),
+                  Expanded(child: row * columns + i < items.length ? _resultCard(items[row * columns + i]) : const SizedBox()),
+                ],
+              ],
+            ),
+          ),
+        ),
+    ];
+  }
+
+  Widget _categoryHeading(String category, int count) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.sm),
+      child: Text('$category ($count)', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 15)),
+    );
+  }
+
+  // Groups by category (in the exact order the categories were selected in
+  // the filter, matching what the picker itself shows) whenever more than
+  // one is active — an active multi-category filter is exactly the case
+  // that used to interleave, e.g., Technology/Design/Science cards with no
+  // way to browse just one category's cards in one continuous run. A single
+  // category, or none, renders flat as before — a one-item group heading
+  // would be redundant noise.
+  List<Widget> _resultWidgets(List<Course> results, int columns) {
+    if (_filter.categories.length > 1) {
+      final grouped = groupByCategory<Course>(results, (c) => c.category, order: _filter.categories);
+      return [
+        for (final entry in grouped.entries) ...[
+          _categoryHeading(entry.key, entry.value.length),
+          ..._cardsFor(entry.value, columns),
+        ],
+      ];
+    }
+    return _cardsFor(results, columns);
+  }
+
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
@@ -344,24 +398,8 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl).copyWith(top: AppSpacing.xxxl),
             child: EmptyState(icon: Ionicons.search_outline, title: 'No courses found', subtitle: emptyMessage()),
           )
-        else if (columns == 1)
-          ...results.map((c) => Padding(padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg), child: _resultCard(c)))
         else
-          for (var row = 0; row < (results.length / columns).ceil(); row++)
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
-              child: IntrinsicHeight(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    for (var i = 0; i < columns; i++) ...[
-                      if (i > 0) const SizedBox(width: AppSpacing.lg),
-                      Expanded(child: row * columns + i < results.length ? _resultCard(results[row * columns + i]) : const SizedBox()),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+          ..._resultWidgets(results, columns),
       ];
     } else {
       final carousels = [

@@ -163,6 +163,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final topInset = MediaQuery.of(context).padding.top;
     final resume = user?.resume;
     final hasResume = user?.hasResume ?? false;
+    final hasPhoto = user?.hasPhoto ?? false;
     // Single source of truth for every card's done/not-done badge below —
     // same profileChecklist the Home feed's completion dial and _BoostTip
     // both read, so this screen can't silently disagree with them.
@@ -277,13 +278,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // cards, but both ever did was open the same /profile-edit
                   // form at a different scroll position — reading as two
                   // things when it's really one edit destination. Combined
-                  // into a single card.
+                  // into a single card. Goals no longer has its own
+                  // checklist entry (see profile_readiness.dart) — its
+                  // content still shows inline below, it just no longer
+                  // gates this card's own checkmark.
                   _SectionCard(
                     title: 'Basic details',
                     icon: Ionicons.person_outline,
-                    // Represents both checklist items this one card covers
-                    // (see the comment above about why they're merged).
-                    done: isSchool ? checklist['basic'] : ((checklist['basic'] ?? false) && (checklist['goals'] ?? false)),
+                    done: checklist['basic'],
                     onTap: () => _editBasics(context),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -321,6 +323,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
                     ),
                   ),
+                  // College-only, same reasoning as Video profile below —
+                  // school's Profile tab only ever shows Basic details.
+                  if (!isSchool)
+                    _SectionCard(
+                      title: 'Profile photo',
+                      icon: Ionicons.camera_outline,
+                      done: checklist['photo'],
+                      onTap: () => _editBasics(context),
+                      child: Text(
+                        hasPhoto ? 'Photo added' : 'Add a photo so recruiters recognize you.',
+                        style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5),
+                      ),
+                    ),
                   // College-only — a video pitch is a recruiter-facing
                   // signal. School users aren't applying to jobs yet, so this
                   // card stays out of their profile screen entirely — it
@@ -350,10 +365,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   // The old standalone "Career preferences" card is gone —
                   // that concept now lives inline on college Home's filter
                   // icon instead (see college_feed_screen.dart /
-                  // opportunity_filter_screen.dart). checklist['preferences']
-                  // still exists and still counts toward the completion
-                  // percentage above; it just has no dedicated card here
-                  // anymore, the same way completing it now happens on Home.
+                  // opportunity_filter_screen.dart). No longer a checklist
+                  // item at all (see profile_readiness.dart) — it doesn't
+                  // count toward the completion percentage above anymore.
                   Container(
                     decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.xl), boxShadow: AppShadows.soft),
                     clipBehavior: Clip.antiAlias,

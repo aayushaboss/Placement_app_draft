@@ -93,6 +93,14 @@ extension ProfileReadiness on User {
   /// don't exist on their Profile tab (see profile_screen.dart's `isSchool`
   /// gates), so scoring them against a checklist they have no UI to
   /// complete would strand their percent below 100 forever.
+  ///
+  /// Exactly 4 items for non-school: Basic info, Resume, Profile photo,
+  /// Video profile — the 4 things this app actually asks a college/UG/PG/
+  /// Working user to provide. `goals`/`preferences` used to also count here
+  /// (a 5th and 6th item) but goals is really part of Basic details (shown
+  /// inline on that same card) and preferences moved entirely off the
+  /// Profile tab onto college Home's filter icon — neither has its own
+  /// dedicated completion story worth surfacing in this percentage anymore.
   List<ProfileChecklistItem> get profileChecklist {
     final basic = ProfileChecklistItem(
       id: 'basic',
@@ -115,12 +123,12 @@ extension ProfileReadiness on User {
         route: '/college/resume',
       ),
       ProfileChecklistItem(
-        id: 'goals',
-        title: 'Goals & roles',
-        subtitle: 'What you’re looking for',
+        id: 'photo',
+        title: 'Profile photo',
+        subtitle: 'Add a photo so recruiters recognize you',
         requiredForApply: false,
-        done: hasGoals,
-        route: '/profile-edit?section=roles',
+        done: hasPhoto,
+        route: '/profile-edit',
       ),
       ProfileChecklistItem(
         id: 'video',
@@ -134,20 +142,6 @@ extension ProfileReadiness on User {
         // simpler than teaching every consumer of .route a modal-vs-push
         // special case for this one item.
         route: '/tabs/profile',
-      ),
-      ProfileChecklistItem(
-        id: 'preferences',
-        title: 'Job preferences',
-        subtitle: 'Work mode, city, and employment type',
-        requiredForApply: false,
-        done: hasPreferences,
-        // Was '/preferences' (a standalone screen, now removed) — this
-        // concept lives inline on college Home's filter icon instead.
-        // Kept as a real route (not removed) since home_dashboard_cards.dart's
-        // "boost your profile" nudge reads this item's route independently
-        // to build its own CTA button; leaving it pointed at a dead route
-        // would break that nudge for anyone who hasn't set preferences yet.
-        route: '/college/opportunity-filter',
       ),
     ];
   }

@@ -582,8 +582,10 @@ const mockSalaryRanges = [
 
 /// Specialization within a degree (distinct from the degree type itself,
 /// e.g. course = "B.Tech", field of study = "Computer Science").
-/// Languages Known — mirrors Naukri's own option list (major Indian
-/// languages plus common foreign ones).
+/// Languages Known — English plus every major Indian language, including
+/// the classical/rare ones (Sanskrit, Kashmiri, Maithili, Konkani, Sindhi).
+/// Deliberately no foreign languages (French, German, etc.) — this app's
+/// audience and every language surface in it are India-only.
 const mockLanguages = [
   'English',
   'Hindi',
@@ -603,12 +605,6 @@ const mockLanguages = [
   'Kashmiri',
   'Konkani',
   'Sindhi',
-  'French',
-  'German',
-  'Spanish',
-  'Japanese',
-  'Mandarin Chinese',
-  'Arabic',
 ];
 
 /// App display-language options — a separate, deliberately smaller list
@@ -616,7 +612,8 @@ const mockLanguages = [
 /// knows" (for the resume) and includes classical/rare entries (Sanskrit,
 /// Kashmiri, Maithili, Konkani, Sindhi) no real app UI would ever ship as a
 /// display language; this one drops those. Kept as its own constant rather
-/// than reusing mockLanguages so the two stay editable independently.
+/// than reusing mockLanguages so the two stay editable independently. Same
+/// India-only scope as mockLanguages — no foreign languages here either.
 const mockAppDisplayLanguages = [
   'English',
   'Hindi',
@@ -631,12 +628,6 @@ const mockAppDisplayLanguages = [
   'Malayalam',
   'Punjabi',
   'Assamese',
-  'French',
-  'German',
-  'Spanish',
-  'Japanese',
-  'Mandarin Chinese',
-  'Arabic',
 ];
 
 const mockFieldsOfStudy = [

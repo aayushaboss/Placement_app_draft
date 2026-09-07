@@ -20,6 +20,7 @@ import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
+import '../../utils/group_by_category.dart';
 import '../../utils/no_orphan.dart';
 import '../../utils/scroll_to_top_registry.dart';
 import '../../widgets/course_carousel_section.dart';
@@ -202,7 +203,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     }
 
     final topMatches = List.of(opps)..sort((a, b) => b.matchScoreFor(user).compareTo(a.matchScoreFor(user)));
-    addSection('Jobs based on your profile', topMatches);
+    addSection('Recommended for you', topMatches);
 
     for (final role in roles) {
       final inRole = opps.where((o) => o.category.toLowerCase() == role.toLowerCase()).toList();
@@ -245,6 +246,47 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     }
 
     return sections;
+  }
+
+  Widget _oppRow(BuildContext context, AppState appState, User? user, Opportunity o) {
+    return OpportunityRow(
+      tag: o.type,
+      title: o.title,
+      subtitle: o.company,
+      meta: [o.location, o.stipend, o.duration],
+      matchLabel: o.matchLabelFor(user),
+      deadlineLabel: o.deadlineLabel,
+      deadlineUrgent: o.deadlineIsUrgent,
+      saved: appState.isOpportunitySaved(o.id),
+      onToggleSave: () => appState.toggleSavedOpportunity(o.id),
+      onTap: () => context.push('/opportunity/${o.id}'),
+      onApply: () => startApplyFlow(context, o, onApplied: () => setState(() {})),
+    );
+  }
+
+  // Groups the isFiltering flat list by category whenever it spans more
+  // than one — unlike the unfiltered view above (already one carousel per
+  // selected role), this filter (work mode/employment type/city) never
+  // scopes _opps by category at all, so it can freely interleave Software/
+  // Design/Data/etc. results with nothing to browse just one category in
+  // one continuous run. No explicit "selected categories" list exists on
+  // this filter path (unlike Courses'), so groups are ordered by first
+  // appearance in _opps instead.
+  List<Widget> _groupedOppRows(BuildContext context, AppState appState, User? user, List<Opportunity> opps) {
+    final categories = {for (final o in opps) o.category}.toList();
+    if (categories.length <= 1) {
+      return [for (final o in opps) Padding(padding: const EdgeInsets.only(bottom: AppSpacing.lg), child: _oppRow(context, appState, user, o))];
+    }
+    final grouped = groupByCategory<Opportunity>(opps, (o) => o.category);
+    return [
+      for (final entry in grouped.entries) ...[
+        Padding(
+          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          child: Text('${entry.key} (${entry.value.length})', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 15)),
+        ),
+        for (final o in entry.value) Padding(padding: const EdgeInsets.only(bottom: AppSpacing.lg), child: _oppRow(context, appState, user, o)),
+      ],
+    ];
   }
 
   @override
@@ -518,25 +560,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                                     child: Column(
-                                      children: [
-                                        for (final o in _opps)
-                                          Padding(
-                                            padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                                            child: OpportunityRow(
-                                              tag: o.type,
-                                              title: o.title,
-                                              subtitle: o.company,
-                                              meta: [o.location, o.stipend, o.duration],
-                                              matchLabel: o.matchLabelFor(user),
-                                              deadlineLabel: o.deadlineLabel,
-                                              deadlineUrgent: o.deadlineIsUrgent,
-                                              saved: appState.isOpportunitySaved(o.id),
-                                              onToggleSave: () => appState.toggleSavedOpportunity(o.id),
-                                              onTap: () => context.push('/opportunity/${o.id}'),
-                                              onApply: () => startApplyFlow(context, o, onApplied: () => setState(() {})),
-                                            ),
-                                          ),
-                                      ],
+                                      children: _groupedOppRows(context, appState, user, _opps),
                                     ),
                                   ),
                                 ],

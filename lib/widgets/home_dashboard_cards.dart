@@ -43,61 +43,72 @@ class HomeDashboardCards extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Matches _DashboardCard's own fixed height (112) — that fits its
-        // content column at the worst case (tag + 2-line title + 2-line
-        // meta), not just the 84px leading visual. Plus AppShadows.cardBuffer
-        // on each side — enough for AppShadows.card's blur to clear without
-        // a hard clip, without being more buffer than the shadow actually
-        // needs (an earlier AppSpacing.xxl/26 was, and read as dead space
-        // above every card).
+        // AppShadows.cardBuffer on each side — enough for AppShadows.card's
+        // blur to clear without a hard clip, without being more buffer than
+        // the shadow actually needs (an earlier AppSpacing.xxl/26 was, and
+        // read as dead space above every card). Row height itself is no
+        // longer fixed — each _DashboardCard hugs its own content now (see
+        // its own comment); IntrinsicHeight below just keeps every card's
+        // top edge level with the others.
         //
         // The usual AppSpacing.xl (20) horizontal inset from the screen edge
         // is split between this outer Padding (AppSpacing.sm/6) and the
-        // ListView's own leading/trailing content padding (AppSpacing.lg/14
-        // below) instead of living entirely out here — a ListView clips its
-        // children to its own box regardless of how much room an outer
-        // Padding leaves around it, so with no padding of its own the first/
-        // last card's shadow (which needs ~12px of clearance left/right,
-        // same math as cardBuffer but for AppShadows.card's blurRadius with
-        // zero x-offset) got hard-clipped at that edge. sm+lg still sums to
-        // the same 20 total inset — same pattern already proven correct in
-        // opportunity_carousel_section.dart's lane.
+        // scroller's own leading/trailing content padding (AppSpacing.lg/14
+        // below) instead of living entirely out here — a horizontal
+        // scroller clips its children to its own box regardless of how much
+        // room an outer Padding leaves around it, so with no padding of its
+        // own the first/last card's shadow (which needs ~12px of clearance
+        // left/right, same math as cardBuffer but for AppShadows.card's
+        // blurRadius with zero x-offset) got hard-clipped at that edge.
+        // sm+lg still sums to the same 20 total inset — same pattern already
+        // proven correct in opportunity_carousel_section.dart's lane.
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
-          child: SizedBox(
-            height: 112 + AppShadows.cardBuffer * 2,
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppShadows.cardBuffer, AppSpacing.lg, AppShadows.cardBuffer),
-              scrollDirection: Axis.horizontal,
-              children: [
-                _DashboardCard(
-                  // Always the Profile tab — that's where the completion
-                  // dial + full checklist live now, so this is one stable
-                  // destination regardless of what's missing, instead of a
-                  // hidden jump to whichever item happened to be first.
-                  onTap: () => context.go('/tabs/profile'),
-                  leading: _LeadingVisual(child: ProgressRing(percent: percent)),
-                  tag: 'Profile',
-                  title: '$percent% complete',
-                  meta: noOrphan('${u.profileCompletedCount}/${u.profileTotalCount} sections done · Tap to finish'),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                _DashboardCard(
-                  onTap: () => context.push('/search-appearances'),
-                  leading: const _LeadingVisual(child: Icon(Ionicons.eye_outline, size: 28, color: AppColors.blue)),
-                  tag: 'Visibility',
-                  title: '$searchAppearances searches',
-                  meta: 'Last 14 days',
-                ),
-                const SizedBox(width: AppSpacing.md),
-                _DashboardCard(
-                  onTap: () => context.push('/recruiter-actions'),
-                  leading: const _LeadingVisual(child: Icon(Ionicons.people_outline, size: 28, color: AppColors.blue)),
-                  tag: 'Recruiters',
-                  title: noOrphan('$recruiterActions recruiter actions'),
-                  meta: 'Profile views',
-                ),
-              ],
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppShadows.cardBuffer, AppSpacing.lg, AppShadows.cardBuffer),
+            scrollDirection: Axis.horizontal,
+            // IntrinsicHeight bounds the row to its tallest child's natural
+            // height (already the established pattern this app uses for
+            // 2-column row-pairing elsewhere — applications_tracker_screen.
+            // dart, opportunity_list_screen.dart, search_screen.dart,
+            // courses_explore_screen.dart). crossAxisAlignment.start (not
+            // Row's own default of stretch) is what actually lets each
+            // card hug its own shorter content instead of being stretched
+            // to match the tallest sibling — stretch would silently
+            // reintroduce the exact fixed-height problem this replaces.
+            child: IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _DashboardCard(
+                    // Always the Profile tab — that's where the completion
+                    // dial + full checklist live now, so this is one stable
+                    // destination regardless of what's missing, instead of a
+                    // hidden jump to whichever item happened to be first.
+                    onTap: () => context.go('/tabs/profile'),
+                    leading: _LeadingVisual(child: ProgressRing(percent: percent)),
+                    tag: 'Profile',
+                    title: '$percent% complete',
+                    meta: noOrphan('${u.profileCompletedCount}/${u.profileTotalCount} sections done · Tap to finish'),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  _DashboardCard(
+                    onTap: () => context.push('/search-appearances'),
+                    leading: const _LeadingVisual(child: Icon(Ionicons.eye_outline, size: 28, color: AppColors.blue)),
+                    tag: 'Visibility',
+                    title: '$searchAppearances searches',
+                    meta: 'Last 14 days',
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  _DashboardCard(
+                    onTap: () => context.push('/recruiter-actions'),
+                    leading: const _LeadingVisual(child: Icon(Ionicons.people_outline, size: 28, color: AppColors.blue)),
+                    tag: 'Recruiters',
+                    title: noOrphan('$recruiterActions recruiter actions'),
+                    meta: 'Profile views',
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -132,13 +143,7 @@ class _DashboardCard extends StatelessWidget {
   final String meta;
   final VoidCallback onTap;
 
-  const _DashboardCard({
-    required this.leading,
-    required this.tag,
-    required this.title,
-    required this.meta,
-    required this.onTap,
-  });
+  const _DashboardCard({required this.leading, required this.tag, required this.title, required this.meta, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -150,16 +155,17 @@ class _DashboardCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
         child: Container(
           width: 268,
-          // Fixed, not content-driven — every card in the row gets the
-          // exact same footprint regardless of whether its title happens
-          // to wrap to 1 or 2 lines, so they read as one consistent family
-          // instead of each shaped by its own content. Any leftover room
-          // on a shorter card just sits as trailing space below the meta
-          // line, not wedged between the title and meta themselves (which
-          // is what a fixed-height *title* box did instead — technically
-          // aligned the meta row across cards, but at the cost of a big
-          // dead gap under any one-line title).
-          height: 112,
+          // Width stays fixed (every card the same footprint reads as one
+          // consistent family) but height is deliberately NOT fixed anymore
+          // — it hugs this Container's own Row content instead, bounded
+          // below by the 84×84 leading visual (see _LeadingVisual) so it
+          // never collapses smaller than that. A shared fixed height used
+          // to force every card in the row to the tallest one's footprint,
+          // leaving dead space below shorter 1-line-meta cards (Visibility/
+          // Recruiters) that never needed it. The outer IntrinsicHeight row
+          // still keeps every card's *top* edge level with the others —
+          // only the bottom now varies per card, matching its own content.
+          //
           // Uniform on all 4 sides — was previously lg/sm/sm/sm (left
           // bigger than the rest) on the theory that centering the 84-tall
           // leading icon in a 100-tall row already left lg of clearance
@@ -207,7 +213,12 @@ class _DashboardCard extends StatelessWidget {
                       // gray500, not gray400 — gray400 on white is ~2.6:1
                       // contrast (fails WCAG AA) for what's genuine caption
                       // text here, not just a decorative tint.
-                      child: Text(meta, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
+                      child: Text(
+                        meta,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
+                      ),
                     ),
                   ],
                 ),
@@ -229,16 +240,11 @@ typedef _BoostTipData = ({String message, String cta, String route, IconData ico
 
 // Icon per profileChecklist item id — matches the icon already assigned to
 // that same section's row on the Profile tab, so the nudge and the
-// checklist read as one consistent system.
-// 'employment'/'languages'/'itSkills' entries removed — profile_readiness.dart's
-// profileChecklist only ever produces basic/resume/goals/video/preferences
-// ids, so those three could never actually be looked up; dead entries.
-const _boostIcons = {
-  'resume': Ionicons.document_text_outline,
-  'goals': Ionicons.flag_outline,
-  'video': Ionicons.videocam_outline,
-  'preferences': Ionicons.options_outline,
-};
+// checklist read as one consistent system. profile_readiness.dart's
+// profileChecklist only ever produces basic/resume/photo/video ids ('basic'
+// is excluded below before this map is ever consulted) — keep in sync if
+// that list changes.
+const _boostIcons = {'resume': Ionicons.document_text_outline, 'photo': Ionicons.camera, 'video': Ionicons.videocam_outline};
 
 /// The single most useful missing profile thing — a photo beats a generic
 /// nudge, since it's the one line item Naukri's own reference screenshot
@@ -246,9 +252,12 @@ const _boostIcons = {
 /// there's genuinely nothing left to nudge about.
 _BoostTipData? _resolveBoostTip(User user) {
   if (!user.hasPhoto) {
-    // Not a profileChecklist item (no Profile-tab row of its own — it's
-    // edited inline inside Basic details), so it stays a hardcoded
-    // first-priority nudge rather than coming from the checklist below.
+    // 'photo' is also a real profileChecklist item now (its own Profile-tab
+    // card with a checkmark) — this hardcoded early-return still wins over
+    // the generic scan below on purpose (this file's own doc comment: "a
+    // photo beats a generic nudge"). No double-nudge risk: once a photo
+    // exists, 'photo' is done and the generic scan's `!i.done` filter
+    // excludes it on its own, no explicit exclusion needed.
     return (
       message: 'Build trust among recruiters by adding a photo.',
       cta: 'Add photo',
@@ -314,7 +323,10 @@ class _BoostSection extends StatelessWidget {
     } else {
       final resumeCard = _BoostTipCard(message: _resumeTip.message, cta: _resumeTip.cta, route: _resumeTip.route, icon: _resumeTip.icon);
       content = tip == null
-          ? Padding(padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl), child: resumeCard)
+          ? Padding(
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+              child: resumeCard,
+            )
           : AutoCarousel(
               height: 80,
               cards: [
@@ -330,7 +342,10 @@ class _BoostSection extends StatelessWidget {
     // (not the caller) so the gap only exists when there's actually
     // something below it to space out, not a floating gap above nothing
     // on the (fairly common) days this whole section has nothing to show.
-    return Padding(padding: const EdgeInsets.only(top: AppSpacing.xl), child: content);
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xl),
+      child: content,
+    );
   }
 }
 
@@ -349,10 +364,7 @@ class _BoostTipCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.blueA10,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
+      decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.lg)),
       child: Row(
         children: [
           Expanded(
@@ -393,4 +405,3 @@ class _BoostTipCard extends StatelessWidget {
     );
   }
 }
-
