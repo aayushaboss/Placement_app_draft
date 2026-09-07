@@ -153,6 +153,10 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
             },
           ),
           duration: const Duration(seconds: 4),
+          // See sessions_screen.dart's own note — `persist` defaults to
+          // true whenever `action` is set, silently making `duration` a
+          // no-op unless this is set explicitly.
+          persist: false,
         ),
       );
   }

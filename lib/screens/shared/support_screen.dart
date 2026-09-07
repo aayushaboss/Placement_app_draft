@@ -55,38 +55,40 @@ class _SupportScreenState extends State<SupportScreen> {
     final topInset = MediaQuery.of(context).padding.top;
     final faqs = mockFaqs.where((f) => _activeCategoryId == null || f.categoryId == _activeCategoryId).toList();
 
-    return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: SystemUiOverlayStyle.light,
-      child: Scaffold(
-        backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Column(
-          children: [
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
-              decoration: const BoxDecoration(
-                color: AppColors.blue,
-                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const BackChevron(fallbackRoute: '/tabs/profile'),
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.md),
-                    child: Text('Support & Help', style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 28, fontWeight: AppFontWeight.bold)),
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      body: ResponsiveBody(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Plain white header, matching this screen's actual peers —
+          // saved_screen.dart / recently_deleted_applications_screen.dart,
+          // both reached from the same Profile-tab entry point with the
+          // same list-of-items shape — instead of the blue "hub" header
+          // this screen used to copy from bigger primary features
+          // (resume_screen.dart/results_screen.dart), which read as
+          // disproportionately large for what this page actually is.
+          Padding(
+            padding: EdgeInsets.fromLTRB(AppSpacing.lg, topInset + AppSpacing.sm, AppSpacing.lg, 0),
+            child: BackChevron(color: AppColors.ink, fallbackRoute: '/tabs/profile'),
+          ),
+          Padding(
+            padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Support & Help', textAlign: TextAlign.left, style: AppTextStyles.h1.copyWith(color: AppColors.ink)),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs / 2),
+                  child: Text(
+                    "We're here to help with anything on Aerostar Edge.",
+                    textAlign: TextAlign.left,
+                    style: AppTextStyles.body.copyWith(color: AppColors.gray500),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.sm),
-                    child: Text(
-                      "We're here to help with anything on Aerostar Edge.",
-                      style: AppTextStyles.body.copyWith(color: AppColors.whiteA70, fontSize: 14),
-                    ),
-                  ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Expanded(
+          ),
+          Expanded(
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
                 children: [
@@ -101,13 +103,30 @@ class _SupportScreenState extends State<SupportScreen> {
                     ],
                   ),
                   const SizedBox(height: AppSpacing.xl),
-                  ...faqs.map((f) => _FaqTile(
-                        item: f,
-                        expanded: _expandedQuestions.contains(f.question),
-                        onTap: () => _toggleExpanded(f.question),
-                      )),
+                  // One shared card (radius + soft shadow) around every FAQ
+                  // row, with plain dividers between them — the same
+                  // "grouped card, not N floating cards" shape the contact
+                  // block below already uses, instead of each of the 14
+                  // FAQs carrying its own AppShadows.card + radius, which
+                  // is what actually read as cluttered.
+                  if (faqs.isNotEmpty)
+                    Container(
+                      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.xl), boxShadow: AppShadows.soft),
+                      clipBehavior: Clip.antiAlias,
+                      child: Column(
+                        children: [
+                          for (var i = 0; i < faqs.length; i++)
+                            _FaqTile(
+                              item: faqs[i],
+                              expanded: _expandedQuestions.contains(faqs[i].question),
+                              isLast: i == faqs.length - 1,
+                              onTap: () => _toggleExpanded(faqs[i].question),
+                            ),
+                        ],
+                      ),
+                    ),
                   Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.md, bottom: AppSpacing.md),
+                    padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.md),
                     child: Text('Still need help?', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
                   ),
                   Container(
@@ -154,23 +173,27 @@ class _SupportScreenState extends State<SupportScreen> {
             ),
           ],
         )),
-      ),
-    );
+      );
   }
 }
 
 class _FaqTile extends StatelessWidget {
   final FaqItem item;
   final bool expanded;
+  final bool isLast;
   final VoidCallback onTap;
-  const _FaqTile({required this.item, required this.expanded, required this.onTap});
+  const _FaqTile({required this.item, required this.expanded, required this.isLast, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    // No own margin/decoration/shadow/radius — this now sits inside one
+    // shared card (see the Container wrapping the whole FAQ list in
+    // SupportScreen.build), same "grouped card, divided rows" shape
+    // _ContactRow below already uses.
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
-      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
-      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.border, width: 1)),
+      ),
       child: Column(
         children: [
           GestureDetector(

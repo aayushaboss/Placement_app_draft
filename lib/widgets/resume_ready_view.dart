@@ -51,6 +51,9 @@ class _ResumeReadyViewState extends State<ResumeReadyView> {
         ..showSnackBar(SnackBar(
           content: const Text("Couldn't generate the PDF"),
           action: SnackBarAction(label: 'Retry', textColor: AppColors.yellow, onPressed: _download),
+          duration: const Duration(seconds: 4),
+          // See sessions_screen.dart's own note on `persist`.
+          persist: false,
         ));
     } finally {
       if (mounted) setState(() => _downloading = false);

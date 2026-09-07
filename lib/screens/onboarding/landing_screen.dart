@@ -55,6 +55,9 @@ class _LandingScreenState extends State<LandingScreen> {
         SnackBar(
           content: const Text("Couldn't sign in with Google"),
           action: SnackBarAction(label: 'Retry', textColor: AppColors.yellow, onPressed: _continueWithGoogle),
+          duration: const Duration(seconds: 4),
+          // See sessions_screen.dart's own note on `persist`.
+          persist: false,
         ),
       );
     } finally {

@@ -149,6 +149,13 @@ class _SessionsScreenState extends State<SessionsScreen> {
                               },
                             ),
                             duration: const Duration(seconds: 4),
+                            // Flutter defaults `persist` to true whenever an
+                            // `action` is set, which silently makes the
+                            // `duration` above a no-op (the auto-dismiss
+                            // timer fires but does nothing) — this is a
+                            // genuine toast, not a stay-until-dismissed
+                            // notification, so it should actually time out.
+                            persist: false,
                           ),
                         );
                     },

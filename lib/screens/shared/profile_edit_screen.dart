@@ -314,6 +314,11 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
         ..showSnackBar(SnackBar(
           content: const Text("Couldn't save — try a smaller photo or check your connection"),
           action: SnackBarAction(label: 'Retry', textColor: AppColors.yellow, onPressed: _save),
+          duration: const Duration(seconds: 4),
+          // See sessions_screen.dart's own note on `persist` — Flutter
+          // defaults it to true whenever `action` is set, which would
+          // otherwise silently keep this on screen indefinitely.
+          persist: false,
         ));
     } finally {
       if (mounted) setState(() => _loading = false);

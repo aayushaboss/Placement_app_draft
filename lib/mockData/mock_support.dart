@@ -43,7 +43,7 @@ const mockFaqs = [
   ),
   FaqItem(
     question: 'How is my profile completion percentage calculated?',
-    answer: "It's based on the checklist on your Profile tab — Basic details, Resume, Video profile, and Career preferences each contribute a share. Complete all four for 100%.",
+    answer: "It's based on the checklist on your Profile tab — Basic details, Resume, Profile photo, and Video profile each contribute a share. Complete all four for 100%.",
     categoryId: 'account',
   ),
   FaqItem(

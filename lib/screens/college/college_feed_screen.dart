@@ -394,36 +394,6 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                           // search_screen.dart, reached via the header's
                           // icon) — no inline bar taking up feed space here.
                           //
-                          // The goal-derived scoping (_load()'s _type,
-                          // set from onboarding/the filter screen's Goal
-                          // field) silently narrowed the whole feed with
-                          // no on-screen indication at all — this is that
-                          // indication, tappable straight into the filter
-                          // screen where it's actually changed. Deliberately
-                          // not folded into isFiltering/_clearFilters (see
-                          // their own comments) — Goal is an identity facet,
-                          // not a filter, so it stays out of that mechanism;
-                          // this chip only adds visibility, not a new way
-                          // to clear it.
-                          if (_type != 'All')
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.md),
-                              child: GestureDetector(
-                                onTap: _openFilter,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
-                                  decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Ionicons.funnel_outline, size: 13, color: AppColors.blue),
-                                      const SizedBox(width: AppSpacing.sm),
-                                      Text('Showing: $_type', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12.5, fontWeight: AppFontWeight.medium)),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
                           // No leading spacer here — HomeHeader's own bottom
                           // padding now supplies the gap under it directly
                           // (a shared fix, since school_home_screen.dart had

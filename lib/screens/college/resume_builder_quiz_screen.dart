@@ -1234,6 +1234,9 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
         ..showSnackBar(SnackBar(
           content: const Text("Couldn't save your resume — try again."),
           action: SnackBarAction(label: 'Retry', textColor: AppColors.yellow, onPressed: _finishBuilding),
+          duration: const Duration(seconds: 4),
+          // See sessions_screen.dart's own note on `persist`.
+          persist: false,
         ));
     }
   }

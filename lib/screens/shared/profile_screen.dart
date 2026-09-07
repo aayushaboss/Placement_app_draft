@@ -2,6 +2,7 @@ import 'dart:html' as html;
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -18,12 +19,20 @@ import '../../utils/initials.dart';
 import '../../utils/no_orphan.dart';
 import '../../utils/scroll_to_top_registry.dart';
 import '../../utils/support_hint_prefs_key.dart';
+import '../../widgets/app_chip.dart';
 import '../../widgets/badges.dart';
+import '../../widgets/pill_button.dart';
 import '../../widgets/progress_ring.dart';
 import '../../widgets/responsive_body.dart';
 import 'video_profile_screen.dart';
 
 const _segmentLabels = {Segment.school: 'School Student', Segment.ug: 'Undergraduate', Segment.pg: 'Postgraduate', Segment.working: 'Working'};
+
+// Mirrors micro_profile_screen.dart's own `_segmentOptions` (the college/
+// working choice a fresh college signup already makes) — reused here so
+// "Switch to College" offers exactly the same 3 destinations, not a new,
+// possibly-inconsistent set.
+const _switchSegmentOptions = [(Segment.ug, 'Undergraduate'), (Segment.pg, 'Postgraduate'), (Segment.working, 'Working')];
 
 class _ProfileRow {
   final IconData icon;
@@ -33,7 +42,13 @@ class _ProfileRow {
   /// Optional live value shown before the chevron (e.g. the current app
   /// language) — null for every other row today.
   final String? trailing;
-  const _ProfileRow({required this.icon, required this.label, this.route, this.trailing});
+
+  /// Optional override for what tapping the row does — used by rows that
+  /// open a bottom sheet (e.g. "Switch to College") instead of navigating
+  /// to a route. Takes precedence over `route` when both are set (not the
+  /// case for any row today).
+  final VoidCallback? onTap;
+  const _ProfileRow({required this.icon, required this.label, this.route, this.trailing, this.onTap});
 }
 
 /// "Saved" is college-only — school users never bookmark opportunities.
@@ -152,12 +167,107 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // choice entirely and always looked like build-only.
   void _editResume(BuildContext context) => context.push('/college/resume');
 
+  /// The one path an already-onboarded School user has into the college
+  /// flow — e.g. finished school onboarding, then genuinely started
+  /// college this month and wants to browse internships/jobs, which School
+  /// has no tab/screen for at all today.
+  ///
+  /// Deliberately reuses the exact "Goals → Home" tail a fresh College
+  /// signup already completes (flip `segment` + `onboardingComplete:
+  /// false`, land on `/college/goals`) instead of either re-routing
+  /// through `/onboarding/profile` (which would mean touching the
+  /// `_authEntryRoutes`/redirect logic already responsible for two subtle
+  /// bugs earlier this session) or building a whole new form screen —
+  /// `goals_screen.dart`/`resume_builder_quiz_screen.dart` have no segment
+  /// guard of their own, so this is safe. School-only fields
+  /// (`currentClass`, `board`, `aptitudeResults`, ...) are left as
+  /// harmless unread carryover, same treatment this app already gives
+  /// UG↔PG course/college values on a segment change during onboarding.
+  void _showSwitchToCollegeSheet(BuildContext context) {
+    Segment? chosen;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.white,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (sheetContext, setSheetState) => Padding(
+          padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xl + MediaQuery.of(sheetContext).viewInsets.bottom),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
+                child: const Icon(Ionicons.school, size: 28, color: AppColors.blue),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.md),
+                child: Text('Switch to College', style: AppTextStyles.h2.copyWith(color: AppColors.ink, fontSize: 20, fontWeight: AppFontWeight.semibold)),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: Text(
+                  "Unlock internships, job applications, and the resume builder. Your aptitude results and booked sessions stay saved — fill in your college details from Profile whenever you're ready.",
+                  style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14, height: 1.4),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xl),
+                child: Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: _switchSegmentOptions
+                      .map((s) => AppChip(
+                            label: s.$2,
+                            selected: chosen == s.$1,
+                            onPressed: () {
+                              HapticFeedback.selectionClick();
+                              setSheetState(() => chosen = s.$1);
+                            },
+                          ))
+                      .toList(),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.xl),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: PillButton(
+                    label: 'Continue',
+                    disabled: chosen == null,
+                    onPressed: chosen == null
+                        ? null
+                        : () {
+                            final segment = chosen!;
+                            context.read<AppState>().updateProfile((current) => current.copyWith(segment: segment, onboardingComplete: false));
+                            Navigator.of(sheetContext).pop();
+                            context.go('/college/goals');
+                          },
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AppState>().user;
     final isSchool = user?.segment == Segment.school;
     final rows = [
       ..._rowsFor(isSchool),
+      // School-only — the one way an already-onboarded School user (e.g.
+      // just started college this month) can reach the college flow at
+      // all. See _showSwitchToCollegeSheet's own doc comment for the full
+      // design rationale.
+      if (isSchool) _ProfileRow(icon: Ionicons.school_outline, label: 'Switch to College', onTap: () => _showSwitchToCollegeSheet(context)),
       _ProfileRow(icon: Ionicons.language_outline, label: 'App language', route: '/language-select?edit=1', trailing: user?.appLanguage ?? 'English'),
     ];
     final topInset = MediaQuery.of(context).padding.top;
@@ -379,15 +489,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           final r = entry.value;
                           final showSupportHint = r.route == '/support' && !_supportHintSeen;
                           return Semantics(
-                            button: r.route != null,
+                            button: r.route != null || r.onTap != null,
                             label: r.label,
                             child: GestureDetector(
-                              onTap: r.route == null
-                                  ? null
-                                  : () {
-                                      if (r.route == '/support') _markSupportHintSeen();
-                                      r.route!.startsWith('/tabs') ? context.go(r.route!) : context.push(r.route!);
-                                    },
+                              onTap: r.onTap ??
+                                  (r.route == null
+                                      ? null
+                                      : () {
+                                          if (r.route == '/support') _markSupportHintSeen();
+                                          r.route!.startsWith('/tabs') ? context.go(r.route!) : context.push(r.route!);
+                                        }),
                               child: Container(
                                 padding: const EdgeInsets.all(AppSpacing.lg),
                                 decoration: BoxDecoration(
