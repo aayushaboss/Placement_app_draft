@@ -280,8 +280,12 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     final grouped = groupByCategory<Opportunity>(opps, (o) => o.category);
     return [
       for (final entry in grouped.entries) ...[
+        // top: lg matches courses_explore_screen.dart's _categoryHeading
+        // vertical rhythm exactly — no horizontal value needed here (unlike
+        // that self-contained version) since this heading already sits
+        // inside the same horizontal-xl Padding the cards do.
         Padding(
-          padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+          padding: const EdgeInsets.only(top: AppSpacing.lg, bottom: AppSpacing.sm),
           child: Text('${entry.key} (${entry.value.length})', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 15)),
         ),
         for (final o in entry.value) Padding(padding: const EdgeInsets.only(bottom: AppSpacing.lg), child: _oppRow(context, appState, user, o)),
@@ -560,6 +564,15 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                                     child: Column(
+                                      // Column defaults to centering its
+                                      // children — harmless for the
+                                      // full-width OpportunityRow cards, but
+                                      // it was silently centering the plain
+                                      // Text category headings too, unlike
+                                      // Courses' equivalent (a direct
+                                      // ListView child, naturally
+                                      // left-aligned). .start matches that.
+                                      crossAxisAlignment: CrossAxisAlignment.start,
                                       children: _groupedOppRows(context, appState, user, _opps),
                                     ),
                                   ),
