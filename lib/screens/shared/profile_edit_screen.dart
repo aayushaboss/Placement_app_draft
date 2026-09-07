@@ -59,6 +59,7 @@ class ProfileEditScreen extends StatefulWidget {
 
 class _ProfileEditScreenState extends State<ProfileEditScreen> {
   final _nameController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _scrollController = ScrollController();
   final _rolesFieldKey = GlobalKey();
   String _city = '';
@@ -84,6 +85,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
     _scrollController.dispose();
     _priorExperienceExactController.dispose();
     super.dispose();
@@ -104,6 +106,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     if (_hydrated) return;
     _nameController.text = user.name ?? '';
     _city = user.city ?? '';
+    _phoneController.text = user.phone ?? '';
     _college = user.college ?? '';
     _course = user.course ?? '';
     _fieldOfStudy = user.fieldOfStudy ?? '';
@@ -259,6 +262,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
           ? current.copyWith(
               name: _nameController.text,
               city: _city,
+              phone: _phoneController.text.trim(),
               currentClass: _currentClass,
               board: _board,
               photoUrl: photoUrl,
@@ -267,6 +271,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               ? current.copyWith(
                   name: _nameController.text,
                   city: _city,
+                  phone: _phoneController.text.trim(),
                   highestQualification: _highestQualification.isNotEmpty ? _highestQualification : null,
                   college: _educatedQualifications.contains(_highestQualification) && _college.isNotEmpty ? _college : null,
                   course: _educatedQualifications.contains(_highestQualification) && _course.isNotEmpty ? _course : null,
@@ -278,6 +283,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
               : current.copyWith(
                   name: _nameController.text,
                   city: _city,
+                  phone: _phoneController.text.trim(),
                   college: _college,
                   course: _course,
                   semester: _semester,
@@ -454,6 +460,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                   PillInput(controller: _nameController, placeholder: 'Your name', icon: Ionicons.person_outline, onChanged: (_) => setState(() {})),
                   const FieldLabel('City'),
                   AutocompleteField(value: _city, placeholder: 'e.g. Mumbai', icon: Ionicons.location_outline, options: mockCities, onChanged: (v) => setState(() => _city = v)),
+                  const FieldLabel('Phone number'),
+                  PillInput(
+                    controller: _phoneController,
+                    placeholder: '9876543210',
+                    icon: Ionicons.call_outline,
+                    keyboardType: TextInputType.phone,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: (_) => setState(() {}),
+                  ),
                   if (isSchool) ...[
                     _chipField('Current class', _classOptions, _currentClass, (v) => setState(() => _currentClass = v)),
                     _chipField('Board', _boardOptions, _board, (v) => setState(() => _board = v)),

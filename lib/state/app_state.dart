@@ -193,6 +193,13 @@ class AppState extends ChangeNotifier {
         // phone number to guess a name from.
         name: _deriveNameFromEmail(identifier),
         city: null,
+        // Phone sign-up's identifier already *is* the phone number — auto-
+        // filled here so that path is never asked again on the onboarding
+        // profile screen (see MicroProfileScreen's `_needsPhone`, which
+        // gates the question on this same `identifier.contains('@')`
+        // check). Null for email/Google sign-ups, which have no phone to
+        // auto-fill — that's exactly what the onboarding question is for.
+        phone: identifier.contains('@') ? null : identifier,
         appLanguage: _appLanguage,
         segment: null,
         onboardingComplete: false,

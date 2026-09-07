@@ -47,7 +47,14 @@ class MicroProfileScreen extends StatefulWidget {
 
 class _MicroProfileScreenState extends State<MicroProfileScreen> {
   late final TextEditingController _nameController;
+  final _phoneController = TextEditingController();
   String? _signInMethod;
+  // Captured alongside _signInMethod in _hydrateFromUser — the exact
+  // signal (already used the same way in otp_screen.dart/booking_screen.
+  // dart) for whether this account still needs a phone number asked: a
+  // phone sign-up's identifier never contains '@', a Google or email
+  // sign-up's always does.
+  String _identifier = '';
   String _city = '';
   Segment? _segment;
   String _college = '';
@@ -68,13 +75,30 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
   bool get _isWorking => _segment == Segment.working;
   bool get _isEducatedWorking => _isWorking && _educatedQualifications.contains(_highestQualification);
 
+  /// Phone sign-up's identifier already is a phone number (auto-filled in
+  /// AppState._makeNewUser) — only Google/email sign-ups still need to be
+  /// asked here.
+  bool get _needsPhone => _identifier.contains('@');
+
+  /// Same 10-15-digit bound already established in login_screen.dart's own
+  /// `_valid` getter, reused here rather than inventing a new one.
+  bool get _isValidPhone {
+    final digits = _phoneController.text.trim();
+    return digits.length >= 10 && digits.length <= 15;
+  }
+
   // City/College/Course are free-text (AutocompleteField), unlike the
   // chip-selected fields below them — trimming before every emptiness
   // check on these three (matching how Name already does) stops a
   // whitespace-only entry from counting as "filled" and slipping into the
   // saved profile.
   List<bool> get _filled {
-    final base = [_nameController.text.trim().isNotEmpty, _city.trim().isNotEmpty, _segment != null];
+    final base = [
+      _nameController.text.trim().isNotEmpty,
+      _city.trim().isNotEmpty,
+      if (_needsPhone) _isValidPhone,
+      _segment != null,
+    ];
     if (_segment == null) return base;
     if (_isSchool) return [...base, _currentClass.isNotEmpty, _board.isNotEmpty];
     if (_isWorking) {
@@ -96,6 +120,7 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
 
   bool get _canContinue {
     if (_nameController.text.trim().isEmpty || _city.trim().isEmpty || _segment == null) return false;
+    if (_needsPhone && !_isValidPhone) return false;
     if (_isSchool) return _currentClass.isNotEmpty && _board.isNotEmpty;
     if (_isWorking) {
       if (_highestQualification.isEmpty) return false;
@@ -118,7 +143,9 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
     _hydrated = true;
     _nameController.text = user.name ?? '';
     _city = user.city ?? '';
+    _phoneController.text = user.phone ?? '';
     _signInMethod = user.signInMethod;
+    _identifier = user.identifier;
     // Previously only name/city/signInMethod were restored here — every
     // other field defaulted to blank on every visit, so the very likely
     // "Goals has nothing to pop, falls back to context.go('/onboarding/
@@ -151,6 +178,7 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _phoneController.dispose();
     _priorExperienceExactController.dispose();
     super.dispose();
   }
@@ -277,6 +305,7 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
           ? current.copyWith(
               name: _nameController.text.trim(),
               city: _city.trim(),
+              phone: _needsPhone ? _phoneController.text.trim() : null,
               segment: _segment,
               currentClass: _currentClass,
               board: _board,
@@ -288,6 +317,7 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
               ? current.copyWith(
                   name: _nameController.text.trim(),
                   city: _city.trim(),
+                  phone: _needsPhone ? _phoneController.text.trim() : null,
                   segment: _segment,
                   highestQualification: _highestQualification,
                   college: _isEducatedWorking && _college.trim().isNotEmpty ? _college.trim() : null,
@@ -297,6 +327,7 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
               : current.copyWith(
                   name: _nameController.text.trim(),
                   city: _city.trim(),
+                  phone: _needsPhone ? _phoneController.text.trim() : null,
                   segment: _segment,
                   college: _college.trim(),
                   course: _course.trim(),
@@ -397,6 +428,21 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                       options: mockCities,
                       onChanged: (v) => setState(() => _city = v),
                     ),
+                    // Only Google/email sign-ups reach here — phone sign-up's
+                    // identifier already is the phone number (see
+                    // AppState._makeNewUser), so asking again there would be
+                    // redundant.
+                    if (_needsPhone) ...[
+                      const FieldLabel('Phone number'),
+                      PillInput(
+                        controller: _phoneController,
+                        placeholder: '9876543210',
+                        icon: Ionicons.call_outline,
+                        keyboardType: TextInputType.phone,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        onChanged: (_) => setState(() {}),
+                      ),
+                    ],
                     const FieldLabel('What stage are you at?'),
                     Wrap(
                       spacing: AppSpacing.sm,

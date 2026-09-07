@@ -39,6 +39,13 @@ class User {
   final String? name;
   final String? city;
 
+  /// Always set going forward — auto-filled from `identifier` itself when
+  /// sign-up went through the phone/OTP path (never re-asked there), or
+  /// collected on the onboarding profile screen when sign-up went through
+  /// Google or email (neither hands back a real phone number). See
+  /// AppState._makeNewUser and MicroProfileScreen's `_needsPhone`.
+  final String? phone;
+
   /// App display-language preference — unrelated to `languages` below
   /// (which is what the student themself knows, for their resume). Set
   /// before this User even exists (see AppState.setAppLanguage /
@@ -101,6 +108,7 @@ class User {
     this.signInMethod,
     this.name,
     this.city,
+    this.phone,
     this.appLanguage,
     this.segment,
     this.currentClass,
@@ -133,6 +141,7 @@ class User {
     String? signInMethod,
     String? name,
     String? city,
+    String? phone,
     String? appLanguage,
     Segment? segment,
     String? currentClass,
@@ -164,6 +173,7 @@ class User {
       signInMethod: signInMethod ?? this.signInMethod,
       name: name ?? this.name,
       city: city ?? this.city,
+      phone: phone ?? this.phone,
       appLanguage: appLanguage ?? this.appLanguage,
       segment: segment ?? this.segment,
       currentClass: currentClass ?? this.currentClass,
@@ -197,6 +207,7 @@ class User {
         'signInMethod': signInMethod,
         'name': name,
         'city': city,
+        'phone': phone,
         'appLanguage': appLanguage,
         'segment': segmentToString(segment),
         'currentClass': currentClass,
@@ -229,6 +240,7 @@ class User {
         signInMethod: json['signInMethod'] as String?,
         name: json['name'] as String?,
         city: json['city'] as String?,
+        phone: json['phone'] as String?,
         appLanguage: json['appLanguage'] as String?,
         segment: segmentFromString(json['segment'] as String?),
         currentClass: json['currentClass'] as String?,
