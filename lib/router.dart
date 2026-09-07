@@ -108,7 +108,16 @@ GoRouter buildRouter(AppState appState, GlobalKey<ScaffoldMessengerState> scaffo
       // Login), since that push always carries the identifier/segment
       // context this redirect can't see — this only catches a bare,
       // out-of-sequence deep link.
-      final needsInProgressContext = path == '/onboarding/profile' || path == '/auth/otp';
+      //
+      // BUG FIX: this used to redirect on `path == '/auth/otp'` alone,
+      // with no check of the identifier query param the comment above
+      // actually describes — every signed-out visit to /auth/otp,
+      // including the legitimate one right after "Send OTP", was bounced
+      // straight back to onboarding. Login is impossible without this
+      // check actually reading the identifier that's present.
+      final otpIdentifier = state.uri.queryParameters['identifier']?.trim();
+      final needsInProgressContext =
+          path == '/onboarding/profile' || (path == '/auth/otp' && (otpIdentifier == null || otpIdentifier.isEmpty));
       if (user == null && !isLanguageSelectRoute && (!isAuthEntry || needsInProgressContext)) {
         return '/onboarding';
       }
