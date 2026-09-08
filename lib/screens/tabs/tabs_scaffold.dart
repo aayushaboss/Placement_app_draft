@@ -79,13 +79,22 @@ class TabsScaffold extends StatelessWidget {
       const _TabItem(icon: Ionicons.home_outline, activeIcon: Ionicons.home, label: 'Home', branchIndex: 0),
       if (!isSchool) const _TabItem(icon: Ionicons.list_outline, activeIcon: Ionicons.list, label: 'Applications', branchIndex: 1),
       if (isSchool) const _TabItem(icon: Ionicons.calendar_outline, activeIcon: Ionicons.calendar, label: 'Sessions', branchIndex: 2),
-      // The flagship "Career DNA" feature (Round AA) — college only, its
-      // own branch appended at index 5 in router.dart so no existing
-      // branch's index shifts.
-      if (!isSchool) const _TabItem(icon: Ionicons.finger_print_outline, activeIcon: Ionicons.finger_print, label: 'Career DNA', branchIndex: 5),
+      // The flagship "Career Quiz" feature (Round AA, internally still
+      // called "Career DNA" in file/class names — renamed only in
+      // user-facing copy after live feedback that the name needed no
+      // explanation) — college only, its own branch appended at index 5
+      // in router.dart so no existing branch's index shifts.
+      if (!isSchool) const _TabItem(icon: Ionicons.finger_print_outline, activeIcon: Ionicons.finger_print, label: 'Career Quiz', branchIndex: 5),
       _TabItem(icon: Ionicons.flash_outline, activeIcon: Ionicons.flash, label: 'Courses', branchIndex: isSchool ? 1 : 3),
       const _TabItem(icon: Ionicons.person_outline, activeIcon: Ionicons.person, label: 'Profile', branchIndex: 4),
     ];
+
+    // College's bar has 5 items (school's 4) since Career Quiz was added —
+    // shrinking icon/label size only when there are actually 5 items keeps
+    // school's own bar exactly as it always was, rather than shrinking
+    // both segments' bars for a crowding problem only one of them has.
+    final iconSize = items.length > 4 ? 21.0 : 24.0;
+    final labelFontSize = items.length > 4 ? 9.5 : 11.0;
 
     return Scaffold(
       body: shell,
@@ -139,11 +148,11 @@ class TabsScaffold extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(active ? item.activeIcon : item.icon, size: 24, color: active ? AppColors.blue : AppColors.gray400),
+                          Icon(active ? item.activeIcon : item.icon, size: iconSize, color: active ? AppColors.blue : AppColors.gray400),
                           const SizedBox(height: 2),
                           Text(
                             item.label,
-                            style: AppTextStyles.label.copyWith(fontSize: 11, color: active ? AppColors.blue : AppColors.gray400),
+                            style: AppTextStyles.label.copyWith(fontSize: labelFontSize, color: active ? AppColors.blue : AppColors.gray400),
                           ),
                         ],
                       ),

@@ -141,7 +141,7 @@ class _ArchetypeHero extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('YOUR CAREER DNA', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 12, letterSpacing: 1.4)),
+          Text('YOUR RESULT', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 12, letterSpacing: 1.4)),
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: Text(name.toUpperCase(), style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 28, fontWeight: AppFontWeight.semibold)),
@@ -215,7 +215,7 @@ class _UnlockCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
             child: Text(
-              'One payment unlocks every level\'s full report, plus your final combined Career DNA once all 5 are done.',
+              'One payment unlocks every level\'s full report, plus your final combined results once all 5 are done.',
               style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.4),
             ),
           ),

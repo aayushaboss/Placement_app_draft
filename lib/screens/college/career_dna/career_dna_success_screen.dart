@@ -99,7 +99,7 @@ class _CareerDnaSuccessScreenState extends State<CareerDnaSuccessScreen> with Si
                                   padding: const EdgeInsets.only(top: AppSpacing.sm),
                                   child: Text(
                                     noOrphan(isLastLevel
-                                        ? "You've finished your whole Career DNA journey."
+                                        ? "You've finished the whole Career Quiz journey."
                                         : 'Nicely done — your ${meta.title} results are ready.'),
                                     textAlign: TextAlign.center,
                                     style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 15),
@@ -129,7 +129,7 @@ class _CareerDnaSuccessScreenState extends State<CareerDnaSuccessScreen> with Si
                                             Padding(
                                               padding: const EdgeInsets.only(top: 2),
                                               child: Text(
-                                                widget.level < 5 ? 'Unlock the full detailed report anytime.' : 'Your final Career DNA is ready.',
+                                                widget.level < 5 ? 'Unlock the full detailed report anytime.' : 'Your final results are ready.',
                                                 style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
                                               ),
                                             ),
@@ -160,7 +160,7 @@ class _CareerDnaSuccessScreenState extends State<CareerDnaSuccessScreen> with Si
                     ),
                     const SizedBox(height: AppSpacing.md),
                     PillButton(
-                      label: isLastLevel ? 'Back to Career DNA' : 'Back to levels',
+                      label: isLastLevel ? 'Back to Career Quiz' : 'Back to levels',
                       variant: PillVariant.outlineWhite,
                       onPressed: () => context.go('/tabs/career-dna'),
                     ),

@@ -46,7 +46,7 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
   @override
   void initState() {
     super.initState();
-    // Branch index 5 (Career DNA) — see router.dart's StatefulShellRoute.
+    // Branch index 5 (Career Quiz) — see router.dart's StatefulShellRoute.
     ScrollToTopRegistry.register(5, () {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
@@ -107,7 +107,7 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Career DNA', style: AppTextStyles.h1.copyWith(color: AppColors.ink)),
+                      Text('Career Quiz', style: AppTextStyles.h1.copyWith(color: AppColors.ink)),
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
@@ -187,7 +187,7 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text('See your full Career DNA', style: AppTextStyles.bodyLg.copyWith(color: AppColors.white, fontWeight: AppFontWeight.semibold)),
+                              Text('See your full results', style: AppTextStyles.bodyLg.copyWith(color: AppColors.white, fontWeight: AppFontWeight.semibold)),
                               Padding(
                                 padding: const EdgeInsets.only(top: 2),
                                 child: Text('Every level, combined into one result.', style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70)),

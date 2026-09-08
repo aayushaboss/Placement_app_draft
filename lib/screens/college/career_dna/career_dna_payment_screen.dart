@@ -16,7 +16,7 @@ import '../../../widgets/responsive_body.dart';
 const _includedItems = [
   'Full detailed report for every level (1-5)',
   'Your complete trait breakdown, not just the top scores',
-  'Your final combined Career DNA synthesis',
+  'Your final combined results, synthesized across all 5 levels',
   'Top career directions and job roles matched to you',
 ];
 
@@ -84,7 +84,7 @@ class _CareerDnaPaymentScreenState extends State<CareerDnaPaymentScreen> {
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xs),
               child: Text(
-                'A one-time payment unlocks your complete Career DNA.',
+                'A one-time payment unlocks your complete Career Quiz results.',
                 style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
               ),
             ),
@@ -99,7 +99,7 @@ class _CareerDnaPaymentScreenState extends State<CareerDnaPaymentScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('Full Career DNA Report', style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold)),
+                        Text('Full Career Quiz Report', style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold)),
                         Text('₹51', style: AppTextStyles.h2.copyWith(color: AppColors.blue, fontWeight: AppFontWeight.bold)),
                       ],
                     ),

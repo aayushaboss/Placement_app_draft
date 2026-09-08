@@ -160,7 +160,7 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.xl),
                     child: Text(
-                      'Building your Career DNA…',
+                      'Calculating your results…',
                       textAlign: TextAlign.center,
                       style: AppTextStyles.h3.copyWith(color: AppColors.white, fontWeight: AppFontWeight.medium),
                     ),

@@ -74,7 +74,7 @@ class _NotDoneYetCard extends StatelessWidget {
             Text('$completed of 5 levels complete', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold)),
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: Text('Finish every level to see your combined Career DNA.', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
+              child: Text('Finish every level to see your combined results.', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
             ),
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.lg),
@@ -125,7 +125,7 @@ class _SynthesisContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('YOUR CAREER DNA', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 12, letterSpacing: 1.4)),
+              Text('YOUR FINAL RESULT', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 12, letterSpacing: 1.4)),
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.sm),
                 child: Text(result.topDirections.first.name, style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 26, fontWeight: AppFontWeight.semibold)),
