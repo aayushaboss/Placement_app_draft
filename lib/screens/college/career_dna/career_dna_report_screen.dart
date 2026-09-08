@@ -31,13 +31,15 @@ class _ReportView {
   final String heroName;
   final String heroFirstSentence;
   final String snapshotHeading;
-  final String bodyParagraph;
+  final String bodyLead;
+  final String bodyDetail;
   final String? secondParagraph;
   const _ReportView({
     required this.heroName,
     required this.heroFirstSentence,
     required this.snapshotHeading,
-    required this.bodyParagraph,
+    required this.bodyLead,
+    required this.bodyDetail,
     this.secondParagraph,
   });
 }
@@ -105,6 +107,12 @@ class CareerDnaReportScreen extends StatelessWidget {
               // as a harsh, discouraging verdict; this instead names a few
               // real strengths plainly and frames the rest as still-
               // developing, worth building on rather than a deficiency.
+              // Split into separate paragraphs (not one continuous block)
+              // per direct feedback that it read as too much to take in at
+              // once — and every paragraph stays the same ink color as the
+              // rest, not a muted gray, since a lighter color on the last
+              // paragraph made it read as a lesser-status footnote rather
+              // than a real part of the analysis.
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -113,14 +121,19 @@ class CareerDnaReportScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      noOrphan(view.bodyParagraph),
+                      noOrphan(view.bodyLead),
+                      style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.55),
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    Text(
+                      noOrphan(view.bodyDetail),
                       style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.55),
                     ),
                     if (unlocked && view.secondParagraph != null) ...[
                       const SizedBox(height: AppSpacing.md),
                       Text(
                         noOrphan(view.secondParagraph!),
-                        style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.55),
+                        style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.55),
                       ),
                     ],
                   ],
@@ -192,47 +205,55 @@ class CareerDnaReportScreen extends StatelessWidget {
       case 1:
         final r = profile.level1;
         if (r == null) return null;
+        final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel1DimensionPhrases);
         return _ReportView(
           heroName: r.archetype.name,
           heroFirstSentence: _firstSentence(r.archetype.naturalStyle),
           snapshotHeading: heading('Personality Snapshot'),
-          // The second sentence deliberately opens with "Looking at how you
-          // actually answered" — the hero describes the archetype in
+          // The strengths sentence deliberately opens with "Looking at how
+          // you actually answered" — the hero describes the archetype in
           // general (shared by everyone classified the same way); this is
           // what's specific to *this* student's own answers, so it reads
           // as a new, personal layer rather than restating the hero.
-          bodyParagraph: '${_restOfSentences(r.archetype.naturalStyle)} ${_narrativeFromScores(r.dimensionScores, careerDnaLevel1DimensionPhrases)}',
+          bodyLead: '${_restOfSentences(r.archetype.naturalStyle)} $strengths',
+          bodyDetail: growing,
           secondParagraph: '${r.archetype.growthAreaText} You could also thrive in places like ${_joinList(r.archetype.environments)}.',
         );
       case 2:
         final r = profile.level2;
         if (r == null) return null;
+        final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel2DimensionPhrases);
         return _ReportView(
           heroName: r.headlineText,
           heroFirstSentence: careerDnaLevel2HeroSentence(r.headlineText),
           snapshotHeading: heading('Interest Snapshot'),
-          bodyParagraph: _narrativeFromScores(r.dimensionScores, careerDnaLevel2DimensionPhrases),
+          bodyLead: strengths,
+          bodyDetail: growing,
           secondParagraph: 'Worth exploring: ${r.careerExplorationChain.join(' → ')}.',
         );
       case 3:
         final r = profile.level3;
         if (r == null) return null;
+        final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel3DimensionPhrases);
         return _ReportView(
           heroName: r.profile.name,
           heroFirstSentence: r.profile.naturalStrength,
           snapshotHeading: heading('Teamwork Snapshot'),
-          bodyParagraph: _narrativeFromScores(r.dimensionScores, careerDnaLevel3DimensionPhrases),
+          bodyLead: strengths,
+          bodyDetail: growing,
           secondParagraph: '${r.profile.watchOut} You could also thrive in places like ${_joinList(r.profile.environments)}.',
         );
       case 4:
         final r = profile.level4;
         if (r == null) return null;
         final bandCopy = careerDnaWorkplaceReadinessBandCopy[r.band] ?? '';
+        final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel4DimensionPhrases);
         return _ReportView(
           heroName: r.workStyleTitle,
           heroFirstSentence: r.workStyleText,
           snapshotHeading: heading('Workplace Snapshot'),
-          bodyParagraph: '$bandCopy ${_narrativeFromScores(r.dimensionScores, careerDnaLevel4DimensionPhrases)}',
+          bodyLead: '$bandCopy $strengths',
+          bodyDetail: growing,
           secondParagraph: '${r.developmentAreaTitle} — ${r.developmentAreaText}',
         );
       default:
@@ -240,21 +261,24 @@ class CareerDnaReportScreen extends StatelessWidget {
     }
   }
 
-  /// Builds the "Snapshot" paragraph shared by all 4 per-level reports —
-  /// the top 3 dimensions become plainly-named strengths, the bottom 2
-  /// become "still developing" growth notes, phrased from the level's own
-  /// dimension-phrase map. Deliberately never touches or displays the
-  /// underlying numbers. Stays in second person throughout ("you"),
-  /// matching the hero's own voice — an earlier version switched to the
-  /// student's name mid-paragraph ("Aayusha shows..."), which read as two
-  /// different narrators rather than one continuous, personal read.
-  String _narrativeFromScores(Map<String, int> scores, Map<String, String> phrases) {
+  /// Builds the two "Snapshot" sentences shared by all 4 per-level reports,
+  /// kept separate (not one combined string) so the card renders them as
+  /// distinct paragraphs — the top 3 dimensions become plainly-named
+  /// strengths, the bottom 2 become "still developing" growth notes,
+  /// phrased from the level's own dimension-phrase map. Deliberately never
+  /// touches or displays the underlying numbers. Stays in second person
+  /// throughout ("you"), matching the hero's own voice — an earlier
+  /// version switched to the student's name mid-paragraph ("Aayusha
+  /// shows..."), which read as two different narrators rather than one
+  /// continuous, personal read.
+  (String, String) _narrativeSentences(Map<String, int> scores, Map<String, String> phrases) {
     final sorted = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     final strengths = sorted.take(3).map((e) => phrases[e.key] ?? e.key).toList();
     final growing = sorted.reversed.take(2).map((e) => phrases[e.key] ?? e.key).toList();
 
-    return 'Looking at how you actually answered, your standout strengths are ${_joinList(strengths)} — these come through clearly and are genuinely worth leaning into. '
-        "You're still growing into ${_joinList(growing)} — with a bit of intentional practice, that's real room to build, not something holding you back.";
+    final strengthsSentence = 'Looking at how you actually answered, your standout strengths are ${_joinList(strengths)} — these come through clearly and are genuinely worth leaning into.';
+    final growingSentence = "You're still growing into ${_joinList(growing)} — with a bit of intentional practice, that's real room to build, not something holding you back.";
+    return (strengthsSentence, growingSentence);
   }
 
   /// First name only, for the personalized section heading — null (falls

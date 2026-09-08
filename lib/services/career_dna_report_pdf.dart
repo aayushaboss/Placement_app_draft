@@ -72,6 +72,7 @@ class _Fonts {
 List<pw.Widget> _level1Section(String? name, CareerDnaLevel1Result r, _Fonts f) {
   final first = _firstSentence(r.archetype.naturalStyle);
   final rest = r.archetype.naturalStyle.substring(first.length).trim();
+  final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel1DimensionPhrases);
   return [
     _sectionHeader('Level 1 — Personality & Behaviour', f.bold),
     pw.Text(r.archetype.name, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
@@ -79,17 +80,21 @@ List<pw.Widget> _level1Section(String? name, CareerDnaLevel1Result r, _Fonts f) 
     pw.Text(first, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
     pw.SizedBox(height: 10),
     _heading(name, 'Personality Snapshot', f.medium),
-    pw.Text('$rest ${_narrativeSummary(r.dimensionScores, careerDnaLevel1DimensionPhrases)}', style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
-    pw.SizedBox(height: 8),
+    pw.SizedBox(height: 3),
+    pw.Text('$rest $strengths', style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 6),
+    pw.Text(growing, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 6),
     pw.Text(
       '${r.archetype.growthAreaText} You could also thrive in places like ${_joinList(r.archetype.environments)}.',
-      style: pw.TextStyle(font: f.regular, fontSize: 10, color: _gray, lineSpacing: 1.5),
+      style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 1.5),
     ),
     pw.SizedBox(height: 18),
   ];
 }
 
 List<pw.Widget> _level2Section(String? name, CareerDnaLevel2Result r, _Fonts f) {
+  final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel2DimensionPhrases);
   return [
     _sectionHeader('Level 2 — Interest & Career Preference', f.bold),
     pw.Text(r.headlineText, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
@@ -97,14 +102,18 @@ List<pw.Widget> _level2Section(String? name, CareerDnaLevel2Result r, _Fonts f) 
     pw.Text(careerDnaLevel2HeroSentence(r.headlineText), style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
     pw.SizedBox(height: 10),
     _heading(name, 'Interest Snapshot', f.medium),
-    pw.Text(_narrativeSummary(r.dimensionScores, careerDnaLevel2DimensionPhrases), style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
-    pw.SizedBox(height: 8),
-    pw.Text('Worth exploring: ${r.careerExplorationChain.join(' -> ')}.', style: pw.TextStyle(font: f.regular, fontSize: 10, color: _gray, lineSpacing: 1.5)),
+    pw.SizedBox(height: 3),
+    pw.Text(strengths, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 6),
+    pw.Text(growing, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 6),
+    pw.Text('Worth exploring: ${r.careerExplorationChain.join(' -> ')}.', style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 1.5)),
     pw.SizedBox(height: 18),
   ];
 }
 
 List<pw.Widget> _level3Section(String? name, CareerDnaLevel3Result r, _Fonts f) {
+  final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel3DimensionPhrases);
   return [
     _sectionHeader('Level 3 — Social Interaction & Teamwork', f.bold),
     pw.Text(r.profile.name, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
@@ -112,11 +121,14 @@ List<pw.Widget> _level3Section(String? name, CareerDnaLevel3Result r, _Fonts f) 
     pw.Text(r.profile.naturalStrength, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
     pw.SizedBox(height: 10),
     _heading(name, 'Teamwork Snapshot', f.medium),
-    pw.Text(_narrativeSummary(r.dimensionScores, careerDnaLevel3DimensionPhrases), style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
-    pw.SizedBox(height: 8),
+    pw.SizedBox(height: 3),
+    pw.Text(strengths, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 6),
+    pw.Text(growing, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 6),
     pw.Text(
       '${r.profile.watchOut} You could also thrive in places like ${_joinList(r.profile.environments)}.',
-      style: pw.TextStyle(font: f.regular, fontSize: 10, color: _gray, lineSpacing: 1.5),
+      style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 1.5),
     ),
     pw.SizedBox(height: 18),
   ];
@@ -124,6 +136,7 @@ List<pw.Widget> _level3Section(String? name, CareerDnaLevel3Result r, _Fonts f) 
 
 List<pw.Widget> _level4Section(String? name, CareerDnaLevel4Result r, _Fonts f) {
   final bandCopy = careerDnaWorkplaceReadinessBandCopy[r.band] ?? '';
+  final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel4DimensionPhrases);
   return [
     _sectionHeader('Level 4 — Employability & Workplace Readiness', f.bold),
     pw.Text(r.workStyleTitle, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
@@ -131,9 +144,12 @@ List<pw.Widget> _level4Section(String? name, CareerDnaLevel4Result r, _Fonts f) 
     pw.Text(r.workStyleText, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
     pw.SizedBox(height: 10),
     _heading(name, 'Workplace Snapshot', f.medium),
-    pw.Text('$bandCopy ${_narrativeSummary(r.dimensionScores, careerDnaLevel4DimensionPhrases)}', style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
-    pw.SizedBox(height: 8),
-    pw.Text('${r.developmentAreaTitle} — ${r.developmentAreaText}', style: pw.TextStyle(font: f.regular, fontSize: 10, color: _gray, lineSpacing: 1.5)),
+    pw.SizedBox(height: 3),
+    pw.Text('$bandCopy $strengths', style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 6),
+    pw.Text(growing, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 6),
+    pw.Text('${r.developmentAreaTitle} — ${r.developmentAreaText}', style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 1.5)),
     pw.SizedBox(height: 18),
   ];
 }
@@ -177,16 +193,19 @@ String _firstSentence(String text) {
   return match?.group(0) ?? text;
 }
 
-/// Mirrors career_dna_report_screen.dart's own `_narrativeFromScores`
+/// Mirrors career_dna_report_screen.dart's own `_narrativeSentences`
 /// exactly — top 3 dimensions named plainly as strengths, bottom 2 framed
-/// as still developing, no numbers anywhere, second person throughout.
-String _narrativeSummary(Map<String, int> scores, Map<String, String> phrases) {
+/// as still developing, no numbers anywhere, second person throughout, kept
+/// as two separate sentences so the PDF renders them as distinct
+/// paragraphs rather than one dense block.
+(String, String) _narrativeSentences(Map<String, int> scores, Map<String, String> phrases) {
   final sorted = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
   final strengths = sorted.take(3).map((e) => phrases[e.key] ?? e.key).toList();
   final growing = sorted.reversed.take(2).map((e) => phrases[e.key] ?? e.key).toList();
 
-  return 'Looking at how you actually answered, your standout strengths are ${_joinList(strengths)} — these come through clearly and are genuinely worth leaning into. '
-      "You're still growing into ${_joinList(growing)} — with a bit of intentional practice, that's real room to build, not something holding you back.";
+  final strengthsSentence = 'Looking at how you actually answered, your standout strengths are ${_joinList(strengths)} — these come through clearly and are genuinely worth leaning into.';
+  final growingSentence = "You're still growing into ${_joinList(growing)} — with a bit of intentional practice, that's real room to build, not something holding you back.";
+  return (strengthsSentence, growingSentence);
 }
 
 pw.Widget _sectionHeader(String title, pw.Font bold) => pw.Column(
