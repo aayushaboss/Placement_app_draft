@@ -16,19 +16,23 @@ import '../../../utils/no_orphan.dart';
 import '../../../widgets/back_chevron.dart';
 import '../../../widgets/pill_button.dart';
 import '../../../widgets/responsive_body.dart';
-import '../../../widgets/trait_score_bar.dart';
 
-const _level1DimensionLabels = {
-  'leadershipInitiative': 'Leadership & Initiative',
-  'communicationConfidence': 'Communication & Confidence',
-  'teamOrientation': 'Team Orientation',
-  'adaptability': 'Adaptability',
-  'decisionMaking': 'Decision Making',
-  'problemSolving': 'Problem Solving',
-  'learningAgility': 'Learning Agility',
-  'resilience': 'Resilience',
-  'socialOrientation': 'Social Orientation',
-  'ambitionGrowth': 'Ambition & Growth',
+// Natural-language phrases per dimension, used only to build the prose
+// summary below — never the raw dimension key/label, and never a number.
+// Per direct feedback: showing a student "23% Learning Agility" reads as a
+// harsh verdict, even though the underlying scoring is unchanged; the fix
+// is to stop surfacing percentages at all, not to soften the number.
+const _level1DimensionPhrases = {
+  'leadershipInitiative': 'stepping up and taking initiative',
+  'communicationConfidence': 'speaking up with confidence',
+  'teamOrientation': 'working well with a team',
+  'adaptability': 'adapting quickly to change',
+  'decisionMaking': 'making clear decisions',
+  'problemSolving': 'solving problems',
+  'learningAgility': 'picking up new things fast',
+  'resilience': 'bouncing back from setbacks',
+  'socialOrientation': 'connecting with people',
+  'ambitionGrowth': 'pushing yourself toward bigger goals',
 };
 
 /// Per-level report — one file, two render branches (locked teaser /
@@ -64,27 +68,21 @@ class CareerDnaReportScreen extends StatelessWidget {
             else ...[
               _ArchetypeHero(name: level1.archetype.name, naturalStyle: level1.archetype.naturalStyle),
               const SizedBox(height: AppSpacing.xl),
-              Text('Your Personality Scores', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
+              Text('Your Personality Snapshot', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
               const SizedBox(height: AppSpacing.md),
-              // Every trait bar is free — the paywall gates interpretation
-              // (what your scores mean, what to do about them) not the raw
-              // scores themselves, so the free report is genuinely
-              // substantial (a full scannable scorecard) rather than a
-              // 2-bar teaser with everything else locked away.
+              // A prose summary, not a scored scorecard — no percentage is
+              // shown anywhere on this screen. Naming a student's weaker
+              // dimensions as a bare number ("23% Learning Agility") reads
+              // as a harsh, discouraging verdict; this instead names a few
+              // real strengths plainly and frames the rest as still-
+              // developing, worth building on rather than a deficiency.
               Container(
+                width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.soft),
-                child: Column(
-                  children: [
-                    for (final entry in _topDimensions(level1.dimensionScores, 10))
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                        child: TraitScoreBar(
-                          label: _level1DimensionLabels[entry.key] ?? entry.key,
-                          percent: entry.value,
-                        ),
-                      ),
-                  ],
+                child: Text(
+                  noOrphan(_narrativeSummary(user?.name, level1.dimensionScores)),
+                  style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.55),
                 ),
               ),
               if (unlocked) ...[
@@ -138,9 +136,18 @@ class CareerDnaReportScreen extends StatelessWidget {
     );
   }
 
-  List<MapEntry<String, int>> _topDimensions(Map<String, int> scores, int count) {
-    final entries = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    return entries.take(count).toList();
+  /// Builds the "Personality Snapshot" paragraph — the top 3 dimensions
+  /// become plainly-named strengths, the bottom 2 become "still
+  /// developing" growth notes, phrased from _level1DimensionPhrases.
+  /// Deliberately never touches or displays the underlying numbers.
+  String _narrativeSummary(String? name, Map<String, int> scores) {
+    final sorted = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
+    final strengths = sorted.take(3).map((e) => _level1DimensionPhrases[e.key] ?? e.key).toList();
+    final growing = sorted.reversed.take(2).map((e) => _level1DimensionPhrases[e.key] ?? e.key).toList();
+    final who = (name?.trim().isNotEmpty ?? false) ? name!.trim().split(' ').first : 'You';
+
+    return '$who show${who == 'You' ? '' : 's'} real strength in ${_joinList(strengths)} — these come naturally and are genuinely worth leaning into. '
+        'Right now, ${_joinList(growing)} ${growing.length > 1 ? 'are' : 'is'} still developing — with a bit of intentional practice, these are real opportunities to grow, not weaknesses holding you back.';
   }
 
   /// "A, B, C and D" — plain-English list for the environments sentence
