@@ -166,7 +166,7 @@ class _SynthesisContent extends StatelessWidget {
                   padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
                   child: Text('Unlock your full report to see the complete picture.', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
                 ),
-                PillButton(label: 'Unlock — ₹51', icon: Ionicons.lock_open_outline, onPressed: () => context.push('/college/career-dna/unlock')),
+                PillButton(label: 'Unlock', icon: Ionicons.lock_open_outline, onPressed: () => context.push('/college/career-dna/unlock')),
               ],
             ),
           )

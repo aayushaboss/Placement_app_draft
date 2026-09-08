@@ -100,6 +100,27 @@ class CareerDnaReportScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xl),
                 _UnlockCard(onUnlock: () => context.push('/college/career-dna/unlock')),
               ],
+              // Mirrors results_screen.dart's own "Retake test" link
+              // exactly (same style, same "go straight to the quiz, skip
+              // the intro" behavior) — re-submitting simply overwrites this
+              // level's saved result, same as aptitude's retake already does.
+              Center(
+                child: GestureDetector(
+                  onTap: () => context.push('/college/career-dna/level/$level/quiz'),
+                  child: Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.xl),
+                    child: Text(
+                      'Retake this level',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.gray400,
+                        fontSize: 14,
+                        fontWeight: AppFontWeight.medium,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             ],
           ],
         ),
@@ -216,7 +237,7 @@ class _UnlockCard extends StatelessWidget {
               style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.4),
             ),
           ),
-          PillButton(label: 'Unlock — ₹51', icon: Ionicons.lock_open_outline, onPressed: onUnlock),
+          PillButton(label: 'Unlock', icon: Ionicons.lock_open_outline, onPressed: onUnlock),
         ],
       ),
     );

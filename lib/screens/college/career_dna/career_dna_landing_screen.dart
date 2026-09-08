@@ -12,9 +12,7 @@ import '../../../theme/colors.dart';
 import '../../../theme/shadows.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/text_styles.dart';
-import '../../../utils/no_orphan.dart';
 import '../../../utils/scroll_to_top_registry.dart';
-import '../../../widgets/progress_ring.dart';
 import '../../../widgets/responsive_body.dart';
 
 class _IntroChip {
@@ -31,10 +29,16 @@ const _introChips = [
   _IntroChip(icon: Ionicons.compass_outline, text: 'Real career clarity'),
 ];
 
+// Alternating horizontal position per node (center/right/center-left/left/
+// center-right) — the zigzag is what reads as "a path to walk," per the
+// Duolingo-style reference, without needing a literal drawn connector line.
+const _pathXAlign = [0.0, 0.55, -0.2, -0.55, 0.2];
+
 /// Landing / level-map screen — the tab root for the 6th branch
-/// (`/tabs/career-dna`). Shown once at the start of the whole journey (the
-/// 3 reassuring bullets below), then doubles as the level map on every
-/// later visit — 5 level cards, locked ones dimmed and non-tappable.
+/// (`/tabs/career-dna`). A Duolingo-style path: a header banner naming only
+/// the ONE level currently being worked on (not a repeated list of every
+/// level's own title), then a vertical zigzag of 5 circular nodes standing
+/// in for the old flat list of level cards.
 class CareerDnaLandingScreen extends StatefulWidget {
   const CareerDnaLandingScreen({super.key});
 
@@ -69,11 +73,29 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
       return;
     }
     HapticFeedback.selectionClick();
-    // A completed level's card opens straight to its report — routing
+    // A completed level's node opens straight to its report — routing
     // through the intro screen again would only ever offer "Start Level N"
     // there, reading as an invitation to retake it rather than review what
-    // was already earned.
+    // was already earned. (A genuine retake is still one tap away from the
+    // report screen itself.)
     context.push(completed ? '/college/career-dna/level/$level/report' : '/college/career-dna/level/$level/intro');
+  }
+
+  bool _isLevelComplete(CareerDnaProfile p, int level) {
+    switch (level) {
+      case 1:
+        return p.level1 != null;
+      case 2:
+        return p.level2 != null;
+      case 3:
+        return p.level3 != null;
+      case 4:
+        return p.level4 != null;
+      case 5:
+        return p.level5 != null;
+      default:
+        return false;
+    }
   }
 
   @override
@@ -94,210 +116,214 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
 
     final profile = user?.careerDnaOrEmpty ?? const CareerDnaProfile();
     final topInset = MediaQuery.of(context).padding.top;
+    final allComplete = profile.allLevelsComplete;
+    // The one level the header banner names — the first not-yet-completed
+    // one (which, by sequential unlocking, is always the unlocked one to
+    // work on next). Mirrors Duolingo's own "just the current unit" header,
+    // rather than repeating every level's full title on screen at once.
+    final currentMeta = allComplete ? null : careerDnaLevelMeta.firstWhere((m) => !_isLevelComplete(profile, m.level));
 
     return Scaffold(
       backgroundColor: AppColors.white,
       body: ResponsiveBody(
         child: ListView(
           controller: _scrollController,
-          padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxl),
+          padding: EdgeInsets.zero,
           children: [
-            // A big badge-style icon reads as "the start of something," the
-            // way a game's own title screen does — the old version went
-            // straight from a plain text title into a paragraph of bullets,
-            // which read as a page to read rather than something to begin.
-            Center(
-              child: Container(
-                width: 84,
-                height: 84,
-                alignment: Alignment.center,
-                decoration: const BoxDecoration(color: AppColors.blue, shape: BoxShape.circle, boxShadow: AppShadows.card),
-                child: const Icon(Ionicons.rocket, size: 38, color: AppColors.yellow),
+            Container(
+              width: double.infinity,
+              padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
+              decoration: const BoxDecoration(
+                color: AppColors.blue,
+                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
               ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.lg),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Career Quiz', style: AppTextStyles.h1.copyWith(color: AppColors.ink)),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            noOrphan('Discover what fits you.'),
-                            style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
-                          ),
-                        ),
-                      ],
+                  if (currentMeta != null) ...[
+                    Text('LEVEL ${currentMeta.level}', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 13, fontWeight: AppFontWeight.medium, letterSpacing: 1.4)),
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: Text(currentMeta.title, style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 26, fontWeight: AppFontWeight.semibold)),
+                    ),
+                  ] else ...[
+                    Text('CAREER QUIZ', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 13, fontWeight: AppFontWeight.medium, letterSpacing: 1.4)),
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: Text('All 5 levels complete!', style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 26, fontWeight: AppFontWeight.semibold)),
+                    ),
+                  ],
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.lg),
+                    child: IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: _introChips
+                            .map((c) => Expanded(
+                                  child: Container(
+                                    margin: EdgeInsets.only(right: c == _introChips.last ? 0 : AppSpacing.sm),
+                                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.xs),
+                                    decoration: BoxDecoration(color: AppColors.whiteA10, borderRadius: BorderRadius.circular(AppRadius.lg)),
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(c.icon, size: 18, color: AppColors.white),
+                                        const SizedBox(height: AppSpacing.xs),
+                                        Text(
+                                          c.text,
+                                          textAlign: TextAlign.center,
+                                          style: AppTextStyles.caption.copyWith(color: AppColors.white, fontSize: 11, fontWeight: AppFontWeight.medium),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ))
+                            .toList(),
+                      ),
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.md),
-                  ProgressRing(percent: (profile.completedLevelCount * 100 / 5).round(), size: 52),
                 ],
               ),
             ),
+            // Generous vertical rhythm between nodes (xxxl, not the old
+            // list's tight md gaps) is what makes this read as "spacious"
+            // rather than a dense list — the zigzag alignment does the rest.
             Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.lg),
-              child: Row(
-                children: _introChips
-                    .map((c) => Expanded(
-                          child: Container(
-                            margin: EdgeInsets.only(right: c == _introChips.last ? 0 : AppSpacing.sm),
-                            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.xs),
-                            decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.lg)),
-                            child: Column(
-                              children: [
-                                Icon(c.icon, size: 18, color: AppColors.blue),
-                                const SizedBox(height: AppSpacing.xs),
-                                Text(
-                                  c.text,
-                                  textAlign: TextAlign.center,
-                                  style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 11, fontWeight: AppFontWeight.medium),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ))
-                    .toList(),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.md),
-              child: Text('5 Levels to Unlock', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
-            ),
-            for (final meta in careerDnaLevelMeta)
-              Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                child: _LevelCard(
-                  meta: meta,
-                  unlocked: user?.isCareerDnaLevelUnlocked(meta.level) ?? (meta.level == 1),
-                  completed: _isLevelComplete(profile, meta.level),
-                  onTap: () => _openLevel(
-                    context,
-                    meta.level,
-                    user?.isCareerDnaLevelUnlocked(meta.level) ?? (meta.level == 1),
-                    _isLevelComplete(profile, meta.level),
-                  ),
-                ),
-              ),
-            if (profile.allLevelsComplete)
-              Padding(
-                padding: const EdgeInsets.only(top: AppSpacing.sm),
-                child: GestureDetector(
-                  onTap: () => context.push('/college/career-dna/final-report'),
-                  child: Container(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
-                    decoration: BoxDecoration(
-                      color: AppColors.blue,
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      boxShadow: AppShadows.card,
+              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxxl, AppSpacing.xl, 0),
+              child: Column(
+                children: [
+                  for (final meta in careerDnaLevelMeta)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
+                      child: _PathNode(
+                        meta: meta,
+                        xAlign: _pathXAlign[(meta.level - 1) % _pathXAlign.length],
+                        unlocked: user?.isCareerDnaLevelUnlocked(meta.level) ?? (meta.level == 1),
+                        completed: _isLevelComplete(profile, meta.level),
+                        isCurrent: currentMeta?.level == meta.level,
+                        onTap: () => _openLevel(
+                          context,
+                          meta.level,
+                          user?.isCareerDnaLevelUnlocked(meta.level) ?? (meta.level == 1),
+                          _isLevelComplete(profile, meta.level),
+                        ),
+                      ),
                     ),
-                    child: Row(
-                      children: [
-                        const Icon(Ionicons.star, size: 22, color: AppColors.yellow),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
+                  if (allComplete)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+                      child: GestureDetector(
+                        onTap: () => context.push('/college/career-dna/final-report'),
+                        child: Container(
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
+                          child: Row(
                             children: [
-                              Text('See your full results', style: AppTextStyles.bodyLg.copyWith(color: AppColors.white, fontWeight: AppFontWeight.semibold)),
-                              Padding(
-                                padding: const EdgeInsets.only(top: 2),
-                                child: Text('Every level, combined into one result.', style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70)),
+                              const Icon(Ionicons.star, size: 22, color: AppColors.yellow),
+                              const SizedBox(width: AppSpacing.md),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('See your full results', style: AppTextStyles.bodyLg.copyWith(color: AppColors.white, fontWeight: AppFontWeight.semibold)),
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 2),
+                                      child: Text('Every level, combined into one result.', style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70)),
+                                    ),
+                                  ],
+                                ),
                               ),
+                              const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.whiteA70),
                             ],
                           ),
                         ),
-                        const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.whiteA70),
-                      ],
+                      ),
                     ),
-                  ),
-                ),
+                ],
               ),
+            ),
           ],
         ),
       ),
     );
   }
-
-  bool _isLevelComplete(CareerDnaProfile p, int level) {
-    switch (level) {
-      case 1:
-        return p.level1 != null;
-      case 2:
-        return p.level2 != null;
-      case 3:
-        return p.level3 != null;
-      case 4:
-        return p.level4 != null;
-      case 5:
-        return p.level5 != null;
-      default:
-        return false;
-    }
-  }
 }
 
-class _LevelCard extends StatelessWidget {
+class _PathNode extends StatelessWidget {
   final CareerDnaLevelMeta meta;
+  final double xAlign;
   final bool unlocked;
   final bool completed;
+  final bool isCurrent;
   final VoidCallback onTap;
 
-  const _LevelCard({required this.meta, required this.unlocked, required this.completed, required this.onTap});
+  const _PathNode({
+    required this.meta,
+    required this.xAlign,
+    required this.unlocked,
+    required this.completed,
+    required this.isCurrent,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final dimmed = !unlocked;
-    return Opacity(
-      opacity: dimmed ? 0.55 : 1.0,
+    final locked = !unlocked;
+    final size = isCurrent ? 68.0 : 56.0;
+
+    Widget circle = Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: completed ? AppColors.success : (locked ? AppColors.gray100 : AppColors.blue),
+        shape: BoxShape.circle,
+        boxShadow: locked ? null : AppShadows.card,
+      ),
+      child: Icon(
+        completed ? Ionicons.checkmark : (locked ? Ionicons.lock_closed : Ionicons.star),
+        size: isCurrent ? 30 : 24,
+        color: locked ? AppColors.gray400 : (completed ? AppColors.white : AppColors.yellow),
+      ),
+    );
+
+    // Current level's node gets a lighter ring around it (target-style,
+    // matching the reference) so it visually reads as "you are here"
+    // without needing a separate label every time.
+    if (isCurrent) {
+      circle = Container(
+        width: size + 14,
+        height: size + 14,
+        alignment: Alignment.center,
+        decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
+        child: circle,
+      );
+    }
+
+    return Align(
+      alignment: Alignment(xAlign, 0),
       child: GestureDetector(
         onTap: onTap,
-        child: Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: dimmed ? AppShadows.soft : AppShadows.card),
-          child: Row(
+        child: Opacity(
+          opacity: locked ? 0.5 : 1.0,
+          child: Column(
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  color: completed ? AppColors.successA10 : AppColors.blueA10,
-                  shape: BoxShape.circle,
+              if (isCurrent)
+                Container(
+                  margin: const EdgeInsets.only(bottom: AppSpacing.xs),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 3),
+                  decoration: BoxDecoration(color: AppColors.yellow, borderRadius: BorderRadius.circular(AppRadius.pill)),
+                  child: Text('START', style: AppTextStyles.label.copyWith(color: AppColors.ink, fontSize: 11, fontWeight: AppFontWeight.bold, letterSpacing: 0.6)),
                 ),
-                child: Icon(
-                  completed ? Ionicons.checkmark : (dimmed ? Ionicons.lock_closed_outline : meta.icon),
-                  size: 20,
-                  color: completed ? AppColors.success : AppColors.blue,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Level ${meta.level} · ${meta.title}',
-                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 14.5, fontWeight: AppFontWeight.medium),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2),
-                      child: Text(
-                        completed ? 'Completed' : (dimmed ? 'Complete Level ${meta.level - 1} to unlock' : '${meta.questionCount} questions · ${meta.estTime}'),
-                        style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5),
-                      ),
-                    ),
-                  ],
+              circle,
+              Padding(
+                padding: const EdgeInsets.only(top: AppSpacing.sm),
+                child: Text(
+                  'Level ${meta.level}',
+                  style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
                 ),
               ),
-              if (!dimmed) const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
             ],
           ),
         ),
