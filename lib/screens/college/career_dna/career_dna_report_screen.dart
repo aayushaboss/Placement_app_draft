@@ -9,6 +9,7 @@ import '../../../theme/colors.dart';
 import '../../../theme/shadows.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/text_styles.dart';
+import '../../../utils/no_orphan.dart';
 import '../../../widgets/back_chevron.dart';
 import '../../../widgets/badges.dart';
 import '../../../widgets/pill_button.dart';
@@ -59,7 +60,7 @@ class CareerDnaReportScreen extends StatelessWidget {
             if (level1 == null)
               _NotReadyCard(level: level)
             else ...[
-              _ArchetypeHero(name: level1.archetype.name, naturalStyle: level1.archetype.naturalStyle, strengths: level1.archetype.strengths),
+              _ArchetypeHero(name: level1.archetype.name, naturalStyle: level1.archetype.naturalStyle),
               const SizedBox(height: AppSpacing.xl),
               Text('Your Personality Scores', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
               const SizedBox(height: AppSpacing.md),
@@ -75,11 +76,10 @@ class CareerDnaReportScreen extends StatelessWidget {
                   children: [
                     for (final entry in _topDimensions(level1.dimensionScores, 10))
                       Padding(
-                        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                        padding: const EdgeInsets.only(bottom: AppSpacing.md),
                         child: TraitScoreBar(
                           label: _level1DimensionLabels[entry.key] ?? entry.key,
                           percent: entry.value,
-                          caption: _captionFor(entry.value),
                         ),
                       ),
                   ],
@@ -132,20 +132,12 @@ class CareerDnaReportScreen extends StatelessWidget {
     final entries = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     return entries.take(count).toList();
   }
-
-  String _captionFor(int percent) {
-    if (percent >= 80) return "This is one of your strongest natural traits.";
-    if (percent >= 60) return "A solid, reliable part of how you operate.";
-    if (percent >= 40) return "Present, but not where you naturally lean hardest.";
-    return "A genuine growth opportunity, not a weakness.";
-  }
 }
 
 class _ArchetypeHero extends StatelessWidget {
   final String name;
   final String naturalStyle;
-  final List<String> strengths;
-  const _ArchetypeHero({required this.name, required this.naturalStyle, required this.strengths});
+  const _ArchetypeHero({required this.name, required this.naturalStyle});
 
   @override
   Widget build(BuildContext context) {
@@ -164,17 +156,13 @@ class _ArchetypeHero extends StatelessWidget {
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: Text(name.toUpperCase(), style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 28, fontWeight: AppFontWeight.semibold)),
           ),
+          // This paragraph is now the home for the "detailed persona"
+          // description — the strength words that used to render as a row
+          // of chips below are woven into this prose instead (see
+          // career_dna_level1_data.dart's naturalStyle strings).
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.md),
-            child: Text(naturalStyle, style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 14.5, height: 1.45)),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.lg),
-            child: Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.sm,
-              children: strengths.map((s) => AppTag(label: s, color: AppColors.yellow, bg: AppColors.whiteA10)).toList(),
-            ),
+            child: Text(noOrphan(naturalStyle), style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 14.5, height: 1.45)),
           ),
         ],
       ),
@@ -204,7 +192,7 @@ class _GrowthCard extends StatelessWidget {
                 Text('Growth Opportunity — $title', style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 14.5)),
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.xs),
-                  child: Text(text, style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.4)),
+                  child: Text(noOrphan(text), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.4)),
                 ),
               ],
             ),
@@ -233,7 +221,7 @@ class _UnlockCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
             child: Text(
-              'Your growth opportunities, career environments, and your final combined result once all 5 levels are done — one payment unlocks all of it.',
+              noOrphan('Your growth opportunities, career environments, and your final combined result once all 5 levels are done — one payment unlocks all of it.'),
               style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.4),
             ),
           ),

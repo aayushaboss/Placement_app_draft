@@ -13,6 +13,7 @@ import '../../../state/app_state.dart';
 import '../../../theme/colors.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/text_styles.dart';
+import '../../../utils/no_orphan.dart';
 import '../../../widgets/responsive_body.dart';
 
 /// The one-question-per-page quiz shell, shared by all 5 Career DNA levels.
@@ -117,15 +118,15 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
-        title: Text('Are you sure you want to quit?', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 17, fontWeight: AppFontWeight.semibold)),
+        title: Text(noOrphan('Are you sure you want to quit?'), style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 17, fontWeight: AppFontWeight.semibold)),
         content: Text(
-          "You'll lose your progress on this level.",
+          noOrphan("You'll lose your progress on this level."),
           style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text('Keep answering', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontWeight: AppFontWeight.medium)),
+            child: Text('Continue', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontWeight: AppFontWeight.medium)),
           ),
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -180,7 +181,7 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.sm),
                     child: Text(
-                      'Matching your answers to your natural style',
+                      noOrphan('Matching your answers to your natural style'),
                       textAlign: TextAlign.center,
                       style: AppTextStyles.body.copyWith(color: AppColors.whiteA70),
                     ),
@@ -314,7 +315,7 @@ class _QuestionBody extends StatelessWidget {
           // as oversized for a single question repeated 20 times in a row;
           // still clearly the largest text on screen, just not "huge."
           Text(
-            question.text,
+            noOrphan(question.text),
             textAlign: TextAlign.left,
             style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontSize: 19, fontWeight: AppFontWeight.medium, height: 1.3),
           ),
@@ -341,7 +342,7 @@ class _QuestionBody extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              opt.text,
+                              noOrphan(opt.text),
                               textAlign: TextAlign.left,
                               style: AppTextStyles.bodyLg.copyWith(color: selected ? AppColors.white : AppColors.ink, fontWeight: AppFontWeight.medium),
                             ),

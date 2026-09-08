@@ -12,22 +12,9 @@ import '../../../theme/colors.dart';
 import '../../../theme/shadows.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/text_styles.dart';
+import '../../../utils/no_orphan.dart';
 import '../../../utils/scroll_to_top_registry.dart';
 import '../../../widgets/responsive_body.dart';
-
-class _IntroChip {
-  final IconData icon;
-  final String text;
-  const _IntroChip({required this.icon, required this.text});
-}
-
-// Short fragments, not sentences — per direct feedback that the original
-// full-sentence bullets read as too much to read before even starting.
-const _introChips = [
-  _IntroChip(icon: Ionicons.happy_outline, text: 'No wrong answers'),
-  _IntroChip(icon: Ionicons.briefcase_outline, text: 'Jobs that fit you'),
-  _IntroChip(icon: Ionicons.compass_outline, text: 'Real career clarity'),
-];
 
 // Alternating horizontal position per node (center/right/center-left/left/
 // center-right) — the zigzag is what reads as "a path to walk," per the
@@ -140,46 +127,21 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (currentMeta != null) ...[
-                    Text('LEVEL ${currentMeta.level}', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 13, fontWeight: AppFontWeight.medium, letterSpacing: 1.4)),
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.xs),
-                      child: Text(currentMeta.title, style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 26, fontWeight: AppFontWeight.semibold)),
-                    ),
-                  ] else ...[
-                    Text('CAREER QUIZ', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 13, fontWeight: AppFontWeight.medium, letterSpacing: 1.4)),
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.xs),
-                      child: Text('All 5 levels complete!', style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 26, fontWeight: AppFontWeight.semibold)),
-                    ),
-                  ],
+                  // The heading always reads "Career Quiz", regardless of
+                  // which level is current — per direct feedback that
+                  // swapping the heading itself to the current level's own
+                  // title read as confusing copy. The line beneath names
+                  // the current level instead.
+                  Text('CAREER QUIZ', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 13, fontWeight: AppFontWeight.medium, letterSpacing: 1.4)),
                   Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.lg),
-                    child: IntrinsicHeight(
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: _introChips
-                            .map((c) => Expanded(
-                                  child: Container(
-                                    margin: EdgeInsets.only(right: c == _introChips.last ? 0 : AppSpacing.sm),
-                                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.xs),
-                                    decoration: BoxDecoration(color: AppColors.whiteA10, borderRadius: BorderRadius.circular(AppRadius.lg)),
-                                    child: Column(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Icon(c.icon, size: 18, color: AppColors.white),
-                                        const SizedBox(height: AppSpacing.xs),
-                                        Text(
-                                          c.text,
-                                          textAlign: TextAlign.center,
-                                          style: AppTextStyles.caption.copyWith(color: AppColors.white, fontSize: 11, fontWeight: AppFontWeight.medium),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ))
-                            .toList(),
-                      ),
+                    padding: const EdgeInsets.only(top: AppSpacing.xs),
+                    child: Text('Career Quiz', style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 26, fontWeight: AppFontWeight.semibold)),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.xs),
+                    child: Text(
+                      noOrphan(currentMeta != null ? 'Level ${currentMeta.level} · ${currentMeta.title}' : 'All 5 levels complete!'),
+                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 14.5),
                     ),
                   ),
                 ],

@@ -9,6 +9,7 @@ import '../../../theme/colors.dart';
 import '../../../theme/shadows.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/text_styles.dart';
+import '../../../utils/no_orphan.dart';
 import '../../../widgets/back_chevron.dart';
 import '../../../widgets/badges.dart';
 import '../../../widgets/pill_button.dart';
@@ -74,7 +75,7 @@ class _NotDoneYetCard extends StatelessWidget {
             Text('$completed of 5 levels complete', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold)),
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: Text('Finish every level to see your combined results.', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
+              child: Text(noOrphan('Finish every level to see your combined results.'), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
             ),
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.lg),
@@ -99,7 +100,7 @@ class _StillBuildingCard extends StatelessWidget {
           children: [
             const Icon(Ionicons.construct_outline, size: 36, color: AppColors.gray400),
             const SizedBox(height: AppSpacing.md),
-            Text("We're still putting your combined synthesis together.", textAlign: TextAlign.center, style: AppTextStyles.body.copyWith(color: AppColors.gray500)),
+            Text(noOrphan("We're still putting your combined synthesis together."), textAlign: TextAlign.center, style: AppTextStyles.body.copyWith(color: AppColors.gray500)),
           ],
         ),
       ),
@@ -164,7 +165,7 @@ class _SynthesisContent extends StatelessWidget {
                 Text('See all 5 directions, your top roles, and next steps', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
-                  child: Text('Unlock your full report to see the complete picture.', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
+                  child: Text(noOrphan('Unlock your full report to see the complete picture.'), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
                 ),
                 PillButton(label: 'Unlock', icon: Ionicons.lock_open_outline, onPressed: () => context.push('/college/career-dna/unlock')),
               ],

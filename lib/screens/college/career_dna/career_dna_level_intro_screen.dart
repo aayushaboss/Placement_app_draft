@@ -12,17 +12,11 @@ import '../../../widgets/back_chevron.dart';
 import '../../../widgets/pill_button.dart';
 import '../../../widgets/responsive_body.dart';
 
-class _MetaItem {
-  final IconData icon;
-  final String label;
-  const _MetaItem({required this.icon, required this.label});
-}
-
-/// Per-level intro — mirrors aptitude_intro_screen.dart's meta-chip row, but
-/// deliberately shorter than the landing screen's own 3-bullet intro (that
-/// fuller reassurance is shown once, there) — this carries only the one
-/// level-specific "no right or wrong answers" line plus what this level
-/// measures, so it reads as level-specific framing, not a repeated block.
+/// Per-level intro — deliberately short (per direct feedback that meta
+/// chips like duration/question-count/"micro analysis" and the "no right or
+/// wrong answers" box weren't needed on this kind of page): just the icon
+/// tile, level eyebrow, title, what this level measures, and the Start
+/// button.
 class CareerDnaLevelIntroScreen extends StatelessWidget {
   final int level;
   const CareerDnaLevelIntroScreen({super.key, required this.level});
@@ -34,11 +28,6 @@ class CareerDnaLevelIntroScreen extends StatelessWidget {
     final meta = _meta;
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final metaChips = [
-      _MetaItem(icon: Ionicons.time_outline, label: meta.estTime),
-      _MetaItem(icon: Ionicons.help_circle_outline, label: '${meta.questionCount} questions'),
-      const _MetaItem(icon: Ionicons.gift_outline, label: 'Micro analysis'),
-    ];
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -72,7 +61,7 @@ class CareerDnaLevelIntroScreen extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.only(top: AppSpacing.sm),
                       child: Text(
-                        meta.title,
+                        noOrphan(meta.title),
                         style: AppTextStyles.h1.copyWith(color: AppColors.white, height: 1.2),
                       ),
                     ),
@@ -81,44 +70,6 @@ class CareerDnaLevelIntroScreen extends StatelessWidget {
                       child: Text(
                         noOrphan(meta.whatThisMeasures),
                         style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, height: 1.4),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.lg),
-                      child: Container(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        decoration: BoxDecoration(color: AppColors.whiteA10, borderRadius: BorderRadius.circular(AppRadius.md)),
-                        child: Text(
-                          noOrphan(meta.noRightWrongCopy),
-                          style: AppTextStyles.body.copyWith(color: AppColors.white, fontSize: 13, height: 1.4),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.xxl),
-                      child: Row(
-                        children: metaChips
-                            .map(
-                              (m) => Expanded(
-                                child: Container(
-                                  margin: EdgeInsets.only(right: m == metaChips.last ? 0 : AppSpacing.md),
-                                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg, horizontal: AppSpacing.xs),
-                                  decoration: BoxDecoration(color: AppColors.whiteA10, borderRadius: BorderRadius.circular(AppRadius.lg)),
-                                  child: Column(
-                                    children: [
-                                      Icon(m.icon, size: 20, color: AppColors.white),
-                                      const SizedBox(height: AppSpacing.sm),
-                                      Text(
-                                        m.label,
-                                        textAlign: TextAlign.center,
-                                        style: AppTextStyles.label.copyWith(color: AppColors.white, fontWeight: AppFontWeight.medium),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            )
-                            .toList(),
                       ),
                     ),
                   ],

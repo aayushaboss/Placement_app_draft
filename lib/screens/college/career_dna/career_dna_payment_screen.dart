@@ -9,6 +9,7 @@ import '../../../theme/colors.dart';
 import '../../../theme/shadows.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/text_styles.dart';
+import '../../../utils/no_orphan.dart';
 import '../../../widgets/back_chevron.dart';
 import '../../../widgets/pill_button.dart';
 import '../../../widgets/responsive_body.dart';
@@ -84,7 +85,7 @@ class _CareerDnaPaymentScreenState extends State<CareerDnaPaymentScreen> {
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xs),
               child: Text(
-                'A one-time payment unlocks your complete Career Quiz results.',
+                noOrphan('A one-time payment unlocks your complete Career Quiz results.'),
                 style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
               ),
             ),
@@ -129,7 +130,7 @@ class _CareerDnaPaymentScreenState extends State<CareerDnaPaymentScreen> {
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
-                      'Demo payment — no real charge. This is a prototype build.',
+                      noOrphan('Demo payment — no real charge. This is a prototype build.'),
                       style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12),
                     ),
                   ),
