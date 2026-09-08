@@ -320,7 +320,10 @@ class _QuestionBody extends StatelessWidget {
             style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontSize: 19, fontWeight: AppFontWeight.medium, height: 1.3),
           ),
           Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xl),
+            // Bumped from xl (20) — per direct feedback the options sat too
+            // close under the question text, making them harder to read as
+            // a genuinely separate block from the question above them.
+            padding: const EdgeInsets.only(top: AppSpacing.xxxl),
             child: Column(
               children: question.options.map((opt) {
                 final selected = answers[question.id] == opt.id;
