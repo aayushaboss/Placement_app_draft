@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
+import '../../../mockData/career_dna/career_dna_level1_data.dart';
+import '../../../mockData/career_dna/career_dna_level2_data.dart';
+import '../../../mockData/career_dna/career_dna_level3_data.dart';
+import '../../../mockData/career_dna/career_dna_level4_data.dart';
 import '../../../models/career_dna.dart';
 import '../../../models/user.dart';
 import '../../../services/career_dna_report_pdf.dart';
@@ -17,31 +21,34 @@ import '../../../widgets/back_chevron.dart';
 import '../../../widgets/pill_button.dart';
 import '../../../widgets/responsive_body.dart';
 
-// Natural-language phrases per dimension, used only to build the prose
-// summary below — never the raw dimension key/label, and never a number.
-// Per direct feedback: showing a student "23% Learning Agility" reads as a
-// harsh verdict, even though the underlying scoring is unchanged; the fix
-// is to stop surfacing percentages at all, not to soften the number.
-const _level1DimensionPhrases = {
-  'leadershipInitiative': 'stepping up and taking initiative',
-  'communicationConfidence': 'speaking up with confidence',
-  'teamOrientation': 'working well with a team',
-  'adaptability': 'adapting quickly to change',
-  'decisionMaking': 'making clear decisions',
-  'problemSolving': 'solving problems',
-  'learningAgility': 'picking up new things fast',
-  'resilience': 'bouncing back from setbacks',
-  'socialOrientation': 'connecting with people',
-  'ambitionGrowth': 'pushing yourself toward bigger goals',
-};
+/// Everything the shared render below needs, computed once per level from
+/// that level's own (very differently-shaped) result object — Level 1 is
+/// an archetype, Level 2 an interest headline, Level 3 a social profile,
+/// Level 4 a workplace readiness read. Same screen shape for all four:
+/// hero (name + opening sentence) → free narrative snapshot → (unlocked)
+/// second paragraph → download/unlock → back/retake links.
+class _ReportView {
+  final String heroName;
+  final String heroFirstSentence;
+  final String snapshotHeading;
+  final String bodyParagraph;
+  final String? secondParagraph;
+  const _ReportView({
+    required this.heroName,
+    required this.heroFirstSentence,
+    required this.snapshotHeading,
+    required this.bodyParagraph,
+    this.secondParagraph,
+  });
+}
 
 /// Per-level report — one file, two render branches (locked teaser /
-/// unlocked full), driven live by the single global `reportUnlocked` flag
-/// rather than a second route, matching how results_screen.dart itself
-/// branches loading-vs-loaded in one build(). Phase A wires real content
-/// for Level 1 only; Levels 2-5 render a short "coming soon" placeholder
-/// here until their own data files land (Phase B) — the screen shape
-/// itself needs no change when they do.
+/// unlocked full) per level, driven live by the single global
+/// `reportUnlocked` flag rather than a second route, matching how
+/// results_screen.dart itself branches loading-vs-loaded in one build().
+/// All 5 levels are wired; Level 5 has its own dedicated final-synthesis
+/// screen (career_dna_final_report_screen.dart) instead of this per-level
+/// shape, since it combines every level rather than reporting just one.
 class CareerDnaReportScreen extends StatelessWidget {
   final int level;
   const CareerDnaReportScreen({super.key, required this.level});
@@ -52,8 +59,22 @@ class CareerDnaReportScreen extends StatelessWidget {
     final profile = user?.careerDnaOrEmpty ?? const CareerDnaProfile();
     final unlocked = profile.reportUnlocked;
     final topInset = MediaQuery.of(context).padding.top;
+    final who = _firstName(user?.name);
 
-    final level1 = level == 1 ? profile.level1 : null;
+    // Level 5's result is a cross-test synthesis, not a per-level report —
+    // its own screen (career_dna_final_report_screen.dart) is what knows
+    // how to render it. Both call sites that link here (the success
+    // screen's "See your report", the landing screen's node tap) already
+    // route level 5 to that screen instead — this is just a defensive
+    // catch-all for a stale deep link landing here directly.
+    if (level == 5) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) context.go('/college/career-dna/final-report');
+      });
+      return const SizedBox.shrink();
+    }
+
+    final view = _buildView(level, profile, who);
 
     return Scaffold(
       backgroundColor: AppColors.white,
@@ -63,24 +84,20 @@ class CareerDnaReportScreen extends StatelessWidget {
           children: [
             BackChevron(color: AppColors.ink, fallbackRoute: '/tabs/career-dna'),
             const SizedBox(height: AppSpacing.lg),
-            if (level1 == null)
+            if (view == null)
               _NotReadyCard(level: level)
             else ...[
-              // Hero shows only the archetype's opening sentence (~3 lines)
-              // — the rest of that same paragraph continues below as the
-              // lead-in to the body text, instead of the hero holding the
-              // whole 3-4 sentence paragraph on its own. Per direct
-              // feedback: three separate paragraph-in-a-box sections in a
-              // row (hero, snapshot, growth) all making a similar
-              // "you're good at X" point read as repetitive — this
-              // consolidates everything below the hero into one flowing
-              // body instead of several near-identical boxed paragraphs.
-              _ArchetypeHero(name: level1.archetype.name, firstSentence: _firstSentence(level1.archetype.naturalStyle)),
+              // Hero shows only the opening sentence (~3 lines) — the rest
+              // of the body continues below it, instead of the hero
+              // holding a whole paragraph on its own. Per direct feedback:
+              // three separate paragraph-in-a-box sections in a row (hero,
+              // snapshot, growth) all making a similar "you're good at X"
+              // point read as repetitive — this consolidates everything
+              // below the hero into one flowing body instead of several
+              // near-identical boxed paragraphs.
+              _ArchetypeHero(name: view.heroName, firstSentence: view.heroFirstSentence),
               const SizedBox(height: AppSpacing.xl),
-              Text(
-                _firstName(user?.name) != null ? "${_firstName(user?.name)}'s Personality Snapshot" : 'Your Personality Snapshot',
-                style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold),
-              ),
+              Text(view.snapshotHeading, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
               const SizedBox(height: AppSpacing.md),
               // A prose summary, not a scored scorecard — no percentage is
               // shown anywhere on this screen. Naming a student's weaker
@@ -88,12 +105,6 @@ class CareerDnaReportScreen extends StatelessWidget {
               // as a harsh, discouraging verdict; this instead names a few
               // real strengths plainly and frames the rest as still-
               // developing, worth building on rather than a deficiency.
-              // The second sentence deliberately opens with "Looking at how
-              // you actually answered" — the hero above describes the
-              // archetype in general (shared by everyone classified the
-              // same way); this paragraph is what's specific to *this*
-              // student's own answers, so it reads as a new, personal layer
-              // rather than restating the hero in different words.
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.lg),
@@ -102,13 +113,13 @@ class CareerDnaReportScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      noOrphan('${_restOfSentences(level1.archetype.naturalStyle)} ${_narrativeSummary(level1.dimensionScores)}'),
+                      noOrphan(view.bodyParagraph),
                       style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.55),
                     ),
-                    if (unlocked) ...[
+                    if (unlocked && view.secondParagraph != null) ...[
                       const SizedBox(height: AppSpacing.md),
                       Text(
-                        noOrphan('${level1.archetype.growthAreaText} You could also thrive in places like ${_joinList(level1.archetype.environments)}.'),
+                        noOrphan(view.secondParagraph!),
                         style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.55),
                       ),
                     ],
@@ -172,18 +183,75 @@ class CareerDnaReportScreen extends StatelessWidget {
     );
   }
 
-  /// Builds the "Personality Snapshot" paragraph — the top 3 dimensions
-  /// become plainly-named strengths, the bottom 2 become "still
-  /// developing" growth notes, phrased from _level1DimensionPhrases.
-  /// Deliberately never touches or displays the underlying numbers.
-  /// Stays in second person throughout ("you"), matching the hero's own
-  /// voice — an earlier version switched to the student's name mid-
-  /// paragraph ("Aayusha shows..."), which read as two different narrators
-  /// rather than one continuous, personal read.
-  String _narrativeSummary(Map<String, int> scores) {
+  /// Dispatches to each level's own result shape — returns null when that
+  /// level hasn't been completed yet (renders _NotReadyCard instead).
+  _ReportView? _buildView(int level, CareerDnaProfile profile, String? who) {
+    String heading(String noun) => who != null ? "$who's $noun" : 'Your $noun';
+
+    switch (level) {
+      case 1:
+        final r = profile.level1;
+        if (r == null) return null;
+        return _ReportView(
+          heroName: r.archetype.name,
+          heroFirstSentence: _firstSentence(r.archetype.naturalStyle),
+          snapshotHeading: heading('Personality Snapshot'),
+          // The second sentence deliberately opens with "Looking at how you
+          // actually answered" — the hero describes the archetype in
+          // general (shared by everyone classified the same way); this is
+          // what's specific to *this* student's own answers, so it reads
+          // as a new, personal layer rather than restating the hero.
+          bodyParagraph: '${_restOfSentences(r.archetype.naturalStyle)} ${_narrativeFromScores(r.dimensionScores, careerDnaLevel1DimensionPhrases)}',
+          secondParagraph: '${r.archetype.growthAreaText} You could also thrive in places like ${_joinList(r.archetype.environments)}.',
+        );
+      case 2:
+        final r = profile.level2;
+        if (r == null) return null;
+        return _ReportView(
+          heroName: r.headlineText,
+          heroFirstSentence: careerDnaLevel2HeroSentence(r.headlineText),
+          snapshotHeading: heading('Interest Snapshot'),
+          bodyParagraph: _narrativeFromScores(r.dimensionScores, careerDnaLevel2DimensionPhrases),
+          secondParagraph: 'Worth exploring: ${r.careerExplorationChain.join(' → ')}.',
+        );
+      case 3:
+        final r = profile.level3;
+        if (r == null) return null;
+        return _ReportView(
+          heroName: r.profile.name,
+          heroFirstSentence: r.profile.naturalStrength,
+          snapshotHeading: heading('Teamwork Snapshot'),
+          bodyParagraph: _narrativeFromScores(r.dimensionScores, careerDnaLevel3DimensionPhrases),
+          secondParagraph: '${r.profile.watchOut} You could also thrive in places like ${_joinList(r.profile.environments)}.',
+        );
+      case 4:
+        final r = profile.level4;
+        if (r == null) return null;
+        final bandCopy = careerDnaWorkplaceReadinessBandCopy[r.band] ?? '';
+        return _ReportView(
+          heroName: r.workStyleTitle,
+          heroFirstSentence: r.workStyleText,
+          snapshotHeading: heading('Workplace Snapshot'),
+          bodyParagraph: '$bandCopy ${_narrativeFromScores(r.dimensionScores, careerDnaLevel4DimensionPhrases)}',
+          secondParagraph: '${r.developmentAreaTitle} — ${r.developmentAreaText}',
+        );
+      default:
+        return null;
+    }
+  }
+
+  /// Builds the "Snapshot" paragraph shared by all 4 per-level reports —
+  /// the top 3 dimensions become plainly-named strengths, the bottom 2
+  /// become "still developing" growth notes, phrased from the level's own
+  /// dimension-phrase map. Deliberately never touches or displays the
+  /// underlying numbers. Stays in second person throughout ("you"),
+  /// matching the hero's own voice — an earlier version switched to the
+  /// student's name mid-paragraph ("Aayusha shows..."), which read as two
+  /// different narrators rather than one continuous, personal read.
+  String _narrativeFromScores(Map<String, int> scores, Map<String, String> phrases) {
     final sorted = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    final strengths = sorted.take(3).map((e) => _level1DimensionPhrases[e.key] ?? e.key).toList();
-    final growing = sorted.reversed.take(2).map((e) => _level1DimensionPhrases[e.key] ?? e.key).toList();
+    final strengths = sorted.take(3).map((e) => phrases[e.key] ?? e.key).toList();
+    final growing = sorted.reversed.take(2).map((e) => phrases[e.key] ?? e.key).toList();
 
     return 'Looking at how you actually answered, your standout strengths are ${_joinList(strengths)} — these come through clearly and are genuinely worth leaning into. '
         "You're still growing into ${_joinList(growing)} — with a bit of intentional practice, that's real room to build, not something holding you back.";

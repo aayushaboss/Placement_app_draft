@@ -64,7 +64,13 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
     // through the intro screen again would only ever offer "Start Level N"
     // there, reading as an invitation to retake it rather than review what
     // was already earned. (A genuine retake is still one tap away from the
-    // report screen itself.)
+    // report screen itself.) Level 5 is the one exception — its result is
+    // a cross-test synthesis, not a per-level report, so it has its own
+    // dedicated final-report screen instead of the generic /report route.
+    if (completed && level == 5) {
+      context.push('/college/career-dna/final-report');
+      return;
+    }
     context.push(completed ? '/college/career-dna/level/$level/report' : '/college/career-dna/level/$level/intro');
   }
 

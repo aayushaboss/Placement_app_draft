@@ -4,6 +4,10 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
+import '../mockData/career_dna/career_dna_level1_data.dart';
+import '../mockData/career_dna/career_dna_level2_data.dart';
+import '../mockData/career_dna/career_dna_level3_data.dart';
+import '../mockData/career_dna/career_dna_level4_data.dart';
 import '../models/career_dna.dart';
 import '../models/user.dart';
 
@@ -12,38 +16,21 @@ const _ink = PdfColor.fromInt(0xFF1C1C1E);
 const _gray = PdfColor.fromInt(0xFF71717A);
 const _border = PdfColor.fromInt(0xFFE5E5EA);
 
-// Duplicated from career_dna_report_screen.dart's own private constant —
-// that one is private to its file, and this PDF is generated independently
-// of any widget tree, so a small copy here is simpler than exporting it.
-// No raw percentage is ever printed anywhere in this document — same
-// policy as the in-app report screen (a bare "23% Learning Agility" reads
-// as a harsh verdict) — these phrases are only ever used in prose.
-const _level1DimensionPhrases = {
-  'leadershipInitiative': 'stepping up and taking initiative',
-  'communicationConfidence': 'speaking up with confidence',
-  'teamOrientation': 'working well with a team',
-  'adaptability': 'adapting quickly to change',
-  'decisionMaking': 'making clear decisions',
-  'problemSolving': 'solving problems',
-  'learningAgility': 'picking up new things fast',
-  'resilience': 'bouncing back from setbacks',
-  'socialOrientation': 'connecting with people',
-  'ambitionGrowth': 'pushing yourself toward bigger goals',
-};
-
 /// Builds an actual downloadable Career Quiz report PDF — reuses the app's
-/// own Poppins font files, mirroring resume_pdf.dart's structure/approach
-/// exactly. Phase A only has real content for Level 1, so this renders
-/// whichever levels are actually computed (just Level 1 today) rather than
-/// assuming all 5 exist — Levels 2-5 slot into the same shape once their
-/// own data lands, no change needed here.
+/// own Poppins font files, mirroring resume_pdf.dart's structure/approach.
+/// Renders a section per level that's actually been completed (any subset
+/// of 1-5), plus a final-synthesis section once Level 5 is done — matching
+/// career_dna_report_screen.dart's and career_dna_final_report_screen.dart's
+/// own on-screen content exactly, so the PDF never contradicts the app.
 Future<Uint8List> buildCareerDnaReportPdf(User user) async {
   final profile = user.careerDnaOrEmpty;
+  final firstName = (user.name?.trim().isNotEmpty ?? false) ? user.name!.trim().split(' ').first : null;
 
   final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/Poppins_400Regular.ttf'));
   final medium = pw.Font.ttf(await rootBundle.load('assets/fonts/Poppins_500Medium.ttf'));
   final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/Poppins_700Bold.ttf'));
   final extrabold = pw.Font.ttf(await rootBundle.load('assets/fonts/Poppins_800ExtraBold.ttf'));
+  final fonts = _Fonts(regular: regular, medium: medium, bold: bold);
 
   final doc = pw.Document();
 
@@ -54,13 +41,17 @@ Future<Uint8List> buildCareerDnaReportPdf(User user) async {
       build: (context) => [
         pw.Text('${(user.name?.trim().isNotEmpty ?? false) ? user.name : 'Your'} Career Quiz Report', style: pw.TextStyle(font: extrabold, fontSize: 20, color: _ink)),
         pw.SizedBox(height: 2),
-        pw.Text('Aerostar Career Quiz — Personality & Behaviour', style: pw.TextStyle(font: medium, fontSize: 11, color: _blue)),
+        pw.Text('Aerostar Career Quiz', style: pw.TextStyle(font: medium, fontSize: 11, color: _blue)),
         pw.SizedBox(height: 18),
-        if (profile.level1 != null) ..._level1Section(user.name, profile.level1!, bold, regular),
+        if (profile.level1 != null) ..._level1Section(firstName, profile.level1!, fonts),
+        if (profile.level2 != null) ..._level2Section(firstName, profile.level2!, fonts),
+        if (profile.level3 != null) ..._level3Section(firstName, profile.level3!, fonts),
+        if (profile.level4 != null) ..._level4Section(firstName, profile.level4!, fonts),
+        if (profile.level5 != null) ..._level5Section(profile.level5!, fonts),
         if (!profile.allLevelsComplete) ...[
           pw.SizedBox(height: 8),
           pw.Text(
-            'Levels 2-5 add more to this report as you complete them in the app.',
+            'Finish the remaining levels in the app to add more to this report.',
             style: pw.TextStyle(font: regular, fontSize: 9.5, color: _gray),
           ),
         ],
@@ -71,27 +62,113 @@ Future<Uint8List> buildCareerDnaReportPdf(User user) async {
   return doc.save();
 }
 
-List<pw.Widget> _level1Section(String? name, CareerDnaLevel1Result level1, pw.Font bold, pw.Font regular) {
-  final firstName = (name?.trim().isNotEmpty ?? false) ? name!.trim().split(' ').first : null;
-  final naturalStyle = level1.archetype.naturalStyle;
-  final first = _firstSentence(naturalStyle);
-  final rest = naturalStyle.substring(first.length).trim();
+class _Fonts {
+  final pw.Font regular;
+  final pw.Font medium;
+  final pw.Font bold;
+  const _Fonts({required this.regular, required this.medium, required this.bold});
+}
 
+List<pw.Widget> _level1Section(String? name, CareerDnaLevel1Result r, _Fonts f) {
+  final first = _firstSentence(r.archetype.naturalStyle);
+  final rest = r.archetype.naturalStyle.substring(first.length).trim();
   return [
-    _sectionHeader('Your Result', bold),
-    pw.Text(level1.archetype.name, style: pw.TextStyle(font: bold, fontSize: 15, color: _ink)),
+    _sectionHeader('Level 1 — Personality & Behaviour', f.bold),
+    pw.Text(r.archetype.name, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
     pw.SizedBox(height: 4),
-    pw.Text(first, style: pw.TextStyle(font: regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
-    pw.SizedBox(height: 16),
-    _sectionHeader(firstName != null ? "$firstName's Personality Snapshot" : 'Your Personality Snapshot', bold),
-    pw.Text('$rest ${_narrativeSummary(level1.dimensionScores)}', style: pw.TextStyle(font: regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
-    pw.SizedBox(height: 16),
+    pw.Text(first, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 10),
+    _heading(name, 'Personality Snapshot', f.medium),
+    pw.Text('$rest ${_narrativeSummary(r.dimensionScores, careerDnaLevel1DimensionPhrases)}', style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 8),
     pw.Text(
-      '${level1.archetype.growthAreaText} You could also thrive in places like ${_joinList(level1.archetype.environments)}.',
-      style: pw.TextStyle(font: regular, fontSize: 10, color: _gray, lineSpacing: 1.5),
+      '${r.archetype.growthAreaText} You could also thrive in places like ${_joinList(r.archetype.environments)}.',
+      style: pw.TextStyle(font: f.regular, fontSize: 10, color: _gray, lineSpacing: 1.5),
     ),
+    pw.SizedBox(height: 18),
   ];
 }
+
+List<pw.Widget> _level2Section(String? name, CareerDnaLevel2Result r, _Fonts f) {
+  return [
+    _sectionHeader('Level 2 — Interest & Career Preference', f.bold),
+    pw.Text(r.headlineText, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
+    pw.SizedBox(height: 4),
+    pw.Text(careerDnaLevel2HeroSentence(r.headlineText), style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 10),
+    _heading(name, 'Interest Snapshot', f.medium),
+    pw.Text(_narrativeSummary(r.dimensionScores, careerDnaLevel2DimensionPhrases), style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 8),
+    pw.Text('Worth exploring: ${r.careerExplorationChain.join(' -> ')}.', style: pw.TextStyle(font: f.regular, fontSize: 10, color: _gray, lineSpacing: 1.5)),
+    pw.SizedBox(height: 18),
+  ];
+}
+
+List<pw.Widget> _level3Section(String? name, CareerDnaLevel3Result r, _Fonts f) {
+  return [
+    _sectionHeader('Level 3 — Social Interaction & Teamwork', f.bold),
+    pw.Text(r.profile.name, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
+    pw.SizedBox(height: 4),
+    pw.Text(r.profile.naturalStrength, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 10),
+    _heading(name, 'Teamwork Snapshot', f.medium),
+    pw.Text(_narrativeSummary(r.dimensionScores, careerDnaLevel3DimensionPhrases), style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 8),
+    pw.Text(
+      '${r.profile.watchOut} You could also thrive in places like ${_joinList(r.profile.environments)}.',
+      style: pw.TextStyle(font: f.regular, fontSize: 10, color: _gray, lineSpacing: 1.5),
+    ),
+    pw.SizedBox(height: 18),
+  ];
+}
+
+List<pw.Widget> _level4Section(String? name, CareerDnaLevel4Result r, _Fonts f) {
+  final bandCopy = careerDnaWorkplaceReadinessBandCopy[r.band] ?? '';
+  return [
+    _sectionHeader('Level 4 — Employability & Workplace Readiness', f.bold),
+    pw.Text(r.workStyleTitle, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
+    pw.SizedBox(height: 4),
+    pw.Text(r.workStyleText, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 10),
+    _heading(name, 'Workplace Snapshot', f.medium),
+    pw.Text('$bandCopy ${_narrativeSummary(r.dimensionScores, careerDnaLevel4DimensionPhrases)}', style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 8),
+    pw.Text('${r.developmentAreaTitle} — ${r.developmentAreaText}', style: pw.TextStyle(font: f.regular, fontSize: 10, color: _gray, lineSpacing: 1.5)),
+    pw.SizedBox(height: 18),
+  ];
+}
+
+List<pw.Widget> _level5Section(CareerDnaLevel5Result r, _Fonts f) {
+  return [
+    _sectionHeader('Your Final Career DNA', f.bold),
+    pw.Text(r.topDirections.first.name, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
+    pw.SizedBox(height: 4),
+    pw.Text(r.confidenceText, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.SizedBox(height: 10),
+    pw.Text('TOP CAREER DIRECTIONS', style: pw.TextStyle(font: f.bold, fontSize: 10, color: _blue, letterSpacing: 1)),
+    pw.SizedBox(height: 4),
+    ...r.topDirections.map((d) => pw.Text('${d.name} — ${d.fitPercent}%', style: pw.TextStyle(font: f.regular, fontSize: 10, color: _ink))),
+    pw.SizedBox(height: 10),
+    pw.Text('TOP JOB ROLES', style: pw.TextStyle(font: f.bold, fontSize: 10, color: _blue, letterSpacing: 1)),
+    pw.SizedBox(height: 4),
+    pw.Text(r.topRoles.map((role) => role.name).join(', '), style: pw.TextStyle(font: f.regular, fontSize: 10, color: _ink)),
+    pw.SizedBox(height: 10),
+    pw.Text('CAREER STRENGTHS', style: pw.TextStyle(font: f.bold, fontSize: 10, color: _blue, letterSpacing: 1)),
+    pw.SizedBox(height: 4),
+    pw.Text(r.careerStrengths.join(' · '), style: pw.TextStyle(font: f.regular, fontSize: 10, color: _ink)),
+    pw.SizedBox(height: 10),
+    pw.Text('WORTH BUILDING ON', style: pw.TextStyle(font: f.bold, fontSize: 10, color: _blue, letterSpacing: 1)),
+    pw.SizedBox(height: 4),
+    pw.Text(r.developmentAreas.join(' · '), style: pw.TextStyle(font: f.regular, fontSize: 10, color: _ink)),
+    pw.SizedBox(height: 10),
+    pw.Text('RECOMMENDED NEXT STEPS', style: pw.TextStyle(font: f.bold, fontSize: 10, color: _blue, letterSpacing: 1)),
+    pw.SizedBox(height: 4),
+    pw.Text(r.nextSteps.join(' -> '), style: pw.TextStyle(font: f.regular, fontSize: 10, color: _ink, lineSpacing: 1.5)),
+  ];
+}
+
+pw.Widget _heading(String? name, String noun, pw.Font medium) =>
+    pw.Text(name != null ? "$name's $noun" : 'Your $noun', style: pw.TextStyle(font: medium, fontSize: 11.5, color: _ink));
 
 /// The opening sentence only — mirrors career_dna_report_screen.dart's own
 /// `_firstSentence` exactly, so the PDF's hero matches the on-screen one.
@@ -100,13 +177,13 @@ String _firstSentence(String text) {
   return match?.group(0) ?? text;
 }
 
-/// Mirrors career_dna_report_screen.dart's own `_narrativeSummary` exactly
-/// — top 3 dimensions named plainly as strengths, bottom 2 framed as still
-/// developing, no numbers anywhere, second person throughout.
-String _narrativeSummary(Map<String, int> scores) {
+/// Mirrors career_dna_report_screen.dart's own `_narrativeFromScores`
+/// exactly — top 3 dimensions named plainly as strengths, bottom 2 framed
+/// as still developing, no numbers anywhere, second person throughout.
+String _narrativeSummary(Map<String, int> scores, Map<String, String> phrases) {
   final sorted = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-  final strengths = sorted.take(3).map((e) => _level1DimensionPhrases[e.key] ?? e.key).toList();
-  final growing = sorted.reversed.take(2).map((e) => _level1DimensionPhrases[e.key] ?? e.key).toList();
+  final strengths = sorted.take(3).map((e) => phrases[e.key] ?? e.key).toList();
+  final growing = sorted.reversed.take(2).map((e) => phrases[e.key] ?? e.key).toList();
 
   return 'Looking at how you actually answered, your standout strengths are ${_joinList(strengths)} — these come through clearly and are genuinely worth leaning into. '
       "You're still growing into ${_joinList(growing)} — with a bit of intentional practice, that's real room to build, not something holding you back.";

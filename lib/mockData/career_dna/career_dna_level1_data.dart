@@ -27,6 +27,22 @@ const List<String> careerDnaLevel1Dimensions = [
   'ambitionGrowth',
 ];
 
+/// Phrase per dimension, for the report screen's narrative snapshot — never
+/// the raw dimension key/label, and never a number (see the report screen's
+/// own doc comment on why percentages were dropped entirely).
+const careerDnaLevel1DimensionPhrases = {
+  'leadershipInitiative': 'stepping up and taking initiative',
+  'communicationConfidence': 'speaking up with confidence',
+  'teamOrientation': 'working well with a team',
+  'adaptability': 'adapting quickly to change',
+  'decisionMaking': 'making clear decisions',
+  'problemSolving': 'solving problems',
+  'learningAgility': 'picking up new things fast',
+  'resilience': 'bouncing back from setbacks',
+  'socialOrientation': 'connecting with people',
+  'ambitionGrowth': 'pushing yourself toward bigger goals',
+};
+
 final List<CareerDnaQuestion> careerDnaLevel1Questions = [
   const CareerDnaQuestion(
     id: 'l1q1',

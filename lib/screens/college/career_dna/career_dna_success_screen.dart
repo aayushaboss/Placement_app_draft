@@ -121,7 +121,11 @@ class _CareerDnaSuccessScreenState extends State<CareerDnaSuccessScreen> with Si
                     PillButton(
                       label: 'See your report',
                       onPressed: () {
-                        context.go('/college/career-dna/level/${widget.level}/report');
+                        // Level 5's result is a cross-test synthesis, not a
+                        // per-level report — it has its own dedicated
+                        // final-report screen instead of the generic
+                        // /level/:n/report route the other 4 levels use.
+                        context.go(isLastLevel ? '/college/career-dna/final-report' : '/college/career-dna/level/${widget.level}/report');
                       },
                     ),
                     const SizedBox(height: AppSpacing.md),
