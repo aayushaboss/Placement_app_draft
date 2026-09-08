@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../../../models/career_dna.dart';
+import '../../../models/user.dart';
+import '../../../services/career_dna_report_pdf.dart';
 import '../../../state/app_state.dart';
 import '../../../theme/colors.dart';
 import '../../../theme/shadows.dart';
@@ -11,7 +14,6 @@ import '../../../theme/spacing.dart';
 import '../../../theme/text_styles.dart';
 import '../../../utils/no_orphan.dart';
 import '../../../widgets/back_chevron.dart';
-import '../../../widgets/badges.dart';
 import '../../../widgets/pill_button.dart';
 import '../../../widgets/responsive_body.dart';
 import '../../../widgets/trait_score_bar.dart';
@@ -87,15 +89,23 @@ class CareerDnaReportScreen extends StatelessWidget {
               ),
               if (unlocked) ...[
                 const SizedBox(height: AppSpacing.xl),
-                _GrowthCard(title: level1.archetype.growthAreaTitle, text: level1.archetype.growthAreaText),
-                const SizedBox(height: AppSpacing.xl),
-                Text('Possible Career Environments', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
-                const SizedBox(height: AppSpacing.md),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: level1.archetype.environments.map((e) => AppTag(label: e)).toList(),
+                // One short paragraph, not a growth-opportunity card plus a
+                // separate "Possible Career Environments" heading and a row
+                // of badge pills — per direct feedback that split read as
+                // too much on screen. Same content, just folded into a
+                // single brief summary: the growth note first, then the
+                // environments as a plain sentence instead of tags.
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.lg)),
+                  child: Text(
+                    noOrphan('${level1.archetype.growthAreaText} You could also thrive in places like ${_joinList(level1.archetype.environments)}.'),
+                    style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.5),
+                  ),
                 ),
+                const SizedBox(height: AppSpacing.xl),
+                const _DownloadReportButton(),
               ] else ...[
                 const SizedBox(height: AppSpacing.xl),
                 _UnlockCard(onUnlock: () => context.push('/college/career-dna/unlock')),
@@ -132,6 +142,14 @@ class CareerDnaReportScreen extends StatelessWidget {
     final entries = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     return entries.take(count).toList();
   }
+
+  /// "A, B, C and D" — plain-English list for the environments sentence
+  /// below, since these no longer render as separate badge tags.
+  String _joinList(List<String> items) {
+    if (items.isEmpty) return '';
+    if (items.length == 1) return items.first;
+    return '${items.sublist(0, items.length - 1).join(', ')} and ${items.last}';
+  }
 }
 
 class _ArchetypeHero extends StatelessWidget {
@@ -159,10 +177,14 @@ class _ArchetypeHero extends StatelessWidget {
           // This paragraph is now the home for the "detailed persona"
           // description — the strength words that used to render as a row
           // of chips below are woven into this prose instead (see
-          // career_dna_level1_data.dart's naturalStyle strings).
+          // career_dna_level1_data.dart's naturalStyle strings). Uses
+          // `body` (regular weight), not `bodyLg` (medium) — at 3-4
+          // sentences long, medium weight read as too heavy/overwhelming
+          // for a full paragraph, unlike the single short line it used to
+          // be.
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.md),
-            child: Text(noOrphan(naturalStyle), style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 14.5, height: 1.45)),
+            child: Text(noOrphan(naturalStyle), style: AppTextStyles.body.copyWith(color: AppColors.whiteA70, fontSize: 14.5, height: 1.45)),
           ),
         ],
       ),
@@ -170,35 +192,52 @@ class _ArchetypeHero extends StatelessWidget {
   }
 }
 
-class _GrowthCard extends StatelessWidget {
-  final String title;
-  final String text;
-  const _GrowthCard({required this.title, required this.text});
+/// A standing "Download report" entry point on the unlocked report itself —
+/// not just a one-time screen shown right after paying (career_dna_report_
+/// ready_screen.dart), so the PDF is reachable any time this screen is
+/// revisited later, not only in the moment right after checkout.
+class _DownloadReportButton extends StatefulWidget {
+  const _DownloadReportButton();
+
+  @override
+  State<_DownloadReportButton> createState() => _DownloadReportButtonState();
+}
+
+class _DownloadReportButtonState extends State<_DownloadReportButton> {
+  bool _downloading = false;
+
+  Future<void> _download(User user) async {
+    if (_downloading) return;
+    setState(() => _downloading = true);
+    try {
+      final bytes = await buildCareerDnaReportPdf(user);
+      final name = (user.name?.trim().isNotEmpty ?? false) ? user.name! : 'career_quiz';
+      final safeName = name.replaceAll(RegExp(r'[^\w\s-]'), '').trim().replaceAll(RegExp(r'\s+'), '_');
+      await Printing.sharePdf(bytes: bytes, filename: '${safeName.isEmpty ? 'career_quiz' : safeName}_career_quiz_report.pdf');
+    } catch (e) {
+      debugPrint('Career Quiz report PDF generation failed: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: const Text("Couldn't generate the PDF"),
+          duration: const Duration(seconds: 4),
+          persist: false,
+        ));
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.lg)),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Ionicons.trending_up, size: 20, color: AppColors.blue),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Growth Opportunity — $title', style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 14.5)),
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.xs),
-                  child: Text(noOrphan(text), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.4)),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
+    final user = context.watch<AppState>().user;
+    return PillButton(
+      label: 'Download report',
+      variant: PillVariant.secondary,
+      icon: Ionicons.download_outline,
+      loading: _downloading,
+      onPressed: user == null ? null : () => _download(user),
     );
   }
 }

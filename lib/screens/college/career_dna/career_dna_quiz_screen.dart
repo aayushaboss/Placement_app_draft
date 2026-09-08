@@ -341,8 +341,15 @@ class _QuestionBody extends StatelessWidget {
                       child: Row(
                         children: [
                           Expanded(
+                            // Options are trimmed hard to fit one line at
+                            // this button's normal text size (see
+                            // career_dna_level1_data.dart) — deliberately
+                            // not force-shrunk to fit (that would make some
+                            // options read visibly smaller than others,
+                            // which looks worse than the rare unavoidable
+                            // 2-line wrap this trimming can't always avoid).
                             child: Text(
-                              noOrphan(opt.text),
+                              opt.text,
                               textAlign: TextAlign.left,
                               style: AppTextStyles.bodyLg.copyWith(color: selected ? AppColors.white : AppColors.ink, fontWeight: AppFontWeight.medium),
                             ),

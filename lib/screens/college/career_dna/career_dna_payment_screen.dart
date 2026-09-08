@@ -43,7 +43,10 @@ class _CareerDnaPaymentScreenState extends State<CareerDnaPaymentScreen> {
     await context.read<AppState>().mockUnlockCareerDnaReport();
     if (!mounted) return;
     HapticFeedback.heavyImpact();
-    context.pop();
+    // Replaces this screen (not a push) so backing out of the ready/
+    // download screen can't land the user back on a "Pay ₹51" button for
+    // something they already paid for.
+    context.pushReplacement('/college/career-dna/report-ready');
   }
 
   @override

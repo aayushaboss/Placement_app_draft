@@ -131,12 +131,10 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                   // which level is current — per direct feedback that
                   // swapping the heading itself to the current level's own
                   // title read as confusing copy. The line beneath names
-                  // the current level instead.
-                  Text('CAREER QUIZ', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 13, fontWeight: AppFontWeight.medium, letterSpacing: 1.4)),
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xs),
-                    child: Text('Career Quiz', style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 26, fontWeight: AppFontWeight.semibold)),
-                  ),
+                  // the current level instead. (No separate eyebrow label
+                  // above this any more — it used to duplicate the same
+                  // "Career Quiz" text twice in a row.)
+                  Text('Career Quiz', style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 26, fontWeight: AppFontWeight.semibold)),
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.xs),
                     child: Text(
