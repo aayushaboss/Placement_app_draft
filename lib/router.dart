@@ -6,6 +6,13 @@ import 'nav.dart';
 import 'screens/dev/style_guide_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/otp_screen.dart';
+import 'screens/college/career_dna/career_dna_final_report_screen.dart';
+import 'screens/college/career_dna/career_dna_landing_screen.dart';
+import 'screens/college/career_dna/career_dna_level_intro_screen.dart';
+import 'screens/college/career_dna/career_dna_payment_screen.dart';
+import 'screens/college/career_dna/career_dna_quiz_screen.dart';
+import 'screens/college/career_dna/career_dna_report_screen.dart';
+import 'screens/college/career_dna/career_dna_success_screen.dart';
 import 'screens/college/goals_screen.dart';
 import 'screens/college/opportunity_category_picker_screen.dart';
 import 'screens/college/opportunity_detail_screen.dart';
@@ -189,6 +196,24 @@ GoRouter buildRouter(AppState appState, GlobalKey<ScaffoldMessengerState> scaffo
         ),
       ),
       GoRoute(path: '/college/goals', builder: (context, state) => const GoalsScreen()),
+      GoRoute(
+        path: '/college/career-dna/level/:level/intro',
+        builder: (context, state) => CareerDnaLevelIntroScreen(level: int.parse(state.pathParameters['level']!)),
+      ),
+      GoRoute(
+        path: '/college/career-dna/level/:level/quiz',
+        builder: (context, state) => CareerDnaQuizScreen(level: int.parse(state.pathParameters['level']!)),
+      ),
+      GoRoute(
+        path: '/college/career-dna/level/:level/complete',
+        builder: (context, state) => CareerDnaSuccessScreen(level: int.parse(state.pathParameters['level']!)),
+      ),
+      GoRoute(
+        path: '/college/career-dna/level/:level/report',
+        builder: (context, state) => CareerDnaReportScreen(level: int.parse(state.pathParameters['level']!)),
+      ),
+      GoRoute(path: '/college/career-dna/unlock', builder: (context, state) => const CareerDnaPaymentScreen()),
+      GoRoute(path: '/college/career-dna/final-report', builder: (context, state) => const CareerDnaFinalReportScreen()),
       GoRoute(path: '/search', builder: (context, state) => const SearchScreen()),
       GoRoute(
         path: '/booking',
@@ -268,6 +293,10 @@ GoRouter buildRouter(AppState appState, GlobalKey<ScaffoldMessengerState> scaffo
           // just demoted to a Profile row instead of a primary tab slot.
           StatefulShellBranch(routes: [GoRoute(path: '/tabs/explore', builder: (context, state) => const CoursesExploreScreen())]),
           StatefulShellBranch(routes: [GoRoute(path: '/tabs/profile', builder: (context, state) => const ProfileScreen())]),
+          // College-only, hidden from school's tab bar (see TabsScaffold) —
+          // appended at the end (index 5) rather than reordered in, so
+          // every existing branch's index stays exactly what it was.
+          StatefulShellBranch(routes: [GoRoute(path: '/tabs/career-dna', builder: (context, state) => const CareerDnaLandingScreen())]),
         ],
       ),
     ],

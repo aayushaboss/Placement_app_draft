@@ -1,4 +1,5 @@
 import 'aptitude.dart';
+import 'career_dna.dart';
 import 'it_skill_entry.dart';
 import 'job_preferences.dart';
 import 'language_entry.dart';
@@ -76,6 +77,11 @@ class User {
   final String? photoUrl;
   final ParsedResume? resume;
   final AptitudeResults? aptitudeResults;
+
+  /// The 5-level "Career DNA" journey (college segment only — see
+  /// career_dna.dart). Null until the student starts Level 1; each level
+  /// field inside stays null until that level is completed.
+  final CareerDnaProfile? careerDna;
   final JobPreferences? preferences;
   final List<LanguageEntry>? languages;
 
@@ -124,6 +130,7 @@ class User {
     this.photoUrl,
     this.resume,
     this.aptitudeResults,
+    this.careerDna,
     this.preferences,
     this.languages,
     this.videoIntroUrl,
@@ -157,6 +164,7 @@ class User {
     String? photoUrl,
     ParsedResume? resume,
     AptitudeResults? aptitudeResults,
+    CareerDnaProfile? careerDna,
     JobPreferences? preferences,
     List<LanguageEntry>? languages,
     String? videoIntroUrl,
@@ -189,6 +197,7 @@ class User {
       photoUrl: photoUrl ?? this.photoUrl,
       resume: resume ?? this.resume,
       aptitudeResults: aptitudeResults ?? this.aptitudeResults,
+      careerDna: careerDna ?? this.careerDna,
       preferences: preferences ?? this.preferences,
       languages: languages ?? this.languages,
       videoIntroUrl: videoIntroUrl ?? this.videoIntroUrl,
@@ -223,6 +232,7 @@ class User {
         'photoUrl': photoUrl,
         'resume': resume?.toJson(),
         'aptitudeResults': aptitudeResults?.toJson(),
+        'careerDna': careerDna?.toJson(),
         'preferences': preferences?.toJson(),
         'languages': languages?.map((l) => l.toJson()).toList(),
         'videoIntroUrl': videoIntroUrl,
@@ -258,6 +268,7 @@ class User {
         aptitudeResults: json['aptitudeResults'] != null
             ? AptitudeResults.fromJson(json['aptitudeResults'] as Map<String, dynamic>)
             : null,
+        careerDna: json['careerDna'] != null ? CareerDnaProfile.fromJson(json['careerDna'] as Map<String, dynamic>) : null,
         preferences: json['preferences'] != null ? JobPreferences.fromJson(json['preferences'] as Map<String, dynamic>) : null,
         languages: (json['languages'] as List?)?.map((l) => LanguageEntry.fromJson(l as Map<String, dynamic>)).toList(),
         videoIntroUrl: json['videoIntroUrl'] as String?,

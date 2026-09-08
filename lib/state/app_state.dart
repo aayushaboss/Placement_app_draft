@@ -4,6 +4,7 @@ import 'dart:html' as html show window;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/career_dna.dart';
 import '../models/user.dart';
 import '../utils/app_language_prefs_key.dart';
 import '../utils/fomo_prefs_key.dart';
@@ -364,6 +365,23 @@ class AppState extends ChangeNotifier {
       await _persistUser(updated);
     }
     notifyListeners();
+  }
+
+  /// Prototype stand-in for a real payment gateway — a real integration
+  /// would call out to Razorpay/Stripe etc. and only flip `reportUnlocked`
+  /// on a verified webhook/callback, not an artificial delay. Mirrors
+  /// mockGoogleSignIn()'s own shape: fixed delay, always succeeds. One
+  /// payment unlocks every Career DNA level's detailed report plus the
+  /// final combined synthesis — not a per-level fee.
+  Future<void> mockUnlockCareerDnaReport() async {
+    // TODO: replace with real payment gateway (Razorpay/Stripe) + webhook verification
+    await Future.delayed(const Duration(milliseconds: 900));
+    await updateProfile((current) => current.copyWith(
+          careerDna: current.careerDnaOrEmpty.copyWith(
+            reportUnlocked: true,
+            unlockedAt: DateTime.now().toIso8601String(),
+          ),
+        ));
   }
 
   Future<User> updateProfile(User Function(User current) patch) async {
