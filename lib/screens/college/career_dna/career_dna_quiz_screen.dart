@@ -314,18 +314,32 @@ class _QuestionBody extends StatelessWidget {
           // 19px, not h1's default 22px — the full-size heading style read
           // as oversized for a single question repeated 20 times in a row;
           // still clearly the largest text on screen, just not "huge."
-          Text(
-            noOrphan(question.text),
-            textAlign: TextAlign.left,
-            style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontSize: 19, fontWeight: AppFontWeight.medium, height: 1.3),
+          //
+          // Wrapped in a fixed-height, top-aligned box instead of letting
+          // the Column size to whatever this particular question's text
+          // needs — per direct feedback, the options were shifting up and
+          // down between questions because a 1-line question and a 5-line
+          // question left very different amounts of space above the fixed
+          // gap that followed them. 140px comfortably covers the longest
+          // question actually authored across all 5 levels (confirmed by
+          // scanning every question: the longest is 150 characters and
+          // wraps to 5 lines at this font size), so short questions just
+          // leave blank space below them — that's the deliberate tradeoff
+          // that keeps the options landing at the same Y every time.
+          SizedBox(
+            height: 140,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: Text(
+                noOrphan(question.text),
+                textAlign: TextAlign.left,
+                style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontSize: 19, fontWeight: AppFontWeight.medium, height: 1.3),
+              ),
+            ),
           ),
-          Padding(
-            // Bumped from xl (20) to xxxl (40), then still reported as too
-            // tight live on a real device — going further to a full 56px so
-            // the options read as unmistakably separate from the question.
-            padding: const EdgeInsets.only(top: 56),
-            child: Column(
-              children: question.options.map((opt) {
+          const SizedBox(height: 20),
+          Column(
+            children: question.options.map((opt) {
                 final selected = answers[question.id] == opt.id;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: AppSpacing.md),
@@ -364,7 +378,6 @@ class _QuestionBody extends StatelessWidget {
                   ),
                 );
               }).toList(),
-            ),
           ),
         ],
       ),
