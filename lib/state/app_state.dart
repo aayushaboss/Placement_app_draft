@@ -236,13 +236,13 @@ class AppState extends ChangeNotifier {
     await prefs.setString(_demoUsersKey, jsonEncode(map));
   }
 
-  // Strictly the plain (non-namespaced) key — this is also what verifyOtp's
-  // "returning" login path looks up by, and it must stay strict: checking
-  // the 'google:' variant too here would silently re-open the exact
-  // collision _accountMapKey exists to prevent (typing the fixed Google
-  // demo email into the OTP flow would "become" that account). bootstrap()'s
-  // own recovery fallback checks both keys itself, separately, since it
-  // has a different, safe reason to.
+  // Strictly a single, exact key — no namespace-crossing here, so that a
+  // *new*-signup lookup (see verifyOtp's non-returning branch, which never
+  // calls this at all) can never accidentally "become" the fixed Google
+  // demo account. verifyOtp's "returning" login path and bootstrap()'s own
+  // recovery fallback both call this twice, once per namespace, since both
+  // of those are cases where the caller already knows the user is
+  // asserting ownership of a specific identifier, not signing up fresh.
   Future<User?> _getSavedUser(SharedPreferences prefs, String identifier) async {
     final map = await _loadUsersMap(prefs);
     final raw = map[identifier];
@@ -304,7 +304,16 @@ class AppState extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     User next;
     if (returning) {
-      final saved = await _getSavedUser(prefs, identifier);
+      // Checks both the plain identifier key and the Google-namespaced one
+      // (mirroring bootstrap()'s own recovery fallback) — unlike
+      // _getSavedUser's own doc comment, which warns against this for a
+      // *new*-signup lookup, "I already have an account" is the one place
+      // it's actually correct: the user is explicitly asserting ownership
+      // of this identifier, so an account they created via Google using
+      // this same email should be found when they log back in with it
+      // through the phone/email OTP path instead — not silently treated as
+      // a brand-new signup and sent through onboarding again.
+      final saved = await _getSavedUser(prefs, identifier) ?? await _getSavedUser(prefs, 'google:$identifier');
       // Whether complete or still mid-onboarding, a genuinely saved
       // profile for this identifier is resumed as-is. Only when nothing
       // is saved at all do we fall through to a new signup — this used to
