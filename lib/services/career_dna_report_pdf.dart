@@ -72,14 +72,19 @@ Future<Uint8List> buildCareerDnaReportPdf(User user) async {
 }
 
 List<pw.Widget> _level1Section(String? name, CareerDnaLevel1Result level1, pw.Font bold, pw.Font regular) {
+  final firstName = (name?.trim().isNotEmpty ?? false) ? name!.trim().split(' ').first : null;
+  final naturalStyle = level1.archetype.naturalStyle;
+  final first = _firstSentence(naturalStyle);
+  final rest = naturalStyle.substring(first.length).trim();
+
   return [
     _sectionHeader('Your Result', bold),
     pw.Text(level1.archetype.name, style: pw.TextStyle(font: bold, fontSize: 15, color: _ink)),
     pw.SizedBox(height: 4),
-    pw.Text(level1.archetype.naturalStyle, style: pw.TextStyle(font: regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    pw.Text(first, style: pw.TextStyle(font: regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
     pw.SizedBox(height: 16),
-    _sectionHeader('Your Personality Snapshot', bold),
-    pw.Text(_narrativeSummary(name, level1.dimensionScores), style: pw.TextStyle(font: regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
+    _sectionHeader(firstName != null ? "$firstName's Personality Snapshot" : 'Your Personality Snapshot', bold),
+    pw.Text('$rest ${_narrativeSummary(level1.dimensionScores)}', style: pw.TextStyle(font: regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
     pw.SizedBox(height: 16),
     pw.Text(
       '${level1.archetype.growthAreaText} You could also thrive in places like ${_joinList(level1.archetype.environments)}.',
@@ -88,17 +93,23 @@ List<pw.Widget> _level1Section(String? name, CareerDnaLevel1Result level1, pw.Fo
   ];
 }
 
+/// The opening sentence only — mirrors career_dna_report_screen.dart's own
+/// `_firstSentence` exactly, so the PDF's hero matches the on-screen one.
+String _firstSentence(String text) {
+  final match = RegExp(r'^.*?[.!?](?=\s|$)').firstMatch(text);
+  return match?.group(0) ?? text;
+}
+
 /// Mirrors career_dna_report_screen.dart's own `_narrativeSummary` exactly
 /// — top 3 dimensions named plainly as strengths, bottom 2 framed as still
-/// developing, no numbers anywhere.
-String _narrativeSummary(String? name, Map<String, int> scores) {
+/// developing, no numbers anywhere, second person throughout.
+String _narrativeSummary(Map<String, int> scores) {
   final sorted = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
   final strengths = sorted.take(3).map((e) => _level1DimensionPhrases[e.key] ?? e.key).toList();
   final growing = sorted.reversed.take(2).map((e) => _level1DimensionPhrases[e.key] ?? e.key).toList();
-  final who = (name?.trim().isNotEmpty ?? false) ? name!.trim().split(' ').first : 'You';
 
-  return '$who show${who == 'You' ? '' : 's'} real strength in ${_joinList(strengths)} — these come naturally and are genuinely worth leaning into. '
-      'Right now, ${_joinList(growing)} ${growing.length > 1 ? 'are' : 'is'} still developing — with a bit of intentional practice, these are real opportunities to grow, not weaknesses holding you back.';
+  return 'Looking at how you actually answered, your standout strengths are ${_joinList(strengths)} — these come through clearly and are genuinely worth leaning into. '
+      "You're still growing into ${_joinList(growing)} — with a bit of intentional practice, that's real room to build, not something holding you back.";
 }
 
 pw.Widget _sectionHeader(String title, pw.Font bold) => pw.Column(

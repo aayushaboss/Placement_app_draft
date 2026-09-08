@@ -277,11 +277,34 @@ class _PathNode extends StatelessWidget {
                   child: Text('START', style: AppTextStyles.label.copyWith(color: AppColors.ink, fontSize: 11, fontWeight: AppFontWeight.bold, letterSpacing: 0.6)),
                 ),
               circle,
+              // Shows the level's title beneath its number on every node
+              // (not just the current one) — per direct feedback that
+              // tapping a completed level jumped straight to its report
+              // with no way to first see which level that was. A fixed
+              // width keeps this from overflowing the screen edge at the
+              // zigzag's more off-center x positions.
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.sm),
-                child: Text(
-                  'Level ${meta.level}',
-                  style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
+                child: SizedBox(
+                  width: 128,
+                  child: Column(
+                    children: [
+                      Text(
+                        'Level ${meta.level}',
+                        style: AppTextStyles.caption.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.semibold),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 1),
+                        child: Text(
+                          meta.title,
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 11, height: 1.25),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],

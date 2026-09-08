@@ -425,18 +425,6 @@ class _ApplicationCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    // Always-visible fallback for the swipe-to-delete
-                    // gesture, which is otherwise discoverable only via a
-                    // one-time fading hint banner — a returning user who
-                    // missed that hint had no other way to find this at all.
-                    GestureDetector(
-                      onTap: onRemove,
-                      child: Padding(
-                        padding: const EdgeInsets.all(4),
-                        child: Icon(Ionicons.trash_outline, size: 18, color: AppColors.gray400),
-                      ),
-                    ),
-                    const SizedBox(width: 2),
                     const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
                   ],
                 ),
@@ -486,35 +474,55 @@ class _ApplicationCard extends StatelessWidget {
                   // applications. "Similar" stays for every status:
                   // discovering similar roles is relevant regardless of
                   // how this particular application ended.
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _actionChip(
-                        icon: Ionicons.copy_outline,
-                        label: 'Similar',
-                        onTap: () => context.push(Uri(
-                          path: '/opportunities',
-                          queryParameters: {'title': 'Similar roles', if (opportunity != null) 'category': opportunity.category},
-                        ).toString()),
+                      Expanded(
+                        child: Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.sm,
+                          children: [
+                            _actionChip(
+                              icon: Ionicons.copy_outline,
+                              label: 'Similar',
+                              onTap: () => context.push(Uri(
+                                path: '/opportunities',
+                                queryParameters: {'title': 'Similar roles', if (opportunity != null) 'category': opportunity.category},
+                              ).toString()),
+                            ),
+                            if (a.status != 'Rejected') ...[
+                              _actionChip(
+                                icon: Ionicons.mic_outline,
+                                label: 'Mock',
+                                onTap: () => context.push('/booking?kind=placement'),
+                              ),
+                              _actionChip(
+                                icon: Ionicons.book_outline,
+                                label: 'Prep',
+                                onTap: () => _showPrepSheet(
+                                  context,
+                                  prepCoursesForOpportunities(opportunity != null ? [opportunity] : const []),
+                                  heading: 'Prep for this interview',
+                                  subtitle: 'Aerostar Edge picks for the ${a.opportunity.title} role.',
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                      if (a.status != 'Rejected') ...[
-                        _actionChip(
-                          icon: Ionicons.mic_outline,
-                          label: 'Mock',
-                          onTap: () => context.push('/booking?kind=placement'),
+                      const SizedBox(width: AppSpacing.sm),
+                      // Moved down here, away from the chevron in the header
+                      // row above — sitting right next to that chevron made
+                      // it too easy to mis-tap delete while reaching for
+                      // "open this application." Bottom-right, with real
+                      // separation from every other tap target on the card.
+                      GestureDetector(
+                        onTap: onRemove,
+                        child: Padding(
+                          padding: const EdgeInsets.all(4),
+                          child: Icon(Ionicons.trash_outline, size: 18, color: AppColors.gray400),
                         ),
-                        _actionChip(
-                          icon: Ionicons.book_outline,
-                          label: 'Prep',
-                          onTap: () => _showPrepSheet(
-                            context,
-                            prepCoursesForOpportunities(opportunity != null ? [opportunity] : const []),
-                            heading: 'Prep for this interview',
-                            subtitle: 'Aerostar Edge picks for the ${a.opportunity.title} role.',
-                          ),
-                        ),
-                      ],
+                      ),
                     ],
                   ),
               ],

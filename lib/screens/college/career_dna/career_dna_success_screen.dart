@@ -105,40 +105,6 @@ class _CareerDnaSuccessScreenState extends State<CareerDnaSuccessScreen> with Si
                                     style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 15),
                                   ),
                                 ),
-                                Container(
-                                  margin: const EdgeInsets.only(top: AppSpacing.xxl),
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.all(AppSpacing.lg),
-                                  decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
-                                  child: Row(
-                                    children: [
-                                      Container(
-                                        width: 40,
-                                        height: 40,
-                                        alignment: Alignment.center,
-                                        decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
-                                        child: const Icon(Ionicons.document_text_outline, size: 18, color: AppColors.blue),
-                                      ),
-                                      const SizedBox(width: AppSpacing.md),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Text('Your micro analysis is ready', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium)),
-                                            Padding(
-                                              padding: const EdgeInsets.only(top: 2),
-                                              child: Text(
-                                                widget.level < 5 ? 'Unlock the full detailed report anytime.' : 'Your final results are ready.',
-                                                style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
                               ],
                             ),
                           ),

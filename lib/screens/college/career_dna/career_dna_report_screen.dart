@@ -66,9 +66,21 @@ class CareerDnaReportScreen extends StatelessWidget {
             if (level1 == null)
               _NotReadyCard(level: level)
             else ...[
-              _ArchetypeHero(name: level1.archetype.name, naturalStyle: level1.archetype.naturalStyle),
+              // Hero shows only the archetype's opening sentence (~3 lines)
+              // — the rest of that same paragraph continues below as the
+              // lead-in to the body text, instead of the hero holding the
+              // whole 3-4 sentence paragraph on its own. Per direct
+              // feedback: three separate paragraph-in-a-box sections in a
+              // row (hero, snapshot, growth) all making a similar
+              // "you're good at X" point read as repetitive — this
+              // consolidates everything below the hero into one flowing
+              // body instead of several near-identical boxed paragraphs.
+              _ArchetypeHero(name: level1.archetype.name, firstSentence: _firstSentence(level1.archetype.naturalStyle)),
               const SizedBox(height: AppSpacing.xl),
-              Text('Your Personality Snapshot', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
+              Text(
+                _firstName(user?.name) != null ? "${_firstName(user?.name)}'s Personality Snapshot" : 'Your Personality Snapshot',
+                style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold),
+              ),
               const SizedBox(height: AppSpacing.md),
               // A prose summary, not a scored scorecard — no percentage is
               // shown anywhere on this screen. Naming a student's weaker
@@ -76,47 +88,71 @@ class CareerDnaReportScreen extends StatelessWidget {
               // as a harsh, discouraging verdict; this instead names a few
               // real strengths plainly and frames the rest as still-
               // developing, worth building on rather than a deficiency.
+              // The second sentence deliberately opens with "Looking at how
+              // you actually answered" — the hero above describes the
+              // archetype in general (shared by everyone classified the
+              // same way); this paragraph is what's specific to *this*
+              // student's own answers, so it reads as a new, personal layer
+              // rather than restating the hero in different words.
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.soft),
-                child: Text(
-                  noOrphan(_narrativeSummary(user?.name, level1.dimensionScores)),
-                  style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.55),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      noOrphan('${_restOfSentences(level1.archetype.naturalStyle)} ${_narrativeSummary(level1.dimensionScores)}'),
+                      style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.55),
+                    ),
+                    if (unlocked) ...[
+                      const SizedBox(height: AppSpacing.md),
+                      Text(
+                        noOrphan('${level1.archetype.growthAreaText} You could also thrive in places like ${_joinList(level1.archetype.environments)}.'),
+                        style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.55),
+                      ),
+                    ],
+                  ],
                 ),
               ),
               if (unlocked) ...[
-                const SizedBox(height: AppSpacing.xl),
-                // One short paragraph, not a growth-opportunity card plus a
-                // separate "Possible Career Environments" heading and a row
-                // of badge pills — per direct feedback that split read as
-                // too much on screen. Same content, just folded into a
-                // single brief summary: the growth note first, then the
-                // environments as a plain sentence instead of tags.
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(AppSpacing.lg),
-                  decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.lg)),
-                  child: Text(
-                    noOrphan('${level1.archetype.growthAreaText} You could also thrive in places like ${_joinList(level1.archetype.environments)}.'),
-                    style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.5),
-                  ),
-                ),
                 const SizedBox(height: AppSpacing.xl),
                 const _DownloadReportButton(),
               ] else ...[
                 const SizedBox(height: AppSpacing.xl),
                 _UnlockCard(onUnlock: () => context.push('/college/career-dna/unlock')),
               ],
-              // Mirrors results_screen.dart's own "Retake test" link
-              // exactly (same style, same "go straight to the quiz, skip
-              // the intro" behavior) — re-submitting simply overwrites this
-              // level's saved result, same as aptitude's retake already does.
+              // Two link-style exits, stacked: back to the level map (the
+              // BackChevron above technically does this too via its
+              // fallbackRoute, but a chevron alone doesn't read as clearly
+              // as "go back to Career Quiz" — this makes it explicit), then
+              // retake. Retake mirrors results_screen.dart's own "Retake
+              // test" link exactly (same style, same "go straight to the
+              // quiz, skip the intro" behavior) — re-submitting simply
+              // overwrites this level's saved result, same as aptitude's
+              // retake already does.
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xl),
+                  child: GestureDetector(
+                    onTap: () => context.go('/tabs/career-dna'),
+                    child: Text(
+                      'Back to Career Quiz',
+                      style: AppTextStyles.body.copyWith(
+                        color: AppColors.blue,
+                        fontSize: 14,
+                        fontWeight: AppFontWeight.medium,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
               Center(
                 child: GestureDetector(
                   onTap: () => context.push('/college/career-dna/level/$level/quiz'),
                   child: Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xl),
+                    padding: const EdgeInsets.only(top: AppSpacing.md),
                     child: Text(
                       'Retake this level',
                       style: AppTextStyles.body.copyWith(
@@ -140,14 +176,25 @@ class CareerDnaReportScreen extends StatelessWidget {
   /// become plainly-named strengths, the bottom 2 become "still
   /// developing" growth notes, phrased from _level1DimensionPhrases.
   /// Deliberately never touches or displays the underlying numbers.
-  String _narrativeSummary(String? name, Map<String, int> scores) {
+  /// Stays in second person throughout ("you"), matching the hero's own
+  /// voice — an earlier version switched to the student's name mid-
+  /// paragraph ("Aayusha shows..."), which read as two different narrators
+  /// rather than one continuous, personal read.
+  String _narrativeSummary(Map<String, int> scores) {
     final sorted = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
     final strengths = sorted.take(3).map((e) => _level1DimensionPhrases[e.key] ?? e.key).toList();
     final growing = sorted.reversed.take(2).map((e) => _level1DimensionPhrases[e.key] ?? e.key).toList();
-    final who = (name?.trim().isNotEmpty ?? false) ? name!.trim().split(' ').first : 'You';
 
-    return '$who show${who == 'You' ? '' : 's'} real strength in ${_joinList(strengths)} — these come naturally and are genuinely worth leaning into. '
-        'Right now, ${_joinList(growing)} ${growing.length > 1 ? 'are' : 'is'} still developing — with a bit of intentional practice, these are real opportunities to grow, not weaknesses holding you back.';
+    return 'Looking at how you actually answered, your standout strengths are ${_joinList(strengths)} — these come through clearly and are genuinely worth leaning into. '
+        "You're still growing into ${_joinList(growing)} — with a bit of intentional practice, that's real room to build, not something holding you back.";
+  }
+
+  /// First name only, for the personalized section heading — null (falls
+  /// back to "Your") when there's no name to work with.
+  String? _firstName(String? name) {
+    final trimmed = name?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    return trimmed.split(' ').first;
   }
 
   /// "A, B, C and D" — plain-English list for the environments sentence
@@ -157,12 +204,27 @@ class CareerDnaReportScreen extends StatelessWidget {
     if (items.length == 1) return items.first;
     return '${items.sublist(0, items.length - 1).join(', ')} and ${items.last}';
   }
+
+  /// The opening sentence only — shown in the hero, so it reads as a short
+  /// ~3-line teaser instead of the full 3-4 sentence paragraph.
+  String _firstSentence(String text) {
+    final match = RegExp(r'^.*?[.!?](?=\s|$)').firstMatch(text);
+    return match?.group(0) ?? text;
+  }
+
+  /// Everything after that opening sentence — continues as the lead-in to
+  /// the body paragraph below, so the full naturalStyle text still appears
+  /// in full, just not all crammed into the hero.
+  String _restOfSentences(String text) {
+    final first = _firstSentence(text);
+    return text.substring(first.length).trim();
+  }
 }
 
 class _ArchetypeHero extends StatelessWidget {
   final String name;
-  final String naturalStyle;
-  const _ArchetypeHero({required this.name, required this.naturalStyle});
+  final String firstSentence;
+  const _ArchetypeHero({required this.name, required this.firstSentence});
 
   @override
   Widget build(BuildContext context) {
@@ -181,17 +243,15 @@ class _ArchetypeHero extends StatelessWidget {
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: Text(name.toUpperCase(), style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 28, fontWeight: AppFontWeight.semibold)),
           ),
-          // This paragraph is now the home for the "detailed persona"
-          // description — the strength words that used to render as a row
-          // of chips below are woven into this prose instead (see
-          // career_dna_level1_data.dart's naturalStyle strings). Uses
-          // `body` (regular weight), not `bodyLg` (medium) — at 3-4
-          // sentences long, medium weight read as too heavy/overwhelming
-          // for a full paragraph, unlike the single short line it used to
-          // be.
+          // Just the opening line (~3 rows) — the rest of this same
+          // archetype paragraph continues below as the lead-in to the
+          // Personality Snapshot body text, instead of the hero holding
+          // the whole 3-4 sentence description on its own. Uses `body`
+          // (regular weight), not `bodyLg` (medium) — read too heavy for a
+          // full paragraph in an earlier version of this hero.
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.md),
-            child: Text(noOrphan(naturalStyle), style: AppTextStyles.body.copyWith(color: AppColors.whiteA70, fontSize: 14.5, height: 1.45)),
+            child: Text(noOrphan(firstSentence), style: AppTextStyles.body.copyWith(color: AppColors.whiteA70, fontSize: 14.5, height: 1.45)),
           ),
         ],
       ),
@@ -240,7 +300,7 @@ class _DownloadReportButtonState extends State<_DownloadReportButton> {
   Widget build(BuildContext context) {
     final user = context.watch<AppState>().user;
     return PillButton(
-      label: 'Download report',
+      label: 'Download full report',
       variant: PillVariant.secondary,
       icon: Ionicons.download_outline,
       loading: _downloading,
