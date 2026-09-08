@@ -63,26 +63,23 @@ class CareerDnaReportScreen extends StatelessWidget {
               const SizedBox(height: AppSpacing.xl),
               Text('Your Personality Scores', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
               const SizedBox(height: AppSpacing.md),
+              // Every trait bar is free — the paywall gates interpretation
+              // (what your scores mean, what to do about them) not the raw
+              // scores themselves, so the free report is genuinely
+              // substantial (a full scannable scorecard) rather than a
+              // 2-bar teaser with everything else locked away.
               Container(
                 padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.soft),
                 child: Column(
                   children: [
-                    for (final entry in _topDimensions(level1.dimensionScores, unlocked ? 10 : 2))
+                    for (final entry in _topDimensions(level1.dimensionScores, 10))
                       Padding(
                         padding: const EdgeInsets.only(bottom: AppSpacing.lg),
                         child: TraitScoreBar(
                           label: _level1DimensionLabels[entry.key] ?? entry.key,
                           percent: entry.value,
                           caption: _captionFor(entry.value),
-                        ),
-                      ),
-                    if (!unlocked)
-                      Padding(
-                        padding: const EdgeInsets.only(top: AppSpacing.sm),
-                        child: Text(
-                          '+ 8 more traits in your full report',
-                          style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontStyle: FontStyle.italic),
                         ),
                       ),
                   ],
@@ -100,7 +97,7 @@ class CareerDnaReportScreen extends StatelessWidget {
                   children: level1.archetype.environments.map((e) => AppTag(label: e)).toList(),
                 ),
               ] else ...[
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.xl),
                 _UnlockCard(onUnlock: () => context.push('/college/career-dna/unlock')),
               ],
             ],
@@ -211,11 +208,11 @@ class _UnlockCard extends StatelessWidget {
         children: [
           const Icon(Ionicons.lock_closed, size: 22, color: AppColors.blue),
           const SizedBox(height: AppSpacing.sm),
-          Text('Unlock your full detailed report', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
+          Text('See what your scores mean', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
             child: Text(
-              'One payment unlocks every level\'s full report, plus your final combined results once all 5 are done.',
+              'Your growth opportunities, career environments, and your final combined result once all 5 levels are done — one payment unlocks all of it.',
               style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.4),
             ),
           ),

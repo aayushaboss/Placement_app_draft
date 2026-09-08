@@ -100,6 +100,18 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
       context.pop();
       return;
     }
+    await _confirmQuit();
+  }
+
+  /// Reachable from any question, not just index 0 — without this, quitting
+  /// from deep in a 20-question level meant stepping back one question at
+  /// a time via the chevron until reaching the start. Triggered by the
+  /// small, deliberately low-key "Exit" control (see build()) rather than
+  /// the back-chevron itself, so it's genuinely available without reading
+  /// as an invitation to quit.
+  Future<void> _confirmQuit() async {
+    _advanceTimer?.cancel();
+    _advanceTimer = null;
     final leave = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -219,12 +231,29 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
                     ),
                     Expanded(
                       child: Text(
-                        '$percentComplete% complete',
+                        // A bare "0% complete" on the very first question
+                        // reads as discouraging before the student has even
+                        // started — showing real progress only once there
+                        // is some keeps the label motivating instead of
+                        // deflating.
+                        percentComplete == 0 ? "Let's begin" : '$percentComplete% complete',
                         textAlign: TextAlign.center,
                         style: AppTextStyles.bodyLg.copyWith(color: AppColors.gray500, fontWeight: AppFontWeight.regular),
                       ),
                     ),
-                    SizedBox(width: 44 - AppSpacing.lg),
+                    // Deliberately small and low-contrast (gray, no fill/
+                    // border) rather than a prominent button — genuinely
+                    // available from any question so quitting deep into a
+                    // level doesn't mean stepping back one question at a
+                    // time, but not visually competing with "keep going."
+                    GestureDetector(
+                      onTap: _confirmQuit,
+                      child: const SizedBox(
+                        width: 44 - AppSpacing.lg,
+                        height: 44 - AppSpacing.lg,
+                        child: Icon(Ionicons.close, size: 20, color: AppColors.gray400),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -277,17 +306,20 @@ class _QuestionBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // 19px, not h1's default 22px — the full-size heading style read
+          // as oversized for a single question repeated 20 times in a row;
+          // still clearly the largest text on screen, just not "huge."
           Text(
             question.text,
             textAlign: TextAlign.left,
-            style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, height: 1.25),
+            style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontSize: 19, fontWeight: AppFontWeight.medium, height: 1.3),
           ),
           Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xxl),
+            padding: const EdgeInsets.only(top: AppSpacing.xl),
             child: Column(
               children: question.options.map((opt) {
                 final selected = answers[question.id] == opt.id;

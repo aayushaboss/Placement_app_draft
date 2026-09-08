@@ -17,16 +17,18 @@ import '../../../utils/scroll_to_top_registry.dart';
 import '../../../widgets/progress_ring.dart';
 import '../../../widgets/responsive_body.dart';
 
-class _IntroBullet {
+class _IntroChip {
   final IconData icon;
   final String text;
-  const _IntroBullet({required this.icon, required this.text});
+  const _IntroChip({required this.icon, required this.text});
 }
 
-const _introBullets = [
-  _IntroBullet(icon: Ionicons.happy_outline, text: 'There are no right or wrong answers — just be yourself.'),
-  _IntroBullet(icon: Ionicons.briefcase_outline, text: 'Discover jobs and career paths that genuinely fit who you are.'),
-  _IntroBullet(icon: Ionicons.compass_outline, text: 'Get real clarity on your career direction, built from your own answers.'),
+// Short fragments, not sentences — per direct feedback that the original
+// full-sentence bullets read as too much to read before even starting.
+const _introChips = [
+  _IntroChip(icon: Ionicons.happy_outline, text: 'No wrong answers'),
+  _IntroChip(icon: Ionicons.briefcase_outline, text: 'Jobs that fit you'),
+  _IntroChip(icon: Ionicons.compass_outline, text: 'Real career clarity'),
 ];
 
 /// Landing / level-map screen — the tab root for the 6th branch
@@ -100,56 +102,72 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
           controller: _scrollController,
           padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxl),
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Career Quiz', style: AppTextStyles.h1.copyWith(color: AppColors.ink)),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Text(
-                          noOrphan('Find out what fits you — one level at a time.'),
-                          style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                ProgressRing(percent: (profile.completedLevelCount * 100 / 5).round(), size: 56),
-              ],
+            // A big badge-style icon reads as "the start of something," the
+            // way a game's own title screen does — the old version went
+            // straight from a plain text title into a paragraph of bullets,
+            // which read as a page to read rather than something to begin.
+            Center(
+              child: Container(
+                width: 84,
+                height: 84,
+                alignment: Alignment.center,
+                decoration: const BoxDecoration(color: AppColors.blue, shape: BoxShape.circle, boxShadow: AppShadows.card),
+                child: const Icon(Ionicons.rocket, size: 38, color: AppColors.yellow),
+              ),
             ),
             Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.xl),
-              child: Container(
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.lg)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: _introBullets
-                      .map((b) => Padding(
-                            padding: EdgeInsets.only(bottom: b == _introBullets.last ? 0 : AppSpacing.md),
-                            child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+              padding: const EdgeInsets.only(top: AppSpacing.lg),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Career Quiz', style: AppTextStyles.h1.copyWith(color: AppColors.ink)),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            noOrphan('Discover what fits you.'),
+                            style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.md),
+                  ProgressRing(percent: (profile.completedLevelCount * 100 / 5).round(), size: 52),
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: AppSpacing.lg),
+              child: Row(
+                children: _introChips
+                    .map((c) => Expanded(
+                          child: Container(
+                            margin: EdgeInsets.only(right: c == _introChips.last ? 0 : AppSpacing.sm),
+                            padding: const EdgeInsets.symmetric(vertical: AppSpacing.md, horizontal: AppSpacing.xs),
+                            decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.lg)),
+                            child: Column(
                               children: [
-                                Icon(b.icon, size: 18, color: AppColors.blue),
-                                const SizedBox(width: AppSpacing.md),
-                                Expanded(
-                                  child: Text(b.text, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.35)),
+                                Icon(c.icon, size: 18, color: AppColors.blue),
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  c.text,
+                                  textAlign: TextAlign.center,
+                                  style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 11, fontWeight: AppFontWeight.medium),
                                 ),
                               ],
                             ),
-                          ))
-                      .toList(),
-                ),
+                          ),
+                        ))
+                    .toList(),
               ),
             ),
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xl, bottom: AppSpacing.md),
-              child: Text('Your 5 levels', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
+              child: Text('5 Levels to Unlock', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
             ),
             for (final meta in careerDnaLevelMeta)
               Padding(

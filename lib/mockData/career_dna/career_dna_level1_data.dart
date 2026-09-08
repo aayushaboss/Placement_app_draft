@@ -25,7 +25,7 @@ const List<String> careerDnaLevel1Dimensions = [
 final List<CareerDnaQuestion> careerDnaLevel1Questions = [
   const CareerDnaQuestion(
     id: 'l1q1',
-    text: "You join a college activity where you don't know anyone. What would you naturally do?",
+    text: "You join a new group activity where you don't know anyone. What would you naturally do?",
     options: [
       CareerDnaOption(id: 'a', text: 'Start a conversation with someone who seems approachable.', weights: {'socialOrientation': 4, 'communicationConfidence': 3, 'adaptability': 1}),
       CareerDnaOption(id: 'b', text: 'Observe the group for a while before getting involved.', weights: {'socialOrientation': 1, 'communicationConfidence': 1, 'adaptability': 3}),
@@ -35,7 +35,7 @@ final List<CareerDnaQuestion> careerDnaLevel1Questions = [
   ),
   const CareerDnaQuestion(
     id: 'l1q2',
-    text: 'Your group has several different ideas for a college project. What role would you naturally take?',
+    text: 'Your group has several different ideas for a shared project. What role would you naturally take?',
     options: [
       CareerDnaOption(id: 'a', text: 'Help the group combine the strongest ideas.', weights: {'teamOrientation': 4, 'leadershipInitiative': 2, 'communicationConfidence': 2}),
       CareerDnaOption(id: 'b', text: 'Share the idea I believe will work best.', weights: {'teamOrientation': 1, 'leadershipInitiative': 3, 'communicationConfidence': 4}),
@@ -75,7 +75,7 @@ final List<CareerDnaQuestion> careerDnaLevel1Questions = [
   ),
   const CareerDnaQuestion(
     id: 'l1q6',
-    text: 'Nobody has volunteered to organise an important college activity. Which response feels most natural?',
+    text: 'Nobody has volunteered to organise an important group activity. Which response feels most natural?',
     options: [
       CareerDnaOption(id: 'a', text: 'Wait and see who takes responsibility.', weights: {'leadershipInitiative': 1}),
       CareerDnaOption(id: 'b', text: 'Offer to help whoever takes charge.', weights: {'leadershipInitiative': 2, 'teamOrientation': 3}),
@@ -95,7 +95,7 @@ final List<CareerDnaQuestion> careerDnaLevel1Questions = [
   ),
   const CareerDnaQuestion(
     id: 'l1q8',
-    text: 'You studied seriously but received a much lower score than expected. What would you most likely do?',
+    text: 'You prepared seriously for something important, but the outcome was much lower than expected. What would you most likely do?',
     options: [
       CareerDnaOption(id: 'a', text: 'Look at what may have gone wrong.', weights: {'learningAgility': 3, 'resilience': 2, 'problemSolving': 2}),
       CareerDnaOption(id: 'b', text: 'Take some time before thinking about it again.', weights: {'resilience': 3, 'learningAgility': 1}),
@@ -135,7 +135,7 @@ final List<CareerDnaQuestion> careerDnaLevel1Questions = [
   ),
   const CareerDnaQuestion(
     id: 'l1q12',
-    text: 'You are suddenly asked to speak in front of your class without preparation. Which feels most like you?',
+    text: 'You are suddenly asked to speak in front of a group without preparation. Which feels most like you?',
     options: [
       CareerDnaOption(id: 'a', text: 'Start speaking and organise my thoughts while talking.', weights: {'communicationConfidence': 4, 'adaptability': 3}),
       CareerDnaOption(id: 'b', text: 'Take a moment to organise my thoughts first.', weights: {'communicationConfidence': 2, 'problemSolving': 2, 'adaptability': 1}),
@@ -155,7 +155,7 @@ final List<CareerDnaQuestion> careerDnaLevel1Questions = [
   ),
   const CareerDnaQuestion(
     id: 'l1q14',
-    text: 'A professor asks you to coordinate something important for your class. Which part would you naturally enjoy most?',
+    text: 'Someone asks you to coordinate something important for a group. Which part would you naturally enjoy most?',
     options: [
       CareerDnaOption(id: 'a', text: 'Deciding how everything should be organised.', weights: {'leadershipInitiative': 4, 'problemSolving': 2}),
       CareerDnaOption(id: 'b', text: 'Getting people involved.', weights: {'socialOrientation': 4, 'leadershipInitiative': 2, 'teamOrientation': 2}),
