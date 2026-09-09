@@ -23,6 +23,7 @@ import '../../theme/text_styles.dart';
 import '../../utils/group_by_category.dart';
 import '../../utils/no_orphan.dart';
 import '../../utils/scroll_to_top_registry.dart';
+import '../../widgets/auto_carousel.dart';
 import '../../widgets/course_carousel_section.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/fomo_notification_card.dart';
@@ -462,35 +463,78 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                             ),
                           ],
                           if (upcoming == null) ...[
-                            GestureDetector(
-                              onTap: () => context.push('/booking?kind=placement'),
-                              child: Container(
-                                // No bottom margin — same reasoning as the
-                                // booked-state card above: HomeDashboardCards'
-                                // own leading shadow buffer supplies the gap
-                                // to here on its own.
-                                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                                padding: const EdgeInsets.all(AppSpacing.xl),
-                                decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          Text('Talk to a placement expert', style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
-                                          Padding(
-                                            padding: const EdgeInsets.only(top: 4),
-                                            child: Text(noOrphan('1:1 guidance to land your next role.'), style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 13)),
+                            // Auto-swiping 2-card carousel — card 1 is the
+                            // original standing "book a session" CTA,
+                            // unchanged content/styling (just its own
+                            // margin removed, since AutoCarousel's own
+                            // outer+per-page padding already sums to the
+                            // same AppSpacing.xl inset a manually-margined
+                            // single card had). Card 2 hooks users into the
+                            // free Level 1 Career Quiz test.
+                            AutoCarousel(
+                              height: 132,
+                              cards: [
+                                GestureDetector(
+                                  onTap: () => context.push('/booking?kind=placement'),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(AppSpacing.xl),
+                                    decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text('Talk to a placement expert', style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 4),
+                                                child: Text(noOrphan('1:1 guidance to land your next role.'), style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 13)),
+                                              ),
+                                            ],
                                           ),
-                                        ],
-                                      ),
+                                        ),
+                                        const Icon(Ionicons.arrow_forward_circle, size: 34, color: AppColors.yellow),
+                                      ],
                                     ),
-                                    const Icon(Ionicons.arrow_forward_circle, size: 34, color: AppColors.yellow),
-                                  ],
+                                  ),
                                 ),
-                              ),
+                                GestureDetector(
+                                  onTap: () => context.go('/tabs/career-dna'),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(AppSpacing.xl),
+                                    decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
+                                    child: Row(
+                                      children: [
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text('Take the Big Five (OCEAN) test', style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 4),
+                                                child: Text(
+                                                  noOrphan('Openness · Conscientiousness · Extraversion · Agreeableness · Neuroticism'),
+                                                  style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 13),
+                                                ),
+                                              ),
+                                              Padding(
+                                                padding: const EdgeInsets.only(top: 3),
+                                                child: Text(
+                                                  'Discover your true potential',
+                                                  style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12, fontStyle: FontStyle.italic),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        const Icon(Ionicons.arrow_forward_circle, size: 34, color: AppColors.yellow),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                           HomeDashboardCards(user: user),

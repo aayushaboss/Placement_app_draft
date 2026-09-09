@@ -148,6 +148,17 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                       style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 14.5),
                     ),
                   ),
+                  // Small trust line — deliberately lighter/smaller than
+                  // the subtitle above (size alone does the differentiation
+                  // here, both share whiteA70) so it reads as secondary
+                  // credibility copy, not competing with the level name.
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(
+                      noOrphan('Approved by 100+ Psychologists, Researchers, PhDs and Business Leaders.'),
+                      style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 11),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -295,9 +306,28 @@ class _PathNode extends StatelessWidget {
                   width: 128,
                   child: Column(
                     children: [
-                      Text(
-                        'Level ${meta.level}',
-                        style: AppTextStyles.caption.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.semibold),
+                      // Tap-to-reveal info icon, same trigger/idiom already
+                      // used for the match-% explanation elsewhere in this
+                      // app (Tooltip + triggerMode.tap, not the default
+                      // long-press) — lets a student preview what a test is
+                      // about before opening it, for every node regardless
+                      // of lock state. Nested inside the node's own outer
+                      // GestureDetector; Flutter's gesture arena lets this
+                      // inner tap win, so it never also opens the level.
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            'Level ${meta.level}',
+                            style: AppTextStyles.caption.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.semibold),
+                          ),
+                          const SizedBox(width: 3),
+                          Tooltip(
+                            message: meta.whatThisMeasures,
+                            triggerMode: TooltipTriggerMode.tap,
+                            child: const Icon(Ionicons.information_circle_outline, size: 13, color: AppColors.gray400),
+                          ),
+                        ],
                       ),
                       Padding(
                         padding: const EdgeInsets.only(top: 1),

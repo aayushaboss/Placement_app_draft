@@ -29,18 +29,31 @@ class CareerDnaLevelMeta {
   });
 }
 
-// Copy here is deliberately terse — short fragments, not full paragraphs —
-// per direct feedback that the level-intro screen read as too much to read
-// before even starting. Also scrubbed of college-only framing ("college
-// situations", "your first job" assuming a first job specifically) since
-// this feature spans every non-school segment (UG/PG/Working), not just
-// current students.
+// `title` is each level's formal, named test methodology (shown on the
+// landing map, the intro screen, and PDF headers) — a credibility play,
+// tying the product to real, recognizable psychometric frameworks rather
+// than a generic in-house description. `whatThisMeasures` is a short,
+// genuinely brief (2 sentences, ~3-4 rendered lines — a first draft ran
+// much longer and read as a wall of text on the intro screen) explanation
+// of what that named test actually is and how it helps — honest,
+// non-clinical framing appropriate for a student product, never
+// overclaiming validity. It's reused verbatim in two
+// places: the intro screen's own paragraph, and the landing screen's
+// per-node tap-to-reveal tooltip (career_dna_landing_screen.dart) — one
+// string, no content to keep in sync across two authored copies.
+// `tagline`/`noRightWrongCopy` stay short fragments as before; only
+// `title`/`whatThisMeasures` carry the fuller copy now. Also scrubbed of
+// college-only framing ("college situations", "your first job" assuming a
+// first job specifically) since this feature spans every non-school
+// segment (UG/PG/Working), not just current students.
 const careerDnaLevelMeta = [
   CareerDnaLevelMeta(
     level: 1,
-    title: 'Personality & Behaviour',
+    title: 'Big Five (OCEAN)',
     tagline: 'How do you naturally act?',
-    whatThisMeasures: 'How you handle teamwork, setbacks, and decisions.',
+    whatThisMeasures:
+        "One of psychology's most well-researched personality frameworks. It shows how you think, work, and relate to others — so you can pick a "
+        "path that genuinely fits you.",
     noRightWrongCopy: 'No right or wrong answers — just be yourself.',
     icon: Ionicons.person_outline,
     questionCount: 20,
@@ -48,9 +61,10 @@ const careerDnaLevelMeta = [
   ),
   CareerDnaLevelMeta(
     level: 2,
-    title: 'Interest & Career Preference',
+    title: 'Situational Judgement Test',
     tagline: 'What attracts you?',
-    whatThisMeasures: 'What excites you, motivates you, and suits how you work.',
+    whatThisMeasures:
+        "Puts you in realistic workplace scenarios to see how you'd actually respond — not what you know, but how you'd act under pressure.",
     noRightWrongCopy: 'Pick what feels like you, not what sounds impressive.',
     icon: Ionicons.compass_outline,
     questionCount: 20,
@@ -58,9 +72,11 @@ const careerDnaLevelMeta = [
   ),
   CareerDnaLevelMeta(
     level: 3,
-    title: 'Social Interaction & Teamwork',
+    title: 'Hogan Personality Inventory Test',
     tagline: 'How do you interact with people?',
-    whatThisMeasures: 'How you lead, listen, and handle conflict in a team.',
+    whatThisMeasures:
+        "A well-known read on your everyday working style — not clinical, just how you naturally show up, build relationships, and handle pressure "
+        "in a team.",
     noRightWrongCopy: "Answer with what you'd really do, not the 'right' answer.",
     icon: Ionicons.people_outline,
     questionCount: 20,
@@ -68,9 +84,10 @@ const careerDnaLevelMeta = [
   ),
   CareerDnaLevelMeta(
     level: 4,
-    title: 'Employability & Workplace Readiness',
+    title: 'DISC Assessment',
     tagline: 'How do you operate at work?',
-    whatThisMeasures: 'How you handle ownership, priorities, and feedback at work.',
+    whatThisMeasures:
+        "One of the most widely used workplace-behaviour frameworks. It shows how you naturally decide, communicate, and handle change at work.",
     noRightWrongCopy: "Answer honestly — not what your manager wants to hear.",
     icon: Ionicons.briefcase_outline,
     questionCount: 20,
@@ -78,9 +95,11 @@ const careerDnaLevelMeta = [
   ),
   CareerDnaLevelMeta(
     level: 5,
-    title: 'Career Mapping',
+    title: 'Holland RIASEC Career Test',
     tagline: 'Where do all four dimensions point you?',
-    whatThisMeasures: 'Combines everything so far into your final career direction.',
+    whatThisMeasures:
+        "One of the most widely used career-matching frameworks. It combines everything from Levels 1–4 to map out real career directions worth "
+        "exploring.",
     noRightWrongCopy: "Pick what you'd genuinely enjoy, not the highest-paying option.",
     icon: Ionicons.rocket_outline,
     questionCount: 20,

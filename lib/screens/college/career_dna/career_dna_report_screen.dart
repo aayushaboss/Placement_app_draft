@@ -4,10 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
-import '../../../mockData/career_dna/career_dna_level1_data.dart';
-import '../../../mockData/career_dna/career_dna_level2_data.dart';
-import '../../../mockData/career_dna/career_dna_level3_data.dart';
-import '../../../mockData/career_dna/career_dna_level4_data.dart';
+import '../../../mockData/career_dna/career_dna_level_meta.dart';
 import '../../../models/career_dna.dart';
 import '../../../models/user.dart';
 import '../../../services/career_dna_report_pdf.dart';
@@ -21,36 +18,20 @@ import '../../../widgets/back_chevron.dart';
 import '../../../widgets/pill_button.dart';
 import '../../../widgets/responsive_body.dart';
 
-/// Everything the shared render below needs, computed once per level from
-/// that level's own (very differently-shaped) result object — Level 1 is
-/// an archetype, Level 2 an interest headline, Level 3 a social profile,
-/// Level 4 a workplace readiness read. Same screen shape for all four:
-/// hero (name + opening sentence) → free narrative snapshot → (unlocked)
-/// second paragraph → download/unlock → back/retake links.
-class _ReportView {
-  final String heroName;
-  final String heroFirstSentence;
-  final String snapshotHeading;
-  final String bodyLead;
-  final String bodyDetail;
-  final String? secondParagraph;
-  const _ReportView({
-    required this.heroName,
-    required this.heroFirstSentence,
-    required this.snapshotHeading,
-    required this.bodyLead,
-    required this.bodyDetail,
-    this.secondParagraph,
-  });
-}
-
-/// Per-level report — one file, two render branches (locked teaser /
-/// unlocked full) per level, driven live by the single global
-/// `reportUnlocked` flag rather than a second route, matching how
-/// results_screen.dart itself branches loading-vs-loaded in one build().
-/// All 5 levels are wired; Level 5 has its own dedicated final-synthesis
-/// screen (career_dna_final_report_screen.dart) instead of this per-level
-/// shape, since it combines every level rather than reporting just one.
+/// Per-level report — no on-screen narrative "overview" any more (that
+/// content — hero/snapshot/growth paragraphs — has been removed for every
+/// level, per direct feedback). This screen now only ever shows one of
+/// three lean states per level: not-ready-yet, ready-to-download (Level 1
+/// always, Levels 2-4 once the existing single ₹51 payment has unlocked
+/// everything), or locked-needs-payment (Levels 2-4 only, before paying).
+/// The narrative-generation logic that used to live here (dimension-phrase
+/// sentences, archetype heroes, etc.) still exists — it just moved
+/// entirely into career_dna_report_pdf.dart, which still puts that detail
+/// into the actual downloadable PDF; it's just not shown on this screen
+/// before/instead of downloading any more.
+/// Level 5 has its own dedicated final-synthesis screen
+/// (career_dna_final_report_screen.dart) instead of this per-level shape,
+/// since it combines every level rather than reporting just one.
 class CareerDnaReportScreen extends StatelessWidget {
   final int level;
   const CareerDnaReportScreen({super.key, required this.level});
@@ -59,9 +40,7 @@ class CareerDnaReportScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final user = context.watch<AppState>().user;
     final profile = user?.careerDnaOrEmpty ?? const CareerDnaProfile();
-    final unlocked = profile.reportUnlocked;
     final topInset = MediaQuery.of(context).padding.top;
-    final who = _firstName(user?.name);
 
     // Level 5's result is a cross-test synthesis, not a per-level report —
     // its own screen (career_dna_final_report_screen.dart) is what knows
@@ -76,7 +55,14 @@ class CareerDnaReportScreen extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final view = _buildView(level, profile, who);
+    final completed = _isLevelComplete(profile, level);
+    final meta = careerDnaLevelMeta.firstWhere((m) => m.level == level);
+    // Level 1 is always free — a lead-magnet, no paywall at all. Levels
+    // 2-4 still gate on the single existing global `reportUnlocked` flag
+    // (the same one ₹51 payment as before) — nothing about the payment
+    // flow itself changes, this is additive on top of it.
+    final isFreeLevel = level == 1;
+    final canDownload = completed && (isFreeLevel || profile.reportUnlocked);
 
     return Scaffold(
       backgroundColor: AppColors.white,
@@ -86,301 +72,74 @@ class CareerDnaReportScreen extends StatelessWidget {
           children: [
             BackChevron(color: AppColors.ink, fallbackRoute: '/tabs/career-dna'),
             const SizedBox(height: AppSpacing.lg),
-            if (view == null)
+            if (!completed)
               _NotReadyCard(level: level)
-            else ...[
-              // Hero shows only the opening sentence (~3 lines) — the rest
-              // of the body continues below it, instead of the hero
-              // holding a whole paragraph on its own. Per direct feedback:
-              // three separate paragraph-in-a-box sections in a row (hero,
-              // snapshot, growth) all making a similar "you're good at X"
-              // point read as repetitive — this consolidates everything
-              // below the hero into one flowing body instead of several
-              // near-identical boxed paragraphs.
-              _ArchetypeHero(name: view.heroName, firstSentence: view.heroFirstSentence),
-              const SizedBox(height: AppSpacing.xl),
-              Text(view.snapshotHeading, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
-              const SizedBox(height: AppSpacing.md),
-              // A prose summary, not a scored scorecard — no percentage is
-              // shown anywhere on this screen. Naming a student's weaker
-              // dimensions as a bare number ("23% Learning Agility") reads
-              // as a harsh, discouraging verdict; this instead names a few
-              // real strengths plainly and frames the rest as still-
-              // developing, worth building on rather than a deficiency.
-              // Split into separate paragraphs (not one continuous block)
-              // per direct feedback that it read as too much to take in at
-              // once — and every paragraph stays the same ink color as the
-              // rest, not a muted gray, since a lighter color on the last
-              // paragraph made it read as a lesser-status footnote rather
-              // than a real part of the analysis.
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppSpacing.lg),
-                decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.soft),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      noOrphan(view.bodyLead),
-                      style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.55),
-                    ),
-                    const SizedBox(height: AppSpacing.md),
-                    Text(
-                      noOrphan(view.bodyDetail),
-                      style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.55),
-                    ),
-                    if (unlocked && view.secondParagraph != null) ...[
-                      const SizedBox(height: AppSpacing.md),
-                      Text(
-                        noOrphan(view.secondParagraph!),
-                        style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.55),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-              if (unlocked) ...[
-                const SizedBox(height: AppSpacing.xl),
-                const _DownloadReportButton(),
-              ] else ...[
-                const SizedBox(height: AppSpacing.xl),
-                _UnlockCard(onUnlock: () => context.push('/college/career-dna/unlock')),
-              ],
-              // Two link-style exits, stacked: back to the level map (the
-              // BackChevron above technically does this too via its
-              // fallbackRoute, but a chevron alone doesn't read as clearly
-              // as "go back to Career Quiz" — this makes it explicit), then
-              // retake. Retake mirrors results_screen.dart's own "Retake
-              // test" link exactly (same style, same "go straight to the
-              // quiz, skip the intro" behavior) — re-submitting simply
-              // overwrites this level's saved result, same as aptitude's
-              // retake already does.
-              Center(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.xl),
-                  child: GestureDetector(
-                    onTap: () => context.go('/tabs/career-dna'),
-                    child: Text(
-                      'Back to Career Quiz',
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.blue,
-                        fontSize: 14,
-                        fontWeight: AppFontWeight.medium,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Center(
-                child: GestureDetector(
-                  onTap: () => context.push('/college/career-dna/level/$level/quiz'),
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.md),
-                    child: Text(
-                      'Retake this level',
-                      style: AppTextStyles.body.copyWith(
-                        color: AppColors.gray400,
-                        fontSize: 14,
-                        fontWeight: AppFontWeight.medium,
-                        decoration: TextDecoration.underline,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+            else if (canDownload)
+              _LevelReportReadyView(level: level, meta: meta)
+            else
+              _LevelReportLockedView(level: level, meta: meta),
           ],
         ),
       ),
     );
   }
+}
 
-  /// Dispatches to each level's own result shape — returns null when that
-  /// level hasn't been completed yet (renders _NotReadyCard instead).
-  _ReportView? _buildView(int level, CareerDnaProfile profile, String? who) {
-    String heading(String noun) => who != null ? "$who's $noun" : 'Your $noun';
-
-    switch (level) {
-      case 1:
-        final r = profile.level1;
-        if (r == null) return null;
-        final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel1DimensionPhrases);
-        return _ReportView(
-          heroName: r.archetype.name,
-          heroFirstSentence: _firstSentence(r.archetype.naturalStyle),
-          snapshotHeading: heading('Personality Snapshot'),
-          // The strengths sentence deliberately opens with "Looking at how
-          // you actually answered" — the hero describes the archetype in
-          // general (shared by everyone classified the same way); this is
-          // what's specific to *this* student's own answers, so it reads
-          // as a new, personal layer rather than restating the hero.
-          bodyLead: '${_restOfSentences(r.archetype.naturalStyle)} $strengths',
-          bodyDetail: growing,
-          secondParagraph: '${r.archetype.growthAreaText} You could also thrive in places like ${_joinList(r.archetype.environments)}.',
-        );
-      case 2:
-        final r = profile.level2;
-        if (r == null) return null;
-        final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel2DimensionPhrases);
-        return _ReportView(
-          heroName: r.headlineText,
-          heroFirstSentence: careerDnaLevel2HeroSentence(r.headlineText),
-          snapshotHeading: heading('Interest Snapshot'),
-          bodyLead: strengths,
-          bodyDetail: growing,
-          secondParagraph: 'Worth exploring: ${r.careerExplorationChain.join(' → ')}.',
-        );
-      case 3:
-        final r = profile.level3;
-        if (r == null) return null;
-        final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel3DimensionPhrases);
-        return _ReportView(
-          heroName: r.profile.name,
-          heroFirstSentence: r.profile.naturalStrength,
-          snapshotHeading: heading('Teamwork Snapshot'),
-          bodyLead: strengths,
-          bodyDetail: growing,
-          secondParagraph: '${r.profile.watchOut} You could also thrive in places like ${_joinList(r.profile.environments)}.',
-        );
-      case 4:
-        final r = profile.level4;
-        if (r == null) return null;
-        final bandCopy = careerDnaWorkplaceReadinessBandCopy[r.band] ?? '';
-        final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel4DimensionPhrases);
-        return _ReportView(
-          heroName: r.workStyleTitle,
-          heroFirstSentence: r.workStyleText,
-          snapshotHeading: heading('Workplace Snapshot'),
-          bodyLead: '$bandCopy $strengths',
-          bodyDetail: growing,
-          secondParagraph: '${r.developmentAreaTitle} — ${r.developmentAreaText}',
-        );
-      default:
-        return null;
-    }
-  }
-
-  /// Builds the two "Snapshot" sentences shared by all 4 per-level reports,
-  /// kept separate (not one combined string) so the card renders them as
-  /// distinct paragraphs — the top 3 dimensions become plainly-named
-  /// strengths, the bottom 2 become "still developing" growth notes,
-  /// phrased from the level's own dimension-phrase map. Deliberately never
-  /// touches or displays the underlying numbers. Stays in second person
-  /// throughout ("you"), matching the hero's own voice — an earlier
-  /// version switched to the student's name mid-paragraph ("Aayusha
-  /// shows..."), which read as two different narrators rather than one
-  /// continuous, personal read.
-  (String, String) _narrativeSentences(Map<String, int> scores, Map<String, String> phrases) {
-    final sorted = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-    final strengths = sorted.take(3).map((e) => phrases[e.key] ?? e.key).toList();
-    final growing = sorted.reversed.take(2).map((e) => phrases[e.key] ?? e.key).toList();
-
-    final strengthsSentence = 'Looking at how you actually answered, your standout strengths are ${_joinList(strengths)} — these come through clearly and are genuinely worth leaning into.';
-    final growingSentence = "You're still growing into ${_joinList(growing)} — with a bit of intentional practice, that's real room to build, not something holding you back.";
-    return (strengthsSentence, growingSentence);
-  }
-
-  /// First name only, for the personalized section heading — null (falls
-  /// back to "Your") when there's no name to work with.
-  String? _firstName(String? name) {
-    final trimmed = name?.trim();
-    if (trimmed == null || trimmed.isEmpty) return null;
-    return trimmed.split(' ').first;
-  }
-
-  /// "A, B, C and D" — plain-English list for the environments sentence
-  /// below, since these no longer render as separate badge tags.
-  String _joinList(List<String> items) {
-    if (items.isEmpty) return '';
-    if (items.length == 1) return items.first;
-    return '${items.sublist(0, items.length - 1).join(', ')} and ${items.last}';
-  }
-
-  /// The opening sentence only — shown in the hero, so it reads as a short
-  /// ~3-line teaser instead of the full 3-4 sentence paragraph.
-  String _firstSentence(String text) {
-    final match = RegExp(r'^.*?[.!?](?=\s|$)').firstMatch(text);
-    return match?.group(0) ?? text;
-  }
-
-  /// Everything after that opening sentence — continues as the lead-in to
-  /// the body paragraph below, so the full naturalStyle text still appears
-  /// in full, just not all crammed into the hero.
-  String _restOfSentences(String text) {
-    final first = _firstSentence(text);
-    return text.substring(first.length).trim();
+/// Mirrors career_dna_landing_screen.dart's own identical private method —
+/// no shared model helper exists for this today, kept consistent with that
+/// existing convention rather than introducing a new one for just this file.
+bool _isLevelComplete(CareerDnaProfile p, int level) {
+  switch (level) {
+    case 1:
+      return p.level1 != null;
+    case 2:
+      return p.level2 != null;
+    case 3:
+      return p.level3 != null;
+    case 4:
+      return p.level4 != null;
+    default:
+      return false;
   }
 }
 
-class _ArchetypeHero extends StatelessWidget {
-  final String name;
-  final String firstSentence;
-  const _ArchetypeHero({required this.name, required this.firstSentence});
+/// Level 1 (always), or Levels 2-4 once globally unlocked — a lean "your
+/// report is ready" view: checkmark, title, file-info card, a per-level-
+/// only PDF download (not the combined multi-level one), and a "Continue
+/// to Level N+1" CTA. Safe to always show Continue here: this only ever
+/// renders once level N is already complete, and unlocking is strictly
+/// sequential, so level N+1 is guaranteed to already be unlocked.
+class _LevelReportReadyView extends StatefulWidget {
+  final int level;
+  final CareerDnaLevelMeta meta;
+  const _LevelReportReadyView({required this.level, required this.meta});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xl),
-      decoration: BoxDecoration(
-        color: AppColors.blue,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('YOUR RESULT', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 12, letterSpacing: 1.4)),
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.sm),
-            child: Text(name.toUpperCase(), style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 28, fontWeight: AppFontWeight.semibold)),
-          ),
-          // Just the opening line (~3 rows) — the rest of this same
-          // archetype paragraph continues below as the lead-in to the
-          // Personality Snapshot body text, instead of the hero holding
-          // the whole 3-4 sentence description on its own. Uses `body`
-          // (regular weight), not `bodyLg` (medium) — read too heavy for a
-          // full paragraph in an earlier version of this hero.
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.md),
-            child: Text(noOrphan(firstSentence), style: AppTextStyles.body.copyWith(color: AppColors.whiteA70, fontSize: 14.5, height: 1.45)),
-          ),
-        ],
-      ),
-    );
-  }
+  State<_LevelReportReadyView> createState() => _LevelReportReadyViewState();
 }
 
-/// A standing "Download report" entry point on the unlocked report itself —
-/// not just a one-time screen shown right after paying (career_dna_report_
-/// ready_screen.dart), so the PDF is reachable any time this screen is
-/// revisited later, not only in the moment right after checkout.
-class _DownloadReportButton extends StatefulWidget {
-  const _DownloadReportButton();
-
-  @override
-  State<_DownloadReportButton> createState() => _DownloadReportButtonState();
-}
-
-class _DownloadReportButtonState extends State<_DownloadReportButton> {
+class _LevelReportReadyViewState extends State<_LevelReportReadyView> {
   bool _downloading = false;
 
   Future<void> _download(User user) async {
     if (_downloading) return;
     setState(() => _downloading = true);
     try {
-      final bytes = await buildCareerDnaReportPdf(user);
+      final bytes = await buildCareerDnaLevelReportPdf(user, widget.level);
       final name = (user.name?.trim().isNotEmpty ?? false) ? user.name! : 'career_quiz';
       final safeName = name.replaceAll(RegExp(r'[^\w\s-]'), '').trim().replaceAll(RegExp(r'\s+'), '_');
-      await Printing.sharePdf(bytes: bytes, filename: '${safeName.isEmpty ? 'career_quiz' : safeName}_career_quiz_report.pdf');
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: '${safeName.isEmpty ? 'career_quiz' : safeName}_level${widget.level}_report.pdf',
+      );
     } catch (e) {
-      debugPrint('Career Quiz report PDF generation failed: $e');
+      debugPrint('Career Quiz level report PDF generation failed: $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: const Text("Couldn't generate the PDF"),
-          duration: const Duration(seconds: 4),
+        ..showSnackBar(const SnackBar(
+          content: Text("Couldn't generate the PDF"),
+          duration: Duration(seconds: 4),
           persist: false,
         ));
     } finally {
@@ -391,39 +150,138 @@ class _DownloadReportButtonState extends State<_DownloadReportButton> {
   @override
   Widget build(BuildContext context) {
     final user = context.watch<AppState>().user;
-    return PillButton(
-      label: 'Download full report',
-      variant: PillVariant.secondary,
-      icon: Ionicons.download_outline,
-      loading: _downloading,
-      onPressed: user == null ? null : () => _download(user),
+    final nextLevel = widget.level + 1; // always <=5 — level 5 redirects before this widget ever builds
+
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xl),
+      child: Column(
+        children: [
+          Container(
+            width: 80,
+            height: 80,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(color: AppColors.yellow, shape: BoxShape.circle),
+            child: const Icon(Ionicons.checkmark, size: 40, color: AppColors.blue),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.lg),
+            child: Text(
+              'Your ${widget.meta.title} report is ready',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.h2.copyWith(color: AppColors.ink, fontSize: 22, fontWeight: AppFontWeight.semibold),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: Text(
+              noOrphan('Download your results below, or continue on to the next level.'),
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
+            ),
+          ),
+          Container(
+            margin: const EdgeInsets.only(top: AppSpacing.xl),
+            padding: const EdgeInsets.all(AppSpacing.lg),
+            decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.xl), boxShadow: AppShadows.soft),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  alignment: Alignment.center,
+                  decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
+                  child: const Icon(Ionicons.document_text, size: 20, color: AppColors.blue),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${widget.meta.title} Report',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Text('PDF · ready to download', style: AppTextStyles.caption.copyWith(color: AppColors.gray500)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xl),
+            child: PillButton(
+              label: 'Download PDF',
+              variant: PillVariant.secondary,
+              icon: Ionicons.download_outline,
+              loading: _downloading,
+              onPressed: user == null ? null : () => _download(user),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.md),
+            child: PillButton(
+              label: 'Continue to Level $nextLevel',
+              onPressed: () => context.push('/college/career-dna/level/$nextLevel/intro'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _UnlockCard extends StatelessWidget {
-  final VoidCallback onUnlock;
-  const _UnlockCard({required this.onUnlock});
+/// Levels 2-4, before the single global payment has unlocked everything —
+/// no narrative teaser text at all (that's the whole point of this round's
+/// change), just a lean "here's what's waiting, unlock to see it" prompt.
+class _LevelReportLockedView extends StatelessWidget {
+  final int level;
+  final CareerDnaLevelMeta meta;
+  const _LevelReportLockedView({required this.level, required this.meta});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
+    return Padding(
+      padding: const EdgeInsets.only(top: AppSpacing.xl),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Ionicons.lock_closed, size: 22, color: AppColors.blue),
-          const SizedBox(height: AppSpacing.sm),
-          Text('See what your scores mean', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
+          Container(
+            width: 80,
+            height: 80,
+            alignment: Alignment.center,
+            decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
+            child: const Icon(Ionicons.lock_closed, size: 34, color: AppColors.blue),
+          ),
           Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
+            padding: const EdgeInsets.only(top: AppSpacing.lg),
             child: Text(
-              noOrphan('Your growth opportunities, career environments, and your final combined result once all 5 levels are done — one payment unlocks all of it.'),
-              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.4),
+              'Your ${meta.title} report is ready',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.h2.copyWith(color: AppColors.ink, fontSize: 22, fontWeight: AppFontWeight.semibold),
             ),
           ),
-          PillButton(label: 'Unlock', icon: Ionicons.lock_open_outline, onPressed: onUnlock),
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: Text(
+              noOrphan("Unlock it to see what your answers mean — one payment covers every level's report."),
+              textAlign: TextAlign.center,
+              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.xl),
+            child: PillButton(
+              label: 'Unlock — ₹51',
+              icon: Ionicons.lock_open_outline,
+              onPressed: () => context.push('/college/career-dna/unlock'),
+            ),
+          ),
         ],
       ),
     );

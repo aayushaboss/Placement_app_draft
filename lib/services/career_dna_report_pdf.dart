@@ -8,6 +8,7 @@ import '../mockData/career_dna/career_dna_level1_data.dart';
 import '../mockData/career_dna/career_dna_level2_data.dart';
 import '../mockData/career_dna/career_dna_level3_data.dart';
 import '../mockData/career_dna/career_dna_level4_data.dart';
+import '../mockData/career_dna/career_dna_level_meta.dart';
 import '../models/career_dna.dart';
 import '../models/user.dart';
 
@@ -62,6 +63,65 @@ Future<Uint8List> buildCareerDnaReportPdf(User user) async {
   return doc.save();
 }
 
+/// Single-level Career Quiz PDF — same section content/styling as the
+/// combined report's per-level sections above (reuses those exact private
+/// builders), just one level, with its own header naming that level's
+/// formal test name. Additive to, not a replacement of,
+/// buildCareerDnaReportPdf — powers the new per-level "ready to download"
+/// screen (career_dna_report_screen.dart), while the combined download
+/// (post-payment report-ready screen, final-report screen) keeps using the
+/// function above unchanged.
+Future<Uint8List> buildCareerDnaLevelReportPdf(User user, int level) async {
+  final profile = user.careerDnaOrEmpty;
+  final firstName = (user.name?.trim().isNotEmpty ?? false) ? user.name!.trim().split(' ').first : null;
+
+  final regular = pw.Font.ttf(await rootBundle.load('assets/fonts/Poppins_400Regular.ttf'));
+  final medium = pw.Font.ttf(await rootBundle.load('assets/fonts/Poppins_500Medium.ttf'));
+  final bold = pw.Font.ttf(await rootBundle.load('assets/fonts/Poppins_700Bold.ttf'));
+  final extrabold = pw.Font.ttf(await rootBundle.load('assets/fonts/Poppins_800ExtraBold.ttf'));
+  final fonts = _Fonts(regular: regular, medium: medium, bold: bold);
+
+  final meta = careerDnaLevelMeta.firstWhere((m) => m.level == level);
+  final section = _levelSection(level, firstName, profile, fonts);
+
+  final doc = pw.Document();
+  doc.addPage(
+    pw.MultiPage(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.fromLTRB(40, 40, 40, 40),
+      build: (context) => [
+        pw.Text(
+          '${(user.name?.trim().isNotEmpty ?? false) ? user.name : 'Your'} ${meta.title} — Career Quiz Report',
+          style: pw.TextStyle(font: extrabold, fontSize: 20, color: _ink),
+        ),
+        pw.SizedBox(height: 2),
+        pw.Text('Aerostar Career Quiz', style: pw.TextStyle(font: medium, fontSize: 11, color: _blue)),
+        pw.SizedBox(height: 18),
+        ...section,
+      ],
+    ),
+  );
+  return doc.save();
+}
+
+/// Dispatches to the right private section builder for a single level —
+/// the empty-list fallback is defensive only (this is only ever called
+/// once that level's result is confirmed non-null by the caller).
+List<pw.Widget> _levelSection(int level, String? firstName, CareerDnaProfile profile, _Fonts fonts) {
+  switch (level) {
+    case 1:
+      return profile.level1 != null ? _level1Section(firstName, profile.level1!, fonts) : const [];
+    case 2:
+      return profile.level2 != null ? _level2Section(firstName, profile.level2!, fonts) : const [];
+    case 3:
+      return profile.level3 != null ? _level3Section(firstName, profile.level3!, fonts) : const [];
+    case 4:
+      return profile.level4 != null ? _level4Section(firstName, profile.level4!, fonts) : const [];
+    default:
+      return const [];
+  }
+}
+
 class _Fonts {
   final pw.Font regular;
   final pw.Font medium;
@@ -74,7 +134,7 @@ List<pw.Widget> _level1Section(String? name, CareerDnaLevel1Result r, _Fonts f) 
   final rest = r.archetype.naturalStyle.substring(first.length).trim();
   final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel1DimensionPhrases);
   return [
-    _sectionHeader('Level 1 — Personality & Behaviour', f.bold),
+    _sectionHeader('Level 1 — Big Five (OCEAN)', f.bold),
     pw.Text(r.archetype.name, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
     pw.SizedBox(height: 4),
     pw.Text(first, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
@@ -96,7 +156,7 @@ List<pw.Widget> _level1Section(String? name, CareerDnaLevel1Result r, _Fonts f) 
 List<pw.Widget> _level2Section(String? name, CareerDnaLevel2Result r, _Fonts f) {
   final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel2DimensionPhrases);
   return [
-    _sectionHeader('Level 2 — Interest & Career Preference', f.bold),
+    _sectionHeader('Level 2 — Situational Judgement Test', f.bold),
     pw.Text(r.headlineText, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
     pw.SizedBox(height: 4),
     pw.Text(careerDnaLevel2HeroSentence(r.headlineText), style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
@@ -115,7 +175,7 @@ List<pw.Widget> _level2Section(String? name, CareerDnaLevel2Result r, _Fonts f) 
 List<pw.Widget> _level3Section(String? name, CareerDnaLevel3Result r, _Fonts f) {
   final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel3DimensionPhrases);
   return [
-    _sectionHeader('Level 3 — Social Interaction & Teamwork', f.bold),
+    _sectionHeader('Level 3 — Hogan Personality Inventory Test', f.bold),
     pw.Text(r.profile.name, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
     pw.SizedBox(height: 4),
     pw.Text(r.profile.naturalStrength, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
@@ -138,7 +198,7 @@ List<pw.Widget> _level4Section(String? name, CareerDnaLevel4Result r, _Fonts f) 
   final bandCopy = careerDnaWorkplaceReadinessBandCopy[r.band] ?? '';
   final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel4DimensionPhrases);
   return [
-    _sectionHeader('Level 4 — Employability & Workplace Readiness', f.bold),
+    _sectionHeader('Level 4 — DISC Assessment', f.bold),
     pw.Text(r.workStyleTitle, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
     pw.SizedBox(height: 4),
     pw.Text(r.workStyleText, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
