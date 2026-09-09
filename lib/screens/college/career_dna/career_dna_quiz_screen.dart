@@ -98,10 +98,22 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
       return;
     }
     if (_answers.isEmpty) {
-      context.pop();
+      _exitToCareerQuiz();
       return;
     }
     await _confirmQuit();
+  }
+
+  /// Every way of leaving this screen — the chevron at question 1 with
+  /// nothing answered yet, or a confirmed "Leave" from the quit dialog —
+  /// lands back on the Career Quiz landing/level-map, not the level's own
+  /// intro screen. A plain context.pop() would land on the intro screen
+  /// (this route is always reached via push from there), which read as
+  /// "quitting" only got you one screen back rather than actually out of
+  /// the level — per direct feedback, quitting should always feel like a
+  /// full exit.
+  void _exitToCareerQuiz() {
+    if (mounted) context.go('/tabs/career-dna');
   }
 
   /// Reachable from any question, not just index 0 — without this, quitting
@@ -135,7 +147,7 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
         ],
       ),
     );
-    if (leave == true && mounted) context.pop();
+    if (leave == true) _exitToCareerQuiz();
   }
 
   void _answer(String optionId) {
@@ -211,7 +223,11 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
     final percentComplete = (_progress * 100).round();
 
     return PopScope(
-      canPop: _index == 0 && _answers.isEmpty,
+      // Always intercepted (never a bare system pop) so a browser/OS back
+      // gesture goes through the same _goBack() routing as the in-app
+      // chevron — including landing on the Career Quiz tab, not the
+      // level's intro screen, when there's nothing to lose yet.
+      canPop: false,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop) _goBack();
       },
@@ -371,7 +387,18 @@ class _QuestionBody extends StatelessWidget {
                               style: AppTextStyles.bodyLg.copyWith(color: selected ? AppColors.white : AppColors.ink, fontWeight: AppFontWeight.medium),
                             ),
                           ),
-                          if (selected) const Icon(Ionicons.checkmark_circle, size: 20, color: AppColors.white),
+                          // Fixed-width slot, always present (not just when
+                          // selected) — the checkmark appearing on tap used
+                          // to shrink the Expanded text's available width by
+                          // exactly its own size, which could push text
+                          // that fit on one line into a second line the
+                          // instant it was selected. Reserving this space
+                          // unconditionally keeps the text's width constant
+                          // whether an option is selected or not.
+                          SizedBox(
+                            width: 20 + AppSpacing.sm,
+                            child: selected ? const Icon(Ionicons.checkmark_circle, size: 20, color: AppColors.white) : null,
+                          ),
                         ],
                       ),
                     ),

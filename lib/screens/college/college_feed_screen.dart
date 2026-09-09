@@ -464,20 +464,32 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                           ],
                           if (upcoming == null) ...[
                             // Auto-swiping 2-card carousel — card 1 is the
-                            // original standing "book a session" CTA,
-                            // unchanged content/styling (just its own
-                            // margin removed, since AutoCarousel's own
-                            // outer+per-page padding already sums to the
-                            // same AppSpacing.xl inset a manually-margined
-                            // single card had). Card 2 hooks users into the
-                            // free Level 1 Career Quiz test.
+                            // original standing "book a session" CTA, card 2
+                            // hooks users into the free Level 1 Career Quiz
+                            // test. Both cards now share one exact shape
+                            // (title, 1 line if it fits; subtitle, up to 2
+                            // lines) so a card's content can never overflow
+                            // the carousel's fixed page height — the
+                            // previous card 2 (a 3-line title+subtitle+
+                            // italic-tagline stack) could exceed it at
+                            // narrow widths, which clipped its last line and
+                            // read as a broken/misaligned card. `alignment:
+                            // centerLeft` on each Container vertically
+                            // centers whatever content height actually
+                            // renders within the fixed page, so a shorter
+                            // render (e.g. a 1-line title) doesn't look
+                            // pinned to the top with dead space below it.
+                            // Both titles go through noOrphan() — without
+                            // it, a wrapped title could strand a single
+                            // word alone on its own line.
                             AutoCarousel(
-                              height: 132,
+                              height: 124,
                               cards: [
                                 GestureDetector(
                                   onTap: () => context.push('/booking?kind=placement'),
                                   child: Container(
                                     padding: const EdgeInsets.all(AppSpacing.xl),
+                                    alignment: Alignment.centerLeft,
                                     decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
                                     child: Row(
                                       children: [
@@ -486,7 +498,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Text('Talk to a placement expert', style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
+                                              Text(noOrphan('Talk to a placement expert'), style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
                                               Padding(
                                                 padding: const EdgeInsets.only(top: 4),
                                                 child: Text(noOrphan('1:1 guidance to land your next role.'), style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 13)),
@@ -503,6 +515,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                   onTap: () => context.go('/tabs/career-dna'),
                                   child: Container(
                                     padding: const EdgeInsets.all(AppSpacing.xl),
+                                    alignment: Alignment.centerLeft,
                                     decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
                                     child: Row(
                                       children: [
@@ -511,19 +524,18 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Text('Take the Big Five (OCEAN) test', style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
+                                              // Leads with the recruiter-visibility
+                                              // hook — the core reason to take the
+                                              // test — rather than the test's own
+                                              // name, per direct feedback that this
+                                              // should be the first thing a student
+                                              // sees, not a footnote under the name.
+                                              Text(noOrphan('Get noticed by recruiters'), style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
                                               Padding(
                                                 padding: const EdgeInsets.only(top: 4),
                                                 child: Text(
-                                                  noOrphan('Openness · Conscientiousness · Extraversion · Agreeableness · Neuroticism'),
+                                                  noOrphan('Recruiters see your Big Five (OCEAN) results when hiring — take the free test.'),
                                                   style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 13),
-                                                ),
-                                              ),
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 3),
-                                                child: Text(
-                                                  'Discover your true potential',
-                                                  style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12, fontStyle: FontStyle.italic),
                                                 ),
                                               ),
                                             ],

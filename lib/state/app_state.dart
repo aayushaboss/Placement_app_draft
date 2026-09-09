@@ -377,20 +377,19 @@ class AppState extends ChangeNotifier {
   }
 
   /// Prototype stand-in for a real payment gateway — a real integration
-  /// would call out to Razorpay/Stripe etc. and only flip `reportUnlocked`
-  /// on a verified webhook/callback, not an artificial delay. Mirrors
-  /// mockGoogleSignIn()'s own shape: fixed delay, always succeeds. One
-  /// payment unlocks every Career DNA level's detailed report plus the
-  /// final combined synthesis — not a per-level fee.
-  Future<void> mockUnlockCareerDnaReport() async {
+  /// would call out to Razorpay/Stripe etc. and only add `level` to
+  /// `paidLevels` on a verified webhook/callback, not an artificial delay.
+  /// Mirrors mockGoogleSignIn()'s own shape: fixed delay, always succeeds.
+  /// Each Career DNA level (2-5) is paid for individually — Level 1 is
+  /// always free and never passed here.
+  Future<void> mockUnlockCareerDnaLevel(int level) async {
     // TODO: replace with real payment gateway (Razorpay/Stripe) + webhook verification
     await Future.delayed(const Duration(milliseconds: 900));
-    await updateProfile((current) => current.copyWith(
-          careerDna: current.careerDnaOrEmpty.copyWith(
-            reportUnlocked: true,
-            unlockedAt: DateTime.now().toIso8601String(),
-          ),
-        ));
+    await updateProfile((current) {
+      final profile = current.careerDnaOrEmpty;
+      if (profile.paidLevels.contains(level)) return current; // already paid — no duplicate entry
+      return current.copyWith(careerDna: profile.copyWith(paidLevels: [...profile.paidLevels, level]));
+    });
   }
 
   Future<User> updateProfile(User Function(User current) patch) async {

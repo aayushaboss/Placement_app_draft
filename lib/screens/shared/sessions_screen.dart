@@ -252,11 +252,14 @@ class _SessionsScreenState extends State<SessionsScreen> {
                         Padding(
                           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl).copyWith(top: AppSpacing.xxxl),
                           child: EmptyState(
+                            // No button here — the screen's own standing
+                            // "Book Placement Session" bar at the bottom is
+                            // always present regardless of whether there
+                            // are any bookings yet, so a second CTA inside
+                            // the empty state duplicated it. One CTA only.
                             icon: Ionicons.calendar_outline,
                             title: 'No sessions yet',
                             subtitle: 'Book a ${isSchool ? 'counseling' : 'placement'} session to get expert 1:1 guidance.',
-                            buttonLabel: 'Book a session',
-                            onButtonTap: () => context.push('/booking?kind=${isSchool ? 'counseling' : 'placement'}'),
                           ),
                         ),
                       ],

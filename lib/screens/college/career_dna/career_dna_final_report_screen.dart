@@ -25,7 +25,8 @@ const _confidenceLabels = {
 /// levels are complete. Same locked-teaser/unlocked-full branch as the
 /// per-level report screen (free teaser = top direction name only; the
 /// ranked breakdown, roles, strengths/development areas and next-steps
-/// roadmap are gated behind the same global `reportUnlocked` flag).
+/// roadmap are gated behind Level 5's own individual ₹51 payment — same as
+/// every other level, no longer a shared unlock-everything flag).
 /// Level 5's own scoring isn't authored yet (Phase B) — until then this
 /// renders a real, honest "still building the synthesis" state rather than
 /// a fake result, once all 5 levels are actually complete.
@@ -51,7 +52,7 @@ class CareerDnaFinalReportScreen extends StatelessWidget {
             else if (profile.level5 == null)
               const _StillBuildingCard()
             else
-              _SynthesisContent(result: profile.level5!, unlocked: profile.reportUnlocked),
+              _SynthesisContent(result: profile.level5!, unlocked: profile.isLevelReportUnlocked(5)),
           ],
         ),
       ),
@@ -167,7 +168,7 @@ class _SynthesisContent extends StatelessWidget {
                   padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
                   child: Text(noOrphan('Unlock your full report to see the complete picture.'), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
                 ),
-                PillButton(label: 'Unlock', icon: Ionicons.lock_open_outline, onPressed: () => context.push('/college/career-dna/unlock')),
+                PillButton(label: 'Unlock', icon: Ionicons.lock_open_outline, onPressed: () => context.push('/college/career-dna/level/5/unlock')),
               ],
             ),
           )

@@ -58,11 +58,9 @@ class CareerDnaReportScreen extends StatelessWidget {
     final completed = _isLevelComplete(profile, level);
     final meta = careerDnaLevelMeta.firstWhere((m) => m.level == level);
     // Level 1 is always free — a lead-magnet, no paywall at all. Levels
-    // 2-4 still gate on the single existing global `reportUnlocked` flag
-    // (the same one ₹51 payment as before) — nothing about the payment
-    // flow itself changes, this is additive on top of it.
-    final isFreeLevel = level == 1;
-    final canDownload = completed && (isFreeLevel || profile.reportUnlocked);
+    // 2-4 each require their own individual ₹51 payment now — no single
+    // payment unlocks more than one level.
+    final canDownload = completed && profile.isLevelReportUnlocked(level);
 
     return Scaffold(
       backgroundColor: AppColors.white,
@@ -237,9 +235,11 @@ class _LevelReportReadyViewState extends State<_LevelReportReadyView> {
   }
 }
 
-/// Levels 2-4, before the single global payment has unlocked everything —
-/// no narrative teaser text at all (that's the whole point of this round's
-/// change), just a lean "here's what's waiting, unlock to see it" prompt.
+/// Levels 2-4, before that specific level's own payment has unlocked it —
+/// no narrative teaser text at all (that's the whole point of the earlier
+/// round's change), just a lean "here's what's waiting, unlock to see it"
+/// prompt. Each level is paid for individually — this is not shared with
+/// any other level's unlock state.
 class _LevelReportLockedView extends StatelessWidget {
   final int level;
   final CareerDnaLevelMeta meta;
@@ -269,7 +269,7 @@ class _LevelReportLockedView extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.sm),
             child: Text(
-              noOrphan("Unlock it to see what your answers mean — one payment covers every level's report."),
+              noOrphan('Unlock it to see what your answers mean.'),
               textAlign: TextAlign.center,
               style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
             ),
@@ -279,7 +279,7 @@ class _LevelReportLockedView extends StatelessWidget {
             child: PillButton(
               label: 'Unlock — ₹51',
               icon: Ionicons.lock_open_outline,
-              onPressed: () => context.push('/college/career-dna/unlock'),
+              onPressed: () => context.push('/college/career-dna/level/$level/unlock'),
             ),
           ),
         ],

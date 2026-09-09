@@ -281,10 +281,11 @@ class CareerDnaProfile {
   final CareerDnaLevel4Result? level4;
   final CareerDnaLevel5Result? level5;
 
-  /// The single ₹51 payment — unlocks every level's detailed report plus
-  /// the final combined synthesis, not a per-level fee.
-  final bool reportUnlocked;
-  final String? unlockedAt;
+  /// Levels 2-5 that have each individually been paid for (₹51 per level —
+  /// no single payment unlocks more than one). Level 1's report never
+  /// appears here — it's always free, checked separately by
+  /// `isLevelReportUnlocked` below rather than being stored as a payment.
+  final List<int> paidLevels;
 
   const CareerDnaProfile({
     this.level1,
@@ -292,12 +293,15 @@ class CareerDnaProfile {
     this.level3,
     this.level4,
     this.level5,
-    this.reportUnlocked = false,
-    this.unlockedAt,
+    this.paidLevels = const [],
   });
 
   int get completedLevelCount => [level1, level2, level3, level4, level5].where((l) => l != null).length;
   bool get allLevelsComplete => completedLevelCount == 5;
+
+  /// Whether that level's report/PDF can be downloaded right now — Level 1
+  /// always (it's free), Levels 2-5 only once individually paid for.
+  bool isLevelReportUnlocked(int level) => level == 1 || paidLevels.contains(level);
 
   CareerDnaProfile copyWith({
     CareerDnaLevel1Result? level1,
@@ -305,8 +309,7 @@ class CareerDnaProfile {
     CareerDnaLevel3Result? level3,
     CareerDnaLevel4Result? level4,
     CareerDnaLevel5Result? level5,
-    bool? reportUnlocked,
-    String? unlockedAt,
+    List<int>? paidLevels,
   }) {
     return CareerDnaProfile(
       level1: level1 ?? this.level1,
@@ -314,8 +317,7 @@ class CareerDnaProfile {
       level3: level3 ?? this.level3,
       level4: level4 ?? this.level4,
       level5: level5 ?? this.level5,
-      reportUnlocked: reportUnlocked ?? this.reportUnlocked,
-      unlockedAt: unlockedAt ?? this.unlockedAt,
+      paidLevels: paidLevels ?? this.paidLevels,
     );
   }
 
@@ -325,8 +327,7 @@ class CareerDnaProfile {
         'level3': level3?.toJson(),
         'level4': level4?.toJson(),
         'level5': level5?.toJson(),
-        'reportUnlocked': reportUnlocked,
-        'unlockedAt': unlockedAt,
+        'paidLevels': paidLevels,
       };
 
   factory CareerDnaProfile.fromJson(Map<String, dynamic> json) => CareerDnaProfile(
@@ -335,8 +336,7 @@ class CareerDnaProfile {
         level3: json['level3'] != null ? CareerDnaLevel3Result.fromJson(json['level3'] as Map<String, dynamic>) : null,
         level4: json['level4'] != null ? CareerDnaLevel4Result.fromJson(json['level4'] as Map<String, dynamic>) : null,
         level5: json['level5'] != null ? CareerDnaLevel5Result.fromJson(json['level5'] as Map<String, dynamic>) : null,
-        reportUnlocked: json['reportUnlocked'] as bool? ?? false,
-        unlockedAt: json['unlockedAt'] as String?,
+        paidLevels: json['paidLevels'] != null ? (json['paidLevels'] as List).cast<int>() : const [],
       );
 }
 
