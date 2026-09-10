@@ -353,7 +353,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.md),
+              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xs, AppSpacing.xl, AppSpacing.xl),
               child: Row(
                 children: [
                   const Expanded(child: HomeSearchBar()),

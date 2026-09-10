@@ -309,7 +309,11 @@ final List<Opportunity> _extraOpportunities = () {
   var n = 0;
   for (final entry in _fillTitles.entries) {
     final category = entry.key;
-    for (final baseTitle in entry.value) {
+    // Each title twice (with different rotation/company via the flat
+    // counter) — ~20 per category so that even after the feed's
+    // goal-type filter (Internship-only / Full-time-only), every role
+    // carousel comfortably exceeds the 5-card cap and shows "View all".
+    for (final baseTitle in [...entry.value, ...entry.value]) {
       final (type, location, workMode, stipend, duration, employmentType) = _fillRotation[n % _fillRotation.length];
       final company = _fillCompanies[n % _fillCompanies.length];
       final title = type == 'Internship' ? '$baseTitle Intern' : baseTitle;

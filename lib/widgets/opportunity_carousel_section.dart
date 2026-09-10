@@ -48,9 +48,12 @@ class OpportunityCarouselSection extends StatelessWidget {
 
     final visible = opportunities.take(_visibleCap).toList();
     // "View all" is a trailing card in the lane (not a header link) once
-    // there's more than the lane shows — per direct feedback that it reads
-    // better as the 6th tile than as a small link up in the heading.
-    final showViewAllTile = onViewAll != null && opportunities.length > _visibleCap;
+    // the lane is full — per direct feedback that it reads better as the
+    // 6th tile than as a small link up in the heading. `>=` (not `>`) so a
+    // carousel showing exactly the cap still gets the tile: the list screen
+    // it opens isn't goal-type-filtered the way this feed carousel is, so
+    // it genuinely reveals more.
+    final showViewAllTile = onViewAll != null && opportunities.length >= _visibleCap;
     final itemCount = visible.length + (showViewAllTile ? 1 : 0);
 
     // No outer bottom padding — the carousel's own bottom shadow buffer
@@ -70,9 +73,14 @@ class OpportunityCarouselSection extends StatelessWidget {
               children: [
                 TextSpan(
                   text: title,
+                  // ~4px above the card title (13px) + one weight step
+                  // (semibold vs the card title's medium) so the section
+                  // heading clearly outranks the cards under it without
+                  // being heavy/"thick".
                   style: AppTextStyles.h3.copyWith(
                     color: AppColors.ink,
-                    fontWeight: AppFontWeight.medium,
+                    fontSize: 17,
+                    fontWeight: AppFontWeight.semibold,
                   ),
                 ),
                 TextSpan(

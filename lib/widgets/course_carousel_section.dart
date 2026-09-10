@@ -39,7 +39,7 @@ class CourseCarouselSection extends StatelessWidget {
     if (courses.isEmpty) return const SizedBox.shrink();
 
     final visible = courses.take(_visibleCap).toList();
-    final showViewAllTile = onViewAll != null && courses.length > _visibleCap;
+    final showViewAllTile = onViewAll != null && courses.length >= _visibleCap;
     final itemCount = visible.length + (showViewAllTile ? 1 : 0);
 
     return Column(
@@ -50,7 +50,7 @@ class CourseCarouselSection extends StatelessWidget {
           child: RichText(
             text: TextSpan(
               children: [
-                TextSpan(text: title, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium)),
+                TextSpan(text: title, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 17, fontWeight: AppFontWeight.semibold)),
                 TextSpan(text: '  (${courses.length})', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14)),
               ],
             ),
