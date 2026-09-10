@@ -218,59 +218,125 @@ const _extraOpportunityImages = [
   'https://images.unsplash.com/photo-1600880292203-757bb62b4baf?crop=entropy&cs=srgb&fm=jpg&q=85&w=800',
 ];
 
-/// (title, company, type, location, workMode, stipend, duration, category,
-/// employmentType) — 20 more listings purely to give the horizontal
-/// carousels (and the "View all" grid) enough volume to actually feel like
-/// scrolling through a real feed rather than 8 cards that end after one
-/// swipe. employmentType is null for every Internship (the distinction
-/// doesn't apply) and 'Full-time' for most Full-time entries, with a
-/// couple deliberately 'Part-time' so the Home filter's Employment Type
-/// facet has real variety to narrow against.
-const _extraOpportunitySeeds = [
-  ('Software Engineer Intern', 'IBM', 'Internship', 'Hyderabad', 'Hybrid', '₹22,000/mo', '6 months', 'Software', null),
-  ('Full Stack Developer', 'EY', 'Full-time', 'Bengaluru', 'Remote', '₹8 LPA', 'Permanent', 'Software', 'Full-time'),
-  ('Mobile App Developer Intern', 'Infosys', 'Internship', 'Pune', 'Onsite', '₹20,000/mo', '3 months', 'Software', null),
-  ('QA Engineer Intern', 'IBM', 'Internship', 'Chennai', 'Hybrid', '₹18,000/mo', '6 months', 'Software', null),
-  ('Data Science Intern', 'Deloitte', 'Internship', 'Bengaluru', 'Hybrid', '₹28,000/mo', '6 months', 'Data', null),
-  ('Business Intelligence Analyst', 'Morgan Stanley', 'Full-time', 'Mumbai', 'Onsite', '₹7 LPA', 'Permanent', 'Data', 'Full-time'),
-  ('ML Engineer Intern', 'EY', 'Internship', 'Hyderabad', 'Remote', '₹30,000/mo', '4 months', 'Data', null),
-  ('Social Media Marketing Intern', 'Dentsu', 'Internship', 'Delhi', 'Onsite', '₹15,000/mo', '3 months', 'Marketing', null),
-  ('Growth Marketing Associate', 'Dentsu', 'Full-time', 'Gurugram', 'Hybrid', '₹6 LPA', 'Permanent', 'Marketing', 'Full-time'),
-  ('Investment Banking Analyst', 'Morgan Stanley', 'Full-time', 'Mumbai', 'Onsite', '₹9 LPA', 'Permanent', 'Finance', 'Full-time'),
-  ('Accounts Executive', 'JPMorgan Chase', 'Full-time', 'Ahmedabad', 'Onsite', '₹4.5 LPA', 'Permanent', 'Finance', 'Part-time'),
-  ('Graphic Design Intern', 'Adobe', 'Internship', 'Pune', 'Remote', '₹16,000/mo', '3 months', 'Design', null),
-  ('Product Designer', 'Adobe', 'Full-time', 'Bengaluru', 'Hybrid', '₹8.5 LPA', 'Permanent', 'Design', 'Full-time'),
-  ('Content Strategist Intern', 'Ogilvy', 'Internship', 'Delhi', 'Remote', '₹14,000/mo', '3 months', 'Content', null),
-  ('Copywriter', 'Ogilvy', 'Full-time', 'Mumbai', 'Hybrid', '₹5 LPA', 'Permanent', 'Content', 'Part-time'),
-  ('Product Analyst Intern', 'Accenture', 'Internship', 'Gurugram', 'Onsite', '₹26,000/mo', '6 months', 'Product', null),
-  ('Business Development Intern', 'Wipro', 'Internship', 'Noida', 'Onsite', '₹15,000/mo', '3 months', 'Sales', null),
-  ('Operations Associate', 'DHL', 'Full-time', 'Chennai', 'Onsite', '₹5.5 LPA', 'Permanent', 'Operations', 'Full-time'),
-  ('HR Intern', 'Morgan Stanley', 'Internship', 'Mumbai', 'Hybrid', '₹13,000/mo', '3 months', 'HR', null),
-  ('Research Analyst Intern', 'Deloitte', 'Internship', 'Pune', 'Remote', '₹20,000/mo', '4 months', 'Research', null),
+/// ~10 more listings per browsable category (on top of the hand-authored
+/// heroes above) so every role carousel on the feed has enough volume to
+/// show the trailing "View all" tile (which only appears past 5 cards) and
+/// the "View all" grid is a real list, not a two-row screen.
+const _fillCompanies = [
+  'Microsoft', 'Deloitte', 'Dentsu', 'Adobe', 'IBM', 'EY', 'Infosys', 'Morgan Stanley',
+  'JPMorgan Chase', 'Ogilvy', 'Accenture', 'Wipro', 'DHL', 'TCS', 'Cognizant', 'HCLTech',
+  'Capgemini', 'KPMG', 'Amazon', 'Flipkart', 'Razorpay', 'Freshworks', 'Zoho', 'PhonePe', 'Swiggy',
 ];
 
-final List<Opportunity> _extraOpportunities = List.generate(_extraOpportunitySeeds.length, (i) {
-  final (title, company, type, location, workMode, stipend, duration, category, employmentType) = _extraOpportunitySeeds[i];
-  final slug = title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
-  return Opportunity(
-    id: 'opp-extra-$i-$slug',
-    title: title,
-    company: company,
-    type: type,
-    location: location,
-    workMode: workMode,
-    stipend: stipend,
-    duration: duration,
-    category: category,
-    employmentType: employmentType,
-    image: _extraOpportunityImages[i % _extraOpportunityImages.length],
-    about: 'Join $company as a $title, working with a small team that moves fast and ships often.',
-    requirements: const ['Strong fundamentals', 'Good communication', 'Ownership mindset', 'Eagerness to learn'],
-    prepCourses: const ['course-interview-prep'],
-    deadline: _deadlineIn(5 + (i % 10)),
-    applicantCount: 20 + (i * 7) % 140,
-  );
-});
+/// (type, location, workMode, stipend, duration, employmentType) — cycled
+/// across the generated listings so each carousel has a realistic mix of
+/// internships / full-time / part-time and cities. employmentType is null
+/// for every Internship (the distinction doesn't apply).
+const _fillRotation = [
+  ('Internship', 'Bengaluru', 'Hybrid', '₹22,000/mo', '6 months', null),
+  ('Full-time', 'Pune', 'Onsite', '₹7 LPA', 'Permanent', 'Full-time'),
+  ('Internship', 'Remote', 'Remote', '₹18,000/mo', '3 months', null),
+  ('Full-time', 'Mumbai', 'Hybrid', '₹8.5 LPA', 'Permanent', 'Full-time'),
+  ('Internship', 'Hyderabad', 'Onsite', '₹20,000/mo', '4 months', null),
+  ('Full-time', 'Gurugram', 'Remote', '₹5.5 LPA', 'Permanent', 'Part-time'),
+  ('Internship', 'Chennai', 'Hybrid', '₹15,000/mo', '6 months', null),
+  ('Full-time', 'Delhi', 'Onsite', '₹6.5 LPA', 'Permanent', 'Full-time'),
+  ('Internship', 'Noida', 'Remote', '₹25,000/mo', '3 months', null),
+  ('Full-time', 'Bengaluru', 'Hybrid', '₹9 LPA', 'Permanent', 'Part-time'),
+];
+
+const _fillTitles = <String, List<String>>{
+  'Software': [
+    'Backend Developer', 'Frontend Engineer', 'Full Stack Developer', 'DevOps Engineer',
+    'Android Developer', 'iOS Developer', 'QA Automation Engineer', 'Site Reliability Engineer',
+    'Cloud Engineer', 'Platform Engineer',
+  ],
+  'Data': [
+    'Data Analyst', 'Data Engineer', 'Data Scientist', 'BI Developer', 'Analytics Engineer',
+    'ML Engineer', 'Reporting Analyst', 'Database Developer', 'Quantitative Analyst', 'Insights Analyst',
+  ],
+  'Marketing': [
+    'Digital Marketing Executive', 'SEO Specialist', 'Content Marketing Associate', 'Social Media Manager',
+    'Brand Marketing Executive', 'Performance Marketing Analyst', 'Email Marketing Associate',
+    'Marketing Operations Analyst', 'Growth Marketer', 'Campaign Manager',
+  ],
+  'Finance': [
+    'Financial Analyst', 'Investment Analyst', 'Accounts Executive', 'Audit Associate', 'Tax Analyst',
+    'Treasury Analyst', 'Risk Analyst', 'Equity Research Associate', 'FP&A Analyst', 'Credit Analyst',
+  ],
+  'Design': [
+    'UI Designer', 'UX Designer', 'Product Designer', 'Graphic Designer', 'Visual Designer',
+    'Motion Designer', 'Interaction Designer', 'Design Researcher', 'Brand Designer', 'UX Writer',
+  ],
+  'Product': [
+    'Product Analyst', 'Associate Product Manager', 'Product Operations Associate', 'Technical Product Manager',
+    'Product Marketing Manager', 'Growth Product Analyst', 'Product Researcher', 'Platform Product Analyst',
+    'Product Strategy Associate', 'Junior Product Manager',
+  ],
+  'Content': [
+    'Content Writer', 'Copywriter', 'Content Strategist', 'Technical Writer', 'Editorial Associate',
+    'SEO Content Writer', 'Scriptwriter', 'Content Producer', 'Content Designer', 'Content Marketing Writer',
+  ],
+  'Sales': [
+    'Business Development Executive', 'Inside Sales Associate', 'Sales Development Rep', 'Account Executive',
+    'Partnerships Associate', 'Key Account Manager', 'Sales Operations Analyst', 'Client Success Associate',
+    'Lead Generation Specialist', 'Territory Sales Executive',
+  ],
+  'Operations': [
+    'Operations Associate', 'Supply Chain Analyst', 'Logistics Coordinator', 'Operations Analyst',
+    'Process Excellence Associate', 'Vendor Operations Executive', 'City Operations Manager',
+    'Fulfilment Associate', 'Business Operations Analyst', 'Category Operations Associate',
+  ],
+  'HR': [
+    'HR Associate', 'Talent Acquisition Specialist', 'HR Operations Executive', 'Recruitment Coordinator',
+    'People Operations Associate', 'Learning & Development Associate', 'Compensation Analyst',
+    'Employee Experience Coordinator', 'HR Analyst', 'Campus Recruiter',
+  ],
+  'Consulting': [
+    'Business Analyst', 'Strategy Associate', 'Management Consultant', 'Operations Consultant',
+    'Consulting Analyst', 'Transformation Consultant', 'Technology Consultant', 'Associate Consultant',
+    'Process Consultant', 'Strategy Analyst',
+  ],
+  'Research': [
+    'Research Analyst', 'Market Research Associate', 'Research Assistant', 'Policy Research Associate',
+    'User Research Associate', 'Quantitative Research Associate', 'Data Research Analyst',
+    'Secondary Research Analyst', 'Consumer Insights Analyst', 'Research Operations Associate',
+  ],
+};
+
+final List<Opportunity> _extraOpportunities = () {
+  final out = <Opportunity>[];
+  var n = 0;
+  for (final entry in _fillTitles.entries) {
+    final category = entry.key;
+    for (final baseTitle in entry.value) {
+      final (type, location, workMode, stipend, duration, employmentType) = _fillRotation[n % _fillRotation.length];
+      final company = _fillCompanies[n % _fillCompanies.length];
+      final title = type == 'Internship' ? '$baseTitle Intern' : baseTitle;
+      final slug = title.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '-');
+      out.add(Opportunity(
+        id: 'opp-fill-$n-$slug',
+        title: title,
+        company: company,
+        type: type,
+        location: location,
+        workMode: workMode,
+        stipend: stipend,
+        duration: duration,
+        category: category,
+        employmentType: employmentType,
+        image: _extraOpportunityImages[n % _extraOpportunityImages.length],
+        about: 'Join $company as a $title, working with a small team that moves fast and ships often.',
+        requirements: const ['Strong fundamentals', 'Good communication', 'Ownership mindset', 'Eagerness to learn'],
+        prepCourses: const ['course-interview-prep'],
+        deadline: _deadlineIn(4 + (n % 12)),
+        applicantCount: 18 + (n * 11) % 160,
+      ));
+      n++;
+    }
+  }
+  return out;
+}();
 
 List<Opportunity> filterOpportunities({
   String? type,

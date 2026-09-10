@@ -10,16 +10,19 @@ import '../theme/colors.dart';
 import '../theme/shadows.dart';
 import '../theme/spacing.dart';
 import '../theme/text_styles.dart';
-import 'pill_input.dart';
 
 const _recentSearchesKey = 'recent_opportunity_searches';
 const _maxRecentSearches = 5;
 
 /// Single pinned search bar for the college Home feed — replaces the old
-/// dedicated `/search` screen. Tapping it opens a dropdown: recent searches
-/// (or, first time, a few starter suggestions), and typed-match suggestions
-/// while typing. Picking one (or pressing enter) opens `/opportunities`
-/// filtered to that query.
+/// dedicated `/search` screen. Focus it and a dropdown opens: recent
+/// searches (or, first time, a few starter suggestions), then typed-match
+/// suggestions while typing. Picking one (or pressing enter) opens
+/// `/opportunities` filtered to that query.
+///
+/// Self-contained fixed-height field (not built on PillInput) so it drops
+/// cleanly into a Row/Expanded on the feed without an unbounded-height
+/// layout.
 class HomeSearchBar extends StatefulWidget {
   const HomeSearchBar({super.key});
 
@@ -30,26 +33,27 @@ class HomeSearchBar extends StatefulWidget {
 class _HomeSearchBarState extends State<HomeSearchBar> {
   final _controller = TextEditingController();
   final _focusNode = FocusNode();
-  final _layerLink = LayerLink();
+  final _link = LayerLink();
   final _fieldKey = GlobalKey();
-  OverlayEntry? _overlayEntry;
+  OverlayEntry? _entry;
 
   List<String> _recent = [];
-  late final List<String> _suggestionTerms = searchSuggestionTerms();
-  static final List<String> _starterSuggestions = mockAllRoles.take(6).toList();
+  late final List<String> _terms = searchSuggestionTerms();
+  static final List<String> _starters = mockAllRoles.take(6).toList();
 
   @override
   void initState() {
     super.initState();
-    _focusNode.addListener(_onFocusChange);
-    _controller.addListener(_refreshOverlay);
+    _focusNode.addListener(_onChange);
+    _controller.addListener(_onChange);
     _loadRecent();
   }
 
   @override
   void dispose() {
-    _removeOverlay();
-    _focusNode.removeListener(_onFocusChange);
+    _hide();
+    _focusNode.removeListener(_onChange);
+    _controller.removeListener(_onChange);
     _focusNode.dispose();
     _controller.dispose();
     super.dispose();
@@ -59,14 +63,14 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
     final prefs = await SharedPreferences.getInstance();
     if (!mounted) return;
     setState(() => _recent = prefs.getStringList(_recentSearchesKey) ?? []);
-    _refreshOverlay();
+    _entry?.markNeedsBuild();
   }
 
-  Future<void> _saveRecent(String query) async {
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) return;
+  Future<void> _saveRecent(String q) async {
+    final t = q.trim();
+    if (t.isEmpty) return;
     final prefs = await SharedPreferences.getInstance();
-    final updated = [trimmed, ..._recent.where((s) => s.toLowerCase() != trimmed.toLowerCase())].take(_maxRecentSearches).toList();
+    final updated = [t, ..._recent.where((s) => s.toLowerCase() != t.toLowerCase())].take(_maxRecentSearches).toList();
     await prefs.setStringList(_recentSearchesKey, updated);
     if (!mounted) return;
     setState(() => _recent = updated);
@@ -77,100 +81,135 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
     await prefs.remove(_recentSearchesKey);
     if (!mounted) return;
     setState(() => _recent = []);
-    _refreshOverlay();
+    _entry?.markNeedsBuild();
   }
 
-  void _onFocusChange() => _refreshOverlay();
+  void _onChange() {
+    if (!mounted) return;
+    setState(() {}); // focus border + clear-icon visibility
+    if (_focusNode.hasFocus) {
+      _show();
+    } else {
+      // Delay the teardown so a tap on a dropdown row (which blurs the
+      // field) still lands before the panel is removed.
+      Future.delayed(const Duration(milliseconds: 120), () {
+        if (mounted && !_focusNode.hasFocus) _hide();
+      });
+    }
+  }
 
-  void _submit(String query) {
-    final q = query.trim();
-    if (q.isEmpty) return;
+  void _show() {
+    if (_entry != null) {
+      _entry!.markNeedsBuild();
+      return;
+    }
+    _entry = OverlayEntry(builder: _panel);
+    Overlay.of(context).insert(_entry!);
+  }
+
+  void _hide() {
+    _entry?.remove();
+    _entry?.dispose();
+    _entry = null;
+  }
+
+  void _submit(String q) {
+    final t = q.trim();
+    if (t.isEmpty) return;
     HapticFeedback.selectionClick();
-    _saveRecent(q);
+    _saveRecent(t);
     _controller.clear();
     _focusNode.unfocus();
-    _removeOverlay();
-    context.push('/opportunities?q=${Uri.encodeQueryComponent(q)}');
+    _hide();
+    context.push('/opportunities?q=${Uri.encodeQueryComponent(t)}');
   }
 
-  // --- Dropdown ---
-
-  List<_DropRow> _rows() {
+  List<_Suggestion> _suggestions() {
     final typed = _controller.text.trim();
     if (typed.isNotEmpty) {
       final q = typed.toLowerCase();
-      return _suggestionTerms
-          .where((t) => t.toLowerCase().contains(q))
-          .take(6)
-          .map((t) => _DropRow(label: t, icon: Ionicons.search_outline, onTap: () => _submit(t)))
-          .toList();
+      final matches = _terms.where((t) => t.toLowerCase().contains(q)).take(6).toList();
+      final rows = matches.map((m) => _Suggestion(m, Ionicons.search_outline, () => _submit(m))).toList();
+      if (!matches.any((m) => m.toLowerCase() == q)) {
+        rows.insert(0, _Suggestion('Search "$typed"', Ionicons.search_outline, () => _submit(typed)));
+      }
+      return rows;
     }
     if (_recent.isNotEmpty) {
-      return _recent
-          .map((s) => _DropRow(label: s, icon: Ionicons.time_outline, onTap: () => _submit(s)))
-          .toList();
+      return _recent.map((s) => _Suggestion(s, Ionicons.time_outline, () => _submit(s))).toList();
     }
-    return _starterSuggestions
-        .map((s) => _DropRow(label: s, icon: Ionicons.trending_up_outline, onTap: () => _submit(s)))
-        .toList();
+    return _starters.map((s) => _Suggestion(s, Ionicons.trending_up_outline, () => _submit(s))).toList();
   }
 
-  bool get _showRecentHeader => _controller.text.trim().isEmpty && _recent.isNotEmpty;
-  bool get _showStarterHeader => _controller.text.trim().isEmpty && _recent.isEmpty;
-
-  void _refreshOverlay() {
-    if (!_focusNode.hasFocus) {
-      _removeOverlay();
-      return;
-    }
-    if (_overlayEntry == null) {
-      _overlayEntry = OverlayEntry(builder: _buildOverlay);
-      Overlay.of(context).insert(_overlayEntry!);
-    } else {
-      _overlayEntry!.markNeedsBuild();
-    }
-  }
-
-  void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry?.dispose();
-    _overlayEntry = null;
-  }
-
-  Widget _buildOverlay(BuildContext context) {
-    final renderBox = _fieldKey.currentContext?.findRenderObject() as RenderBox?;
-    final width = renderBox?.size.width ?? 0;
-    final rows = _rows();
+  Widget _panel(BuildContext _) {
+    final box = _fieldKey.currentContext?.findRenderObject() as RenderBox?;
+    final width = box?.size.width ?? (MediaQuery.sizeOf(context).width - AppSpacing.xl * 2);
+    final rows = _suggestions();
+    final typedEmpty = _controller.text.trim().isEmpty;
+    final headerLabel = typedEmpty ? (_recent.isNotEmpty ? 'Recent searches' : 'Popular searches') : null;
 
     return Positioned(
       width: width,
       child: CompositedTransformFollower(
-        link: _layerLink,
+        link: _link,
         showWhenUnlinked: false,
         targetAnchor: Alignment.bottomLeft,
         followerAnchor: Alignment.topLeft,
-        offset: const Offset(0, AppSpacing.xs),
+        offset: const Offset(0, 6),
         child: Material(
           color: Colors.transparent,
           child: Container(
-            constraints: const BoxConstraints(maxHeight: 320),
+            constraints: const BoxConstraints(maxHeight: 340),
             decoration: BoxDecoration(
               color: AppColors.white,
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.border, width: 1),
+              border: Border.all(color: AppColors.border),
               boxShadow: AppShadows.dropdown,
             ),
             child: ListView(
-              padding: EdgeInsets.zero,
+              padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
               shrinkWrap: true,
               children: [
-                if (_showRecentHeader)
-                  _DropHeader(label: 'Recent searches', trailingLabel: 'Clear', onTrailingTap: _clearRecent),
-                if (_showStarterHeader) const _DropHeader(label: 'Popular searches'),
-                for (var i = 0; i < rows.length; i++) ...[
-                  if (i > 0) const Divider(height: 1, color: AppColors.border),
-                  rows[i],
-                ],
+                if (headerLabel != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.sm, AppSpacing.lg, AppSpacing.xs),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            headerLabel,
+                            style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 11, fontWeight: AppFontWeight.medium, letterSpacing: 0.3),
+                          ),
+                        ),
+                        if (_recent.isNotEmpty)
+                          GestureDetector(
+                            onTap: _clearRecent,
+                            child: Text('Clear', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
+                          ),
+                      ],
+                    ),
+                  ),
+                for (final r in rows)
+                  InkWell(
+                    onTap: r.onTap,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
+                      child: Row(
+                        children: [
+                          Icon(r.icon, size: 15, color: AppColors.gray500),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Text(
+                              r.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -181,83 +220,61 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
 
   @override
   Widget build(BuildContext context) {
+    final focused = _focusNode.hasFocus;
     return CompositedTransformTarget(
-      link: _layerLink,
-      child: KeyedSubtree(
+      link: _link,
+      child: Container(
         key: _fieldKey,
-        child: PillInput(
-          controller: _controller,
-          focusNode: _focusNode,
-          icon: Ionicons.search_outline,
-          placeholder: 'Search jobs, companies, roles',
-          textInputAction: TextInputAction.search,
-          onChanged: (_) => _refreshOverlay(),
-          onSubmitted: _submit,
+        height: 46,
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        decoration: BoxDecoration(
+          color: AppColors.offWhite,
+          borderRadius: BorderRadius.circular(AppRadius.pill),
+          border: Border.all(color: focused ? AppColors.blue : Colors.transparent, width: 1.5),
         ),
-      ),
-    );
-  }
-}
-
-class _DropHeader extends StatelessWidget {
-  final String label;
-  final String? trailingLabel;
-  final VoidCallback? onTrailingTap;
-  const _DropHeader({required this.label, this.trailingLabel, this.onTrailingTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppSpacing.md, AppSpacing.lg, AppSpacing.sm),
-      child: Row(
-        children: [
-          Expanded(
-            child: Text(
-              label,
-              style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 11, fontWeight: AppFontWeight.medium, letterSpacing: 0.4),
-            ),
-          ),
-          if (trailingLabel != null)
-            GestureDetector(
-              onTap: onTrailingTap,
-              child: Text(
-                trailingLabel!,
-                style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DropRow extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  const _DropRow({required this.label, required this.icon, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
         child: Row(
           children: [
-            Icon(icon, size: 15, color: AppColors.gray500),
-            const SizedBox(width: AppSpacing.md),
+            const Icon(Ionicons.search_outline, size: 18, color: AppColors.gray500),
+            const SizedBox(width: AppSpacing.sm),
             Expanded(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14),
+              child: TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                textInputAction: TextInputAction.search,
+                onSubmitted: _submit,
+                autofillHints: const [],
+                cursorColor: AppColors.blue,
+                style: AppTextStyles.body.copyWith(fontSize: 14, color: AppColors.ink),
+                decoration: InputDecoration(
+                  isCollapsed: true,
+                  border: InputBorder.none,
+                  hintText: 'Search jobs, companies, roles',
+                  hintStyle: AppTextStyles.body.copyWith(fontSize: 14, color: AppColors.gray400),
+                ),
               ),
             ),
+            if (_controller.text.isNotEmpty)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  _controller.clear();
+                  _focusNode.requestFocus();
+                },
+                child: const Padding(
+                  padding: EdgeInsets.only(left: AppSpacing.sm),
+                  child: Icon(Ionicons.close_circle, size: 16, color: AppColors.gray400),
+                ),
+              ),
           ],
         ),
       ),
     );
   }
+}
+
+class _Suggestion {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  _Suggestion(this.label, this.icon, this.onTap);
 }

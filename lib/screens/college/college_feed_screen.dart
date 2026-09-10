@@ -367,8 +367,8 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                         clipBehavior: Clip.none,
                         children: [
                           Container(
-                            width: 44,
-                            height: 44,
+                            width: 46,
+                            height: 46,
                             alignment: Alignment.center,
                             decoration: const BoxDecoration(color: AppColors.offWhite, shape: BoxShape.circle),
                             child: Icon(
