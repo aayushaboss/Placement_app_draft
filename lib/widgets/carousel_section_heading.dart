@@ -5,11 +5,11 @@ import '../theme/spacing.dart';
 import '../theme/text_styles.dart';
 
 /// Heading for a horizontal carousel row on the feeds — the section title in
-/// all-caps, blue on a soft blue wash (the same colour language as the
-/// status badges), but sized like a section heading (16px, matching the
-/// Profile section-card titles) and only lightly squared so it reads as a
-/// highlighted section marker, not a pill badge. An optional count follows
-/// in plain grey.
+/// all-caps blue, 16px to match the Profile section-card titles. No fill:
+/// the blue colour alone (the only blue text on the feed) carries the
+/// "highlight", the way the existing `UPCOMING SESSION` kicker does, without
+/// a band on every heading making a multi-carousel feed feel busy. An
+/// optional count follows in grey.
 class CarouselSectionHeading extends StatelessWidget {
   final String title;
   final int? count;
@@ -21,25 +21,19 @@ class CarouselSectionHeading extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
         children: [
           Flexible(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.blueA10,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Text(
-                title.toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.h3.copyWith(
-                  color: AppColors.blue,
-                  fontSize: 16,
-                  fontWeight: AppFontWeight.semibold,
-                  letterSpacing: 0.4,
-                ),
+            child: Text(
+              title.toUpperCase(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.h3.copyWith(
+                color: AppColors.blue,
+                fontSize: 16,
+                fontWeight: AppFontWeight.semibold,
+                letterSpacing: 0.4,
               ),
             ),
           ),
