@@ -73,13 +73,12 @@ class OpportunityCarouselSection extends StatelessWidget {
               children: [
                 TextSpan(
                   text: title,
-                  // ~4px above the card title (13px) + one weight step
-                  // (semibold vs the card title's medium) so the section
-                  // heading clearly outranks the cards under it without
-                  // being heavy/"thick".
+                  // Same 13px as the card title — hierarchy comes from
+                  // weight only: semibold vs the card title's medium (one
+                  // step up, not heavy).
                   style: AppTextStyles.h3.copyWith(
                     color: AppColors.ink,
-                    fontSize: 17,
+                    fontSize: 13,
                     fontWeight: AppFontWeight.semibold,
                   ),
                 ),
@@ -87,7 +86,7 @@ class OpportunityCarouselSection extends StatelessWidget {
                   text: '  (${opportunities.length})',
                   style: AppTextStyles.body.copyWith(
                     color: AppColors.gray500,
-                    fontSize: 14,
+                    fontSize: 13,
                   ),
                 ),
               ],

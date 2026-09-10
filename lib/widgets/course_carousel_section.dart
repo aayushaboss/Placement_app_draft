@@ -50,8 +50,8 @@ class CourseCarouselSection extends StatelessWidget {
           child: RichText(
             text: TextSpan(
               children: [
-                TextSpan(text: title, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 17, fontWeight: AppFontWeight.semibold)),
-                TextSpan(text: '  (${courses.length})', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14)),
+                TextSpan(text: title, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 13, fontWeight: AppFontWeight.semibold)),
+                TextSpan(text: '  (${courses.length})', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13)),
               ],
             ),
             maxLines: 1,
