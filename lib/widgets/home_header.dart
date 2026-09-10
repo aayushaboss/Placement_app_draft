@@ -16,23 +16,6 @@ class HomeHeader extends StatelessWidget {
   final String? photoUrl;
   final VoidCallback? onAvatarTap;
   final VoidCallback? onBellTap;
-  /// Search moved off the feed itself (its own dedicated screen now, not an
-  /// inline bar) — only the college flow wires this in, so it's optional
-  /// rather than always rendering a dead icon on the school header too.
-  final VoidCallback? onSearchTap;
-
-  /// Opens the opportunity filter — college-only, same reasoning as
-  /// [onSearchTap] (school's HomeHeader usage passes nothing here, so no
-  /// icon renders there). Rendered next to the search icon since college
-  /// Home has no inline search bar of its own to put a filter icon beside
-  /// the way the Courses tab does.
-  final VoidCallback? onFilterTap;
-
-  /// Whether a filter is currently active — swaps the icon to its filled
-  /// glyph + blue tint, same "active" treatment already used for the
-  /// Courses tab's own filter icon, rather than inverting the button's
-  /// fill (no other icon-only button in the app does that).
-  final bool isFiltering;
 
   const HomeHeader({
     super.key,
@@ -42,9 +25,6 @@ class HomeHeader extends StatelessWidget {
     this.photoUrl,
     this.onAvatarTap,
     this.onBellTap,
-    this.onSearchTap,
-    this.onFilterTap,
-    this.isFiltering = false,
   });
 
   @override
@@ -131,120 +111,39 @@ class HomeHeader extends StatelessWidget {
               ],
             ),
           ),
-          Row(
-            children: [
-              // 40px, not the avatar's 44px, with a tighter 6px gap between
-              // them (was AppSpacing.sm/8px) — these three are pure utility
-              // glyphs, not identity markers like the avatar, so shrinking
-              // them and pulling them closer together reads as one
-              // deliberate cluster of actions instead of three separate
-              // large targets competing with the avatar+greeting block for
-              // weight. Still comfortably above this app's own smallest
-              // established tap target (the 40px boost-tip CTA in
-              // home_dashboard_cards.dart).
-              if (onSearchTap != null) ...[
-                Semantics(
-                  button: true,
-                  label: 'Search',
-                  child: GestureDetector(
-                    onTap: onSearchTap,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      alignment: Alignment.center,
-                      decoration: const BoxDecoration(color: AppColors.offWhite, shape: BoxShape.circle),
-                      child: const Icon(Ionicons.search_outline, size: 20, color: AppColors.ink),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-              ],
-              if (onFilterTap != null) ...[
-                Semantics(
-                  button: true,
-                  label: 'Filter',
-                  child: GestureDetector(
-                  onTap: onFilterTap,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: const BoxDecoration(color: AppColors.offWhite, shape: BoxShape.circle),
-                        child: Icon(
-                          isFiltering ? Ionicons.options : Ionicons.options_outline,
-                          size: 20,
-                          color: isFiltering ? AppColors.blue : AppColors.ink,
-                        ),
-                      ),
-                      // Permanent, not a one-time nudge — unlike the bell's
-                      // red "unread" dot, this isn't flagging something new
-                      // to check out; it's a standing reminder that Home is
-                      // always showing results scoped to the user's own
-                      // roles, so it stays exactly like this for as long as
-                      // that's true (i.e. always, once onboarded).
+          // Bell only — search and filter moved onto the feed itself as a
+          // pinned bar row below this header (see college_feed_screen.dart).
+          Semantics(
+            button: true,
+            label: 'Notifications',
+            child: GestureDetector(
+              onTap: onBellTap,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(color: AppColors.offWhite, shape: BoxShape.circle),
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    const Center(child: Icon(Ionicons.notifications_outline, size: 22, color: AppColors.ink)),
+                    if (unread)
                       Positioned(
-                        // Same (top, right) as the bell's own dot below —
-                        // both sit on an identical 40x40 button, so matching
-                        // offsets is what makes them read as level with each
-                        // other across the row, not just individually placed.
                         top: 9,
                         right: 10,
                         child: Container(
                           width: 9,
                           height: 9,
                           decoration: BoxDecoration(
-                            color: AppColors.blue,
+                            color: AppColors.error,
                             shape: BoxShape.circle,
                             border: Border.all(color: AppColors.offWhite, width: 1.5),
                           ),
                         ),
                       ),
-                    ],
-                  ),
-                  ),
-                ),
-                const SizedBox(width: 6),
-              ],
-              Semantics(
-                button: true,
-                label: 'Notifications',
-                child: GestureDetector(
-                  onTap: onBellTap,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: const BoxDecoration(color: AppColors.offWhite, shape: BoxShape.circle),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        const Center(child: Icon(Ionicons.notifications_outline, size: 22, color: AppColors.ink)),
-                        if (unread)
-                          Positioned(
-                            // Scaled down from the old 44px circle's (11, 12)
-                            // offset to match this button's smaller 40px size
-                            // — otherwise the dot drifts toward the edge
-                            // instead of sitting on the icon's shoulder.
-                            top: 9,
-                            right: 10,
-                            child: Container(
-                              width: 9,
-                              height: 9,
-                              decoration: BoxDecoration(
-                                color: AppColors.error,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.offWhite, width: 1.5),
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
+                  ],
                 ),
               ),
-            ],
+            ),
           ),
         ],
       ),

@@ -122,9 +122,9 @@ class ContentCard extends StatelessWidget {
                                 title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                // medium, not bold, and 15px not 16 — see
-                                // opportunity_row.dart's note.
-                                style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 15),
+                                // 13px — matches the subtitle line, per direct
+                                // feedback that card titles read too large.
+                                style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 13),
                               ),
                             ),
                             if (subtitle != null && subtitle!.isNotEmpty)

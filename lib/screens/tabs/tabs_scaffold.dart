@@ -148,11 +148,11 @@ class TabsScaffold extends StatelessWidget {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(active ? item.activeIcon : item.icon, size: iconSize, color: active ? AppColors.blue : AppColors.gray400),
+                          Icon(active ? item.activeIcon : item.icon, size: iconSize, color: active ? AppColors.blue : AppColors.gray500),
                           const SizedBox(height: 2),
                           Text(
                             item.label,
-                            style: AppTextStyles.label.copyWith(fontSize: labelFontSize, color: active ? AppColors.blue : AppColors.gray400),
+                            style: AppTextStyles.label.copyWith(fontSize: labelFontSize, color: active ? AppColors.blue : AppColors.gray500),
                           ),
                         ],
                       ),

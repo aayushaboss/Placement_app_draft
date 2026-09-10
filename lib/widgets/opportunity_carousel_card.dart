@@ -96,17 +96,13 @@ class OpportunityCarouselCard extends StatelessWidget {
                             title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            // medium, not bold — a card title needs to read
-                            // lighter *and* smaller than the section heading
-                            // above it (h3, 16px/bold/w700); ink color +
-                            // medium/w500 still clearly outranks this card's
-                            // own gray meta text, so it stays the dominant
-                            // element within the card itself. Plain bodyLg
-                            // (14px), not a bumped-up size — a heading and
-                            // its own card title sitting this close together
-                            // (same carousel block) need a real size gap on
-                            // top of the weight gap, not just 1-2px.
-                            style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, height: 1.2),
+                            // 13px — same size as the company line right below
+                            // it (per direct feedback that card titles read
+                            // too large / cluttered). ink + medium/w500 still
+                            // outranks the gray/regular company line by weight
+                            // and colour, so it stays the dominant element in
+                            // the card without a size jump.
+                            style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 13, height: 1.2),
                           ),
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
@@ -114,7 +110,7 @@ class OpportunityCarouselCard extends StatelessWidget {
                               company,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5),
+                              style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13),
                             ),
                           ),
                         ],

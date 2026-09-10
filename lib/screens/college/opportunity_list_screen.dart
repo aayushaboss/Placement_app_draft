@@ -31,7 +31,12 @@ class OpportunityListScreen extends StatefulWidget {
   /// when both are set.
   final List<String>? ids;
 
-  const OpportunityListScreen({super.key, required this.title, this.category, this.ids});
+  /// Free-text search — the Home search bar's destination. Matches title /
+  /// company / category / location via [filterOpportunities]. Takes priority
+  /// over [category] when both are set (but not over [ids]).
+  final String? query;
+
+  const OpportunityListScreen({super.key, required this.title, this.category, this.ids, this.query});
 
   @override
   State<OpportunityListScreen> createState() => _OpportunityListScreenState();
@@ -45,10 +50,13 @@ class _OpportunityListScreenState extends State<OpportunityListScreen> {
 
     // Already-applied openings stay in the list with a disabled "Applied ✓"
     // button rather than being filtered out.
+    final hasQuery = widget.query != null && widget.query!.trim().isNotEmpty;
     final results = widget.ids != null
         ? widget.ids!.map(getOpportunityById).whereType<Opportunity>().toList()
-        : (filterOpportunities(categories: widget.category == null ? null : [widget.category!])
-            .toList()
+        : (filterOpportunities(
+            query: hasQuery ? widget.query : null,
+            categories: (hasQuery || widget.category == null) ? null : [widget.category!],
+          ).toList()
           ..sort((a, b) => b.matchScoreFor(user).compareTo(a.matchScoreFor(user))));
 
     // 2 columns at tablet width — a plain wider single-column cap (the

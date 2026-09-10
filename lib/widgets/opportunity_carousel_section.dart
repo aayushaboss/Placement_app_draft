@@ -38,9 +38,20 @@ class OpportunityCarouselSection extends StatelessWidget {
     this.onToggleSave,
   });
 
+  /// Cards shown in the lane before the trailing "View all" tile — the
+  /// rest are reachable via that tile / the list screen.
+  static const _visibleCap = 5;
+
   @override
   Widget build(BuildContext context) {
     if (opportunities.isEmpty) return const SizedBox.shrink();
+
+    final visible = opportunities.take(_visibleCap).toList();
+    // "View all" is a trailing card in the lane (not a header link) once
+    // there's more than the lane shows — per direct feedback that it reads
+    // better as the 6th tile than as a small link up in the heading.
+    final showViewAllTile = onViewAll != null && opportunities.length > _visibleCap;
+    final itemCount = visible.length + (showViewAllTile ? 1 : 0);
 
     // No outer bottom padding — the carousel's own bottom shadow buffer
     // (AppSpacing.xxl, from the Row's vertical padding below) already
@@ -54,61 +65,27 @@ class OpportunityCarouselSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(
-                        text: title,
-                        style: AppTextStyles.h3.copyWith(
-                          color: AppColors.ink,
-                          fontWeight: AppFontWeight.bold,
-                        ),
-                      ),
-                      TextSpan(
-                        text: '  (${opportunities.length})',
-                        style: AppTextStyles.body.copyWith(
-                          color: AppColors.gray500,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (onViewAll != null)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onViewAll,
-                  child: Padding(
-                    padding: const EdgeInsets.only(left: AppSpacing.sm),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'View all',
-                          style: AppTextStyles.label.copyWith(
-                            color: AppColors.blue,
-                            fontSize: 13,
-                            fontWeight: AppFontWeight.medium,
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        const Icon(
-                          Ionicons.chevron_forward,
-                          size: 14,
-                          color: AppColors.blue,
-                        ),
-                      ],
-                    ),
+          child: RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: title,
+                  style: AppTextStyles.h3.copyWith(
+                    color: AppColors.ink,
+                    fontWeight: AppFontWeight.medium,
                   ),
                 ),
-            ],
+                TextSpan(
+                  text: '  (${opportunities.length})',
+                  style: AppTextStyles.body.copyWith(
+                    color: AppColors.gray500,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
         // No explicit gap here — the carousel's own top padding below is
@@ -136,10 +113,13 @@ class OpportunityCarouselSection extends StatelessWidget {
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppShadows.cardBuffer, AppSpacing.lg, AppShadows.cardBuffer),
               scrollDirection: Axis.horizontal,
-              itemCount: opportunities.length,
+              itemCount: itemCount,
               separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
               itemBuilder: (context, i) {
-                final o = opportunities[i];
+                if (showViewAllTile && i == visible.length) {
+                  return _ViewAllTile(onTap: onViewAll!);
+                }
+                final o = visible[i];
                 final applied = isApplied(o);
                 return OpportunityCarouselCard(
                   title: o.title,
@@ -160,6 +140,48 @@ class OpportunityCarouselSection extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Trailing tile in a carousel lane — same card shell (width, shadow,
+/// radius) as the job cards beside it, just a single centered "View all"
+/// affordance. Replaces the old header "View all" link.
+class _ViewAllTile extends StatelessWidget {
+  final VoidCallback onTap;
+  const _ViewAllTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
+        focusColor: AppColors.blueA10,
+        child: Container(
+          width: 140,
+          height: 222,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
+            boxShadow: AppShadows.card,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'View all',
+                style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium),
+              ),
+              const SizedBox(width: 4),
+              const Icon(Ionicons.arrow_forward, size: 15, color: AppColors.blue),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

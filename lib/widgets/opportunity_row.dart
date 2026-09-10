@@ -101,13 +101,11 @@ class OpportunityRow extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    // medium, not bold, and 15px not 16 — see
-                    // opportunity_carousel_card.dart's own note; 16 would tie
-                    // this row's title with an h3 section heading exactly
-                    // (e.g. "Similar roles" on opportunity_detail_screen.dart,
-                    // which renders this same widget directly beneath it), so
-                    // it needs a real size gap too, not just a weight one.
-                    style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 15),
+                    // 13px — matches the company/subtitle line below, per
+                    // direct feedback that card titles read too large. ink +
+                    // medium still outranks the gray/regular subtitle by
+                    // weight and colour.
+                    style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 13),
                   ),
                 ),
                 if (subtitle != null && subtitle!.isNotEmpty)

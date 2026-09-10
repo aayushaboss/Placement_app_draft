@@ -27,8 +27,8 @@ import '../../widgets/auto_carousel.dart';
 import '../../widgets/course_carousel_section.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/fomo_notification_card.dart';
-import '../../widgets/home_dashboard_cards.dart';
 import '../../widgets/home_header.dart';
+import '../../widgets/home_search_bar.dart';
 import '../../widgets/opportunity_carousel_section.dart';
 import '../../widgets/opportunity_row.dart';
 import '../../widgets/responsive_body.dart';
@@ -201,12 +201,15 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
       ));
     }
 
-    final topMatches = List.of(opps)..sort((a, b) => b.matchScoreFor(user).compareTo(a.matchScoreFor(user)));
-    addSection('Recommended for you', topMatches);
+    // Fallback for the (post-onboarding, shouldn't-happen) no-roles case —
+    // without it the feed would have no job sections at all.
+    if (roles.isEmpty) {
+      addSection('Jobs for you', opps);
+    }
 
     for (final role in roles) {
       final inRole = opps.where((o) => o.category.toLowerCase() == role.toLowerCase()).toList();
-      addSection('$role roles for you', inRole, category: role);
+      addSection('$role jobs', inRole, category: role);
     }
 
     final relatedBudget = (_targetCarouselCount - 1 - roles.length).clamp(0, 3);
@@ -330,13 +333,8 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
           orElse: () => null,
         );
 
-    // Only the slim top bar (avatar/greeting/bell) stays pinned, matching
-    // Naukri's own home scroll — search, the stat-card strip, and the type
-    // filters used to sit outside the scroll area entirely, which meant
-    // that whole block (near half the screen) stayed fixed no matter how
-    // far you scrolled the listings below. Now they're just the first few
-    // items of the one scrollable list, so they scroll away with everything
-    // else.
+    // The slim top bar (avatar/greeting/bell) plus a single pinned search
+    // bar + filter row stay fixed above the scroll; everything else scrolls.
     return Scaffold(
       backgroundColor: AppColors.white,
       body: ResponsiveBody(child: SafeArea(
@@ -350,11 +348,54 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
               subtitle: 'Find your next role',
               onAvatarTap: () => context.go('/tabs/profile'),
               onBellTap: () => context.push('/notifications'),
-              onSearchTap: () => context.push('/search'),
-              onFilterTap: _openFilter,
-              isFiltering: isFiltering,
               unread: appState.hasUnreadNotifications(
                 mockNotifications.map((n) => n.id).toList(),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.md),
+              child: Row(
+                children: [
+                  const Expanded(child: HomeSearchBar()),
+                  const SizedBox(width: AppSpacing.sm),
+                  Semantics(
+                    button: true,
+                    label: 'Filter',
+                    child: GestureDetector(
+                      onTap: _openFilter,
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(color: AppColors.offWhite, shape: BoxShape.circle),
+                            child: Icon(
+                              isFiltering ? Ionicons.options : Ionicons.options_outline,
+                              size: 20,
+                              color: isFiltering ? AppColors.blue : AppColors.ink,
+                            ),
+                          ),
+                          if (isFiltering)
+                            Positioned(
+                              top: 10,
+                              right: 11,
+                              child: Container(
+                                width: 9,
+                                height: 9,
+                                decoration: BoxDecoration(
+                                  color: AppColors.blue,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: AppColors.offWhite, width: 1.5),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -390,17 +431,8 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                         controller: _scrollController,
                         padding: EdgeInsets.only(bottom: AppSpacing.xxxl + AppSpacing.xl),
                         children: [
-                          // Search moved to its own dedicated screen (see
-                          // search_screen.dart, reached via the header's
-                          // icon) — no inline bar taking up feed space here.
-                          //
-                          // No leading spacer here — HomeHeader's own bottom
-                          // padding now supplies the gap under it directly
-                          // (a shared fix, since school_home_screen.dart had
-                          // the same header with no spacer of its own at
-                          // all). If no booking, HomeDashboardCards is next
-                          // and its own leading shadow buffer
-                          // (AppShadows.cardBuffer) supplies its gap instead.
+                          // The search bar + filter row is pinned above this
+                          // list (a Column sibling), not a scroll item.
                           // Bookings is no longer its own bottom tab (only
                           // reachable from Profile now), so a booked
                           // placement session needs a reminder here too —
@@ -482,7 +514,13 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                             // it, a wrapped title could strand a single
                             // word alone on its own line.
                             AutoCarousel(
-                              height: 132,
+                              // 150, up from 132 — card 2's body is now a
+                              // full sentence (test attached to resume), which
+                              // wraps to ~3 lines; card 1's shorter content
+                              // stays vertically centred (alignment.centerLeft
+                              // on the Container) so the extra height doesn't
+                              // read as dead space there.
+                              height: 150,
                               cards: [
                                 GestureDetector(
                                   onTap: () => context.push('/booking?kind=placement'),
@@ -505,7 +543,10 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                             ],
                                           ),
                                         ),
-                                        const Icon(Ionicons.arrow_forward_circle, size: 34, color: AppColors.yellow),
+                                        // A distinct semantic icon per card (was
+                                        // the same generic arrow on both, which
+                                        // made the two cards read as identical).
+                                        const Icon(Ionicons.chatbubble_ellipses, size: 32, color: AppColors.yellow),
                                       ],
                                     ),
                                   ),
@@ -523,24 +564,25 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              // Leads with the concrete benefit —
-                                              // recruiters getting to see the
-                                              // student's strengths — since that's
-                                              // the actual reason to take the test,
-                                              // per direct feedback that the card's
-                                              // job-to-be-done wasn't landing.
-                                              Text(noOrphan('Let recruiters see your strengths'), style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
+                                              // Direct about the outcome (getting
+                                              // noticed) with the concrete
+                                              // mechanic in the body — the free
+                                              // test is attached to the resume
+                                              // recruiters see.
+                                              Text(noOrphan('Get recruiters to notice you'), style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
                                               Padding(
                                                 padding: const EdgeInsets.only(top: 4),
                                                 child: Text(
-                                                  noOrphan('Take the free 10-minute test.'),
-                                                  style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 13),
+                                                  noOrphan('Your free 10-minute psychology test is attached to your resume for recruiters to view.'),
+                                                  maxLines: 3,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 13, height: 1.3),
                                                 ),
                                               ),
                                             ],
                                           ),
                                         ),
-                                        const Icon(Ionicons.arrow_forward_circle, size: 34, color: AppColors.yellow),
+                                        const Icon(Ionicons.eye, size: 32, color: AppColors.yellow),
                                       ],
                                     ),
                                   ),
@@ -548,7 +590,6 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                               ],
                             ),
                           ],
-                          HomeDashboardCards(user: user),
                           if (_opps.isEmpty)
                             Padding(
                               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl).copyWith(top: AppSpacing.xxxl),

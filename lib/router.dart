@@ -22,7 +22,6 @@ import 'screens/college/opportunity_list_screen.dart';
 import 'screens/college/recently_deleted_applications_screen.dart';
 import 'screens/college/resume_builder_quiz_screen.dart';
 import 'screens/college/resume_screen.dart';
-import 'screens/college/search_screen.dart';
 import 'screens/onboarding/landing_screen.dart';
 import 'screens/onboarding/language_full_list_screen.dart';
 import 'screens/onboarding/language_select_screen.dart';
@@ -237,7 +236,6 @@ GoRouter buildRouter(AppState appState, GlobalKey<ScaffoldMessengerState> scaffo
         builder: (context, state) => CareerDnaPaymentScreen(level: int.parse(state.pathParameters['level']!)),
       ),
       GoRoute(path: '/college/career-dna/final-report', builder: (context, state) => const CareerDnaFinalReportScreen()),
-      GoRoute(path: '/search', builder: (context, state) => const SearchScreen()),
       GoRoute(
         path: '/booking',
         builder: (context, state) => BookingScreen(
@@ -265,11 +263,15 @@ GoRouter buildRouter(AppState appState, GlobalKey<ScaffoldMessengerState> scaffo
       GoRoute(path: '/opportunity/:id', builder: (context, state) => OpportunityDetailScreen(id: state.pathParameters['id']!)),
       GoRoute(
         path: '/opportunities',
-        builder: (context, state) => OpportunityListScreen(
-          title: state.uri.queryParameters['title'] ?? 'Opportunities',
-          category: state.uri.queryParameters['category'],
-          ids: state.uri.queryParameters['ids']?.split(','),
-        ),
+        builder: (context, state) {
+          final q = state.uri.queryParameters['q'];
+          return OpportunityListScreen(
+            title: state.uri.queryParameters['title'] ?? (q != null && q.isNotEmpty ? '"$q"' : 'Opportunities'),
+            category: state.uri.queryParameters['category'],
+            ids: state.uri.queryParameters['ids']?.split(','),
+            query: q,
+          );
+        },
       ),
       GoRoute(path: '/application/:id', builder: (context, state) => ApplicationDetailScreen(id: state.pathParameters['id']!)),
       GoRoute(path: '/applications/recently-deleted', builder: (context, state) => const RecentlyDeletedApplicationsScreen()),

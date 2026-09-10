@@ -32,47 +32,30 @@ class CourseCarouselSection extends StatelessWidget {
 
   const CourseCarouselSection({super.key, required this.title, required this.courses, this.onViewAll});
 
+  static const _visibleCap = 5;
+
   @override
   Widget build(BuildContext context) {
     if (courses.isEmpty) return const SizedBox.shrink();
+
+    final visible = courses.take(_visibleCap).toList();
+    final showViewAllTile = onViewAll != null && courses.length > _visibleCap;
+    final itemCount = visible.length + (showViewAllTile ? 1 : 0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: RichText(
-                  text: TextSpan(
-                    children: [
-                      TextSpan(text: title, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
-                      TextSpan(text: '  (${courses.length})', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14)),
-                    ],
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (onViewAll != null)
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onViewAll,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.sm),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('View all', style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
-                        const SizedBox(width: 2),
-                        const Icon(Ionicons.chevron_forward, size: 14, color: AppColors.blue),
-                      ],
-                    ),
-                  ),
-                ),
-            ],
+          child: RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(text: title, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium)),
+                TextSpan(text: '  (${courses.length})', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14)),
+              ],
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
         ),
         // No explicit gap here — the carousel's own top padding below is
@@ -94,9 +77,14 @@ class CourseCarouselSection extends StatelessWidget {
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppShadows.cardBuffer, AppSpacing.lg, AppShadows.cardBuffer),
               scrollDirection: Axis.horizontal,
-              itemCount: courses.length,
+              itemCount: itemCount,
               separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
-              itemBuilder: (context, i) => _CourseCard(course: courses[i]),
+              itemBuilder: (context, i) {
+                if (showViewAllTile && i == visible.length) {
+                  return _CourseViewAllTile(onTap: onViewAll!);
+                }
+                return _CourseCard(course: visible[i]);
+              },
             ),
           ),
         ),
@@ -152,13 +140,9 @@ class _CourseCard extends StatelessWidget {
                       course.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      // medium, not bold, and plain bodyLg (14px) rather
-                      // than a bumped-up size — reads both lighter and
-                      // smaller than the section heading above (h3, 16px/
-                      // bold/w700), while staying the dominant text within
-                      // this card itself. See opportunity_carousel_card
-                      // .dart's own note — same fix, same reasoning.
-                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, height: 1.2),
+                      // 13px — same size as the card's own meta lines, per
+                      // direct feedback that card titles read too large.
+                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 13, height: 1.2),
                     ),
                   ),
                 ],
@@ -175,6 +159,44 @@ class _CourseCard extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: Text('View syllabus →', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Trailing "View all" tile for a course lane — matches _CourseCard's
+/// shell, single centered affordance.
+class _CourseViewAllTile extends StatelessWidget {
+  final VoidCallback onTap;
+  const _CourseViewAllTile({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
+        focusColor: AppColors.blueA10,
+        child: Container(
+          width: 140,
+          height: 172,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
+            boxShadow: AppShadows.card,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('View all', style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+              const SizedBox(width: 4),
+              const Icon(Ionicons.arrow_forward, size: 15, color: AppColors.blue),
             ],
           ),
         ),

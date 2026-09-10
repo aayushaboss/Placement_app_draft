@@ -189,8 +189,31 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                 // Generous vertical rhythm between nodes (xxxl, not the old
                 // list's tight md gaps) is what makes this read as "spacious"
                 // rather than a dense list — the zigzag alignment does the rest.
-                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxxl, AppSpacing.xl, AppSpacing.xl),
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),
                 children: [
+                  // What taking the quiz actually does for the student — the
+                  // free test's result rides along with their resume for
+                  // recruiters to see. Same message as the Home promo card.
+                  Container(
+                    margin: const EdgeInsets.only(bottom: AppSpacing.xxxl),
+                    padding: const EdgeInsets.all(AppSpacing.md),
+                    decoration: BoxDecoration(
+                      color: AppColors.blueA10,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Ionicons.eye_outline, size: 16, color: AppColors.blue),
+                        const SizedBox(width: AppSpacing.sm),
+                        Expanded(
+                          child: Text(
+                            noOrphan('Your free 10-minute psychology test is attached to your resume for recruiters to view.'),
+                            style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, height: 1.35),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   for (final meta in careerDnaLevelMeta)
                     Padding(
                       key: currentMeta?.level == meta.level ? _currentNodeKey : null,
