@@ -90,8 +90,11 @@ class ContentCard extends StatelessWidget {
                         width: 44,
                         height: 44,
                         alignment: Alignment.center,
-                        decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.md)),
-                        child: Icon(icon ?? Ionicons.book_outline, size: 22, color: AppColors.blue),
+                        // Violet mark — matches the course carousel card, so
+                        // a course reads distinct from a (blue-marked) job
+                        // card wherever it shows up.
+                        decoration: BoxDecoration(color: AppColors.violetA15, borderRadius: BorderRadius.circular(AppRadius.md)),
+                        child: Icon(icon ?? Ionicons.book_outline, size: 22, color: AppColors.violet),
                       ),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(

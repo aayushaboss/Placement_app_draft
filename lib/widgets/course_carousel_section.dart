@@ -110,18 +110,21 @@ class _CourseCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
+                // Centre the title against the icon mark — a 1-line title
+                // top-aligned next to a 44px mark left an odd gap beneath it.
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   Container(
                     width: 44,
                     height: 44,
                     alignment: Alignment.center,
-                    // Yellow, not blue — the one deliberate color break from
-                    // OpportunityCarouselCard's otherwise-identical shell, so
-                    // a course card reads as its own category at a glance
-                    // instead of looking like another job card.
-                    decoration: BoxDecoration(color: AppColors.yellowA15, borderRadius: BorderRadius.circular(AppRadius.md)),
-                    child: Icon(categoryIcons[course.category] ?? Ionicons.book_outline, size: 22, color: AppColors.yellowDark),
+                    // Violet, not blue — a calm in-system accent (the same
+                    // token the Interview badge uses) that sets a course
+                    // card apart from a job card at a glance without the
+                    // muddy dark-mustard-on-pale-yellow the old yellow mark
+                    // read as.
+                    decoration: BoxDecoration(color: AppColors.violetA15, borderRadius: BorderRadius.circular(AppRadius.md)),
+                    child: Icon(categoryIcons[course.category] ?? Ionicons.book_outline, size: 22, color: AppColors.violet),
                   ),
                   const SizedBox(width: AppSpacing.md),
                   Expanded(
