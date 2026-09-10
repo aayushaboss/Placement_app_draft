@@ -207,7 +207,7 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                         const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
-                            noOrphan('Your free 10-minute psychology test is attached to your resume for recruiters to view.'),
+                            noOrphan('Free 10-min test, attached to your resume for recruiters.'),
                             style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, height: 1.35),
                           ),
                         ),

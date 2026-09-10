@@ -514,18 +514,16 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                             // it, a wrapped title could strand a single
                             // word alone on its own line.
                             AutoCarousel(
-                              // 150, up from 132 — card 2's body is now a
-                              // full sentence (test attached to resume), which
-                              // wraps to ~3 lines; card 1's shorter content
-                              // stays vertically centred (alignment.centerLeft
-                              // on the Container) so the extra height doesn't
-                              // read as dead space there.
-                              height: 150,
+                              // Sleek — just enough for a 2-line title + a
+                              // 2-line body with tight vertical padding.
+                              // alignment.centerLeft on each card keeps
+                              // shorter content vertically centred.
+                              height: 112,
                               cards: [
                                 GestureDetector(
                                   onTap: () => context.push('/booking?kind=placement'),
                                   child: Container(
-                                    padding: const EdgeInsets.all(AppSpacing.xl),
+                                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
                                     alignment: Alignment.centerLeft,
                                     decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
                                     child: Row(
@@ -535,7 +533,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Text(noOrphan('Talk to a placement expert'), style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
+                                              Text(noOrphan('Talk to a placement expert'), style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 16, fontWeight: AppFontWeight.bold)),
                                               Padding(
                                                 padding: const EdgeInsets.only(top: 4),
                                                 child: Text(noOrphan('1:1 guidance to land your next role.'), style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 13)),
@@ -554,7 +552,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                 GestureDetector(
                                   onTap: () => context.go('/tabs/career-dna'),
                                   child: Container(
-                                    padding: const EdgeInsets.all(AppSpacing.xl),
+                                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.md),
                                     alignment: Alignment.centerLeft,
                                     decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
                                     child: Row(
@@ -569,11 +567,11 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                               // mechanic in the body — the free
                                               // test is attached to the resume
                                               // recruiters see.
-                                              Text(noOrphan('Get recruiters to notice you'), style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
+                                              Text(noOrphan('Get recruiters to notice you'), style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 16, fontWeight: AppFontWeight.bold)),
                                               Padding(
                                                 padding: const EdgeInsets.only(top: 4),
                                                 child: Text(
-                                                  noOrphan('Your free 10-minute psychology test is attached to your resume for recruiters to view.'),
+                                                  noOrphan('Free 10-min test, attached to your resume for recruiters.'),
                                                   maxLines: 3,
                                                   overflow: TextOverflow.ellipsis,
                                                   style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 13, height: 1.3),
