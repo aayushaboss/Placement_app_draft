@@ -39,16 +39,12 @@ class _ProfileRow {
   final String label;
   final String? route;
 
-  /// Optional live value shown before the chevron (e.g. the current app
-  /// language) — null for every other row today.
-  final String? trailing;
-
   /// Optional override for what tapping the row does — used by rows that
   /// open a bottom sheet (e.g. "Switch to College") instead of navigating
   /// to a route. Takes precedence over `route` when both are set (not the
   /// case for any row today).
   final VoidCallback? onTap;
-  const _ProfileRow({required this.icon, required this.label, this.route, this.trailing, this.onTap});
+  const _ProfileRow({required this.icon, required this.label, this.route, this.onTap});
 }
 
 /// "Saved" is college-only — school users never bookmark opportunities.
@@ -268,7 +264,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // all. See _showSwitchToCollegeSheet's own doc comment for the full
       // design rationale.
       if (isSchool) _ProfileRow(icon: Ionicons.school_outline, label: 'Switch to College', onTap: () => _showSwitchToCollegeSheet(context)),
-      _ProfileRow(icon: Ionicons.language_outline, label: 'App language', route: '/language-select?edit=1', trailing: user?.appLanguage ?? 'English'),
     ];
     final topInset = MediaQuery.of(context).padding.top;
     final resume = user?.resume;
@@ -544,11 +539,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                         style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium),
                                       ),
                                     ),
-                                    if (r.trailing != null)
-                                      Padding(
-                                        padding: const EdgeInsets.only(right: AppSpacing.sm),
-                                        child: Text(r.trailing!, style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12)),
-                                      ),
                                     const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
                                   ],
                                 ),

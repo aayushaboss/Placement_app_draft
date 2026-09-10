@@ -7,6 +7,7 @@ import '../theme/colors.dart';
 import '../theme/shadows.dart';
 import '../theme/spacing.dart';
 import '../theme/text_styles.dart';
+import 'carousel_section_heading.dart';
 import 'opportunity_carousel_card.dart';
 
 /// One horizontally-scrolling "topic" row on the browse feed — title, a
@@ -66,35 +67,7 @@ class OpportunityCarouselSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          child: RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: title,
-                  // Same 13px as the card title — hierarchy comes from
-                  // weight only: semibold vs the card title's medium (one
-                  // step up, not heavy).
-                  style: AppTextStyles.h3.copyWith(
-                    color: AppColors.ink,
-                    fontSize: 12,
-                    fontWeight: AppFontWeight.semibold,
-                  ),
-                ),
-                TextSpan(
-                  text: '  (${opportunities.length})',
-                  style: AppTextStyles.body.copyWith(
-                    color: AppColors.gray500,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
+        CarouselSectionHeading(title: title, count: opportunities.length),
         // No explicit gap here — the carousel's own top padding below is
         // the gap, and it's also the shadow-safety buffer for
         // AppShadows.card (see AppShadows.cardBuffer).

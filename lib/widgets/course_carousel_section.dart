@@ -7,6 +7,7 @@ import '../theme/colors.dart';
 import '../theme/shadows.dart';
 import '../theme/spacing.dart';
 import '../theme/text_styles.dart';
+import 'carousel_section_heading.dart';
 
 const categoryIcons = {
   'Counseling': Ionicons.compass_outline,
@@ -45,19 +46,7 @@ class CourseCarouselSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-          child: RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(text: title, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.semibold)),
-                TextSpan(text: '  (${courses.length})', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12)),
-              ],
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
+        CarouselSectionHeading(title: title, count: courses.length),
         // No explicit gap here — the carousel's own top padding below is
         // the gap, and it's also the shadow-safety buffer for
         // AppShadows.card (see AppShadows.cardBuffer).

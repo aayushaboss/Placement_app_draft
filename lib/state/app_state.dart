@@ -7,7 +7,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../mockData/mock_applications.dart' show demoShowcaseUserId, setApplicationsUser;
 import '../models/career_dna.dart';
 import '../models/user.dart';
-import '../utils/app_language_prefs_key.dart';
 import '../utils/fomo_prefs_key.dart';
 
 /// Mirrors frontend/src/context/AuthContext.tsx.
@@ -43,25 +42,16 @@ class AppState extends ChangeNotifier {
   List<String> _savedOpportunityIds = [];
   List<String> _viewedStoryIds = [];
   List<String> _readNotificationIds = [];
-  String? _appLanguage;
 
   User? get user => _user;
   bool get loading => _loading;
   List<String> get savedOpportunityIds => List.unmodifiable(_savedOpportunityIds);
-
-  /// App display-language preference — see app_language_prefs_key.dart.
-  /// Loaded synchronously inside bootstrap(), before _loading flips false,
-  /// so it's already available the first time router.dart's redirect
-  /// callback runs (that callback is synchronous and gated on
-  /// `!appState.loading`, so there's no race).
-  String? get appLanguage => _appLanguage;
 
   Future<void> bootstrap() async {
     final prefs = await SharedPreferences.getInstance();
     _savedOpportunityIds = prefs.getStringList(_savedOpportunitiesKey) ?? [];
     _viewedStoryIds = prefs.getStringList(_viewedStoriesKey) ?? [];
     _readNotificationIds = prefs.getStringList(_readNotificationsKey) ?? [];
-    _appLanguage = prefs.getString(appLanguagePrefsKey);
 
     if (_devAlwaysStartSignedOut) {
       await prefs.remove(_tokenKey);
@@ -220,7 +210,6 @@ class AppState extends ChangeNotifier {
         // check). Null for email/Google sign-ups, which have no phone to
         // auto-fill — that's exactly what the onboarding question is for.
         phone: identifier.contains('@') ? null : identifier,
-        appLanguage: _appLanguage,
         segment: null,
         onboardingComplete: false,
       );
@@ -377,7 +366,6 @@ class AppState extends ChangeNotifier {
           identifier: identifier,
           signInMethod: 'google',
           name: 'Aayusha Pagare',
-          appLanguage: _appLanguage,
           onboardingComplete: false,
         );
     await prefs.setString(_tokenKey, 'demo:$identifier');
@@ -385,22 +373,6 @@ class AppState extends ChangeNotifier {
     _setUser(next);
     notifyListeners();
     return next;
-  }
-
-  /// Single entry point for setting the app display-language — called both
-  /// by the pre-onboarding picker (no User yet) and by the Profile-editable
-  /// version (User already exists), so the "keep the raw pref and the
-  /// User's copy in sync" logic lives in exactly one place.
-  Future<void> setAppLanguage(String value) async {
-    _appLanguage = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(appLanguagePrefsKey, value);
-    if (_user != null) {
-      final updated = _user!.copyWith(appLanguage: value);
-      _setUser(updated);
-      await _persistUser(updated);
-    }
-    notifyListeners();
   }
 
   /// Prototype stand-in for a real payment gateway — a real integration

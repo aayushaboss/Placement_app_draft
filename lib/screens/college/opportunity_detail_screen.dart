@@ -190,7 +190,7 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                       Text('About the role', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
                       Padding(
                         padding: const EdgeInsets.only(top: AppSpacing.md),
-                        child: Text(noOrphan(o.about), style: AppTextStyles.body.copyWith(color: AppColors.gray500, height: 21 / 14)),
+                        child: Text(noOrphan(o.about), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12, height: 18 / 12)),
                       ),
                       Padding(
                         padding: const EdgeInsets.only(top: AppSpacing.xl),
@@ -212,7 +212,7 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                                           child: const Icon(Ionicons.checkmark, size: 13, color: AppColors.blue),
                                         ),
                                         const SizedBox(width: AppSpacing.md),
-                                        Expanded(child: Text(r, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14))),
+                                        Expanded(child: Text(r, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 12))),
                                       ],
                                     ),
                                   ))
@@ -232,7 +232,7 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                             children: [
                               const Icon(Ionicons.briefcase_outline, size: 18, color: AppColors.blue),
                               const SizedBox(width: AppSpacing.sm),
-                              Text('${o.workMode} • ${o.location}', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium)),
+                              Text('${o.workMode} • ${o.location}', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.medium)),
                             ],
                           ),
                         ),
@@ -332,7 +332,7 @@ class _MetaRow extends StatelessWidget {
         children: [
           Icon(icon, size: 16, color: AppColors.blue),
           const SizedBox(width: AppSpacing.sm),
-          Text(label, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium)),
+          Text(label, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.medium)),
         ],
       ),
     );

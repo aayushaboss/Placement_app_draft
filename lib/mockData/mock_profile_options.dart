@@ -607,29 +607,6 @@ const mockLanguages = [
   'Sindhi',
 ];
 
-/// App display-language options — a separate, deliberately smaller list
-/// than [mockLanguages] above. That list is themed as "languages a person
-/// knows" (for the resume) and includes classical/rare entries (Sanskrit,
-/// Kashmiri, Maithili, Konkani, Sindhi) no real app UI would ever ship as a
-/// display language; this one drops those. Kept as its own constant rather
-/// than reusing mockLanguages so the two stay editable independently. Same
-/// India-only scope as mockLanguages — no foreign languages here either.
-const mockAppDisplayLanguages = [
-  'English',
-  'Hindi',
-  'Gujarati',
-  'Bengali',
-  'Marathi',
-  'Telugu',
-  'Tamil',
-  'Urdu',
-  'Kannada',
-  'Odia',
-  'Malayalam',
-  'Punjabi',
-  'Assamese',
-];
-
 const mockFieldsOfStudy = [
   'Computer Science',
   'Information Technology',

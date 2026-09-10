@@ -46,14 +46,6 @@ class User {
   /// Google or email (neither hands back a real phone number). See
   /// AppState._makeNewUser and MicroProfileScreen's `_needsPhone`.
   final String? phone;
-
-  /// App display-language preference — unrelated to `languages` below
-  /// (which is what the student themself knows, for their resume). Set
-  /// before this User even exists (see AppState.setAppLanguage /
-  /// app_language_prefs_key.dart) and mirrored here once an account is
-  /// created, so it round-trips through the normal profile save/load path
-  /// like every other field.
-  final String? appLanguage;
   final Segment? segment;
   final String? currentClass;
   final String? board;
@@ -115,7 +107,6 @@ class User {
     this.name,
     this.city,
     this.phone,
-    this.appLanguage,
     this.segment,
     this.currentClass,
     this.board,
@@ -149,7 +140,6 @@ class User {
     String? name,
     String? city,
     String? phone,
-    String? appLanguage,
     Segment? segment,
     String? currentClass,
     String? board,
@@ -182,7 +172,6 @@ class User {
       name: name ?? this.name,
       city: city ?? this.city,
       phone: phone ?? this.phone,
-      appLanguage: appLanguage ?? this.appLanguage,
       segment: segment ?? this.segment,
       currentClass: currentClass ?? this.currentClass,
       board: board ?? this.board,
@@ -217,7 +206,6 @@ class User {
         'name': name,
         'city': city,
         'phone': phone,
-        'appLanguage': appLanguage,
         'segment': segmentToString(segment),
         'currentClass': currentClass,
         'board': board,
@@ -251,7 +239,6 @@ class User {
         name: json['name'] as String?,
         city: json['city'] as String?,
         phone: json['phone'] as String?,
-        appLanguage: json['appLanguage'] as String?,
         segment: segmentFromString(json['segment'] as String?),
         currentClass: json['currentClass'] as String?,
         board: json['board'] as String?,
