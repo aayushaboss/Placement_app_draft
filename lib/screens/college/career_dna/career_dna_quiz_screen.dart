@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../mockData/career_dna/career_dna_registry.dart';
 import '../../../models/career_dna.dart';
@@ -51,11 +53,14 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
     return (_index + answered) / _total;
   }
 
+  String get _progressKey => 'career_dna_l${widget.level}_progress';
+
   @override
   void initState() {
     super.initState();
     _questions = careerDnaQuestionsForLevel(widget.level);
     _pageController = PageController();
+    _restoreProgress();
   }
 
   @override
@@ -65,6 +70,50 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
     super.dispose();
   }
 
+  // Answers are held only in memory during the quiz, so a browser refresh
+  // (or an accidental tab close) mid-way through an 18-25 minute level used
+  // to wipe everything. Now every answer is mirrored to SharedPreferences
+  // and restored on re-entry; cleared on submit and on a confirmed quit.
+  Future<void> _restoreProgress() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_progressKey);
+      if (raw == null || !mounted) return;
+      final validIds = _questions.map((q) => q.id).toSet();
+      final saved = (jsonDecode(raw) as Map).cast<String, String>()..removeWhere((k, _) => !validIds.contains(k));
+      if (saved.isEmpty) return;
+      final resumeIndex = saved.length.clamp(0, _total - 1);
+      setState(() {
+        _answers.addAll(saved);
+        _index = resumeIndex;
+      });
+      void jump() {
+        if (mounted && _pageController.hasClients) _pageController.jumpToPage(resumeIndex);
+      }
+      if (_pageController.hasClients) {
+        jump();
+      } else {
+        WidgetsBinding.instance.addPostFrameCallback((_) => jump());
+      }
+    } catch (_) {
+      // Corrupt / incompatible saved progress — just start fresh.
+    }
+  }
+
+  Future<void> _saveProgress() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_progressKey, jsonEncode(_answers));
+    } catch (_) {}
+  }
+
+  Future<void> _clearProgress() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_progressKey);
+    } catch (_) {}
+  }
+
   Future<void> _submit() async {
     setState(() => _calculating = true);
     final appState = context.read<AppState>();
@@ -72,10 +121,16 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
       final current = appState.user?.careerDnaOrEmpty ?? const CareerDnaProfile();
       final updated = computeAndApplyCareerDnaLevel(widget.level, _answers, current);
       await appState.updateProfile((u) => u.copyWith(careerDna: updated));
+      await _clearProgress();
       if (!mounted) return;
       context.go('/college/career-dna/level/${widget.level}/complete');
     } catch (_) {
-      if (mounted) setState(() => _calculating = false);
+      if (mounted) {
+        setState(() => _calculating = false);
+        ScaffoldMessenger.of(context)
+          ..hideCurrentSnackBar()
+          ..showSnackBar(const SnackBar(content: Text("Couldn't save your results — try that last answer again.")));
+      }
     }
   }
 
@@ -113,6 +168,7 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
   /// the level — per direct feedback, quitting should always feel like a
   /// full exit.
   void _exitToCareerQuiz() {
+    _clearProgress();
     if (mounted) context.go('/tabs/career-dna');
   }
 
@@ -156,6 +212,7 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
     HapticFeedback.lightImpact();
     final questionId = _questions[_index].id;
     setState(() => _answers[questionId] = optionId);
+    _saveProgress();
 
     _advanceTimer = Timer(const Duration(milliseconds: 220), () async {
       _advanceTimer = null;

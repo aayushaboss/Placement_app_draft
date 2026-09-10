@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,11 @@ import 'state/app_state.dart';
 import 'theme/app_theme.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Portrait only — this is a phone-shaped experience and landscape adds
+  // nothing. Covers native Android/iOS; on web it's a no-op (web/index.html
+  // and web/manifest.json handle the browser + installed-PWA cases).
+  SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp, DeviceOrientation.portraitDown]);
   runApp(const AerostarEdgeApp());
 }
 

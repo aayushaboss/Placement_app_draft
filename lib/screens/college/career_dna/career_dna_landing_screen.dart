@@ -35,6 +35,13 @@ class CareerDnaLandingScreen extends StatefulWidget {
 
 class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
   final _scrollController = ScrollController();
+  // Attached to whichever node is "current" (see build()) so the level a
+  // student is actually here for lands above the fold on open, instead of
+  // always starting at Level 1 and making them scroll past every already-
+  // completed level first — most noticeable the deeper into the path
+  // someone is (e.g. arriving at Level 5).
+  final _currentNodeKey = GlobalKey();
+  bool _didAutoScrollToCurrent = false;
 
   @override
   void initState() {
@@ -45,6 +52,15 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
         _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
       }
     });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrentLevel());
+  }
+
+  void _scrollToCurrentLevel() {
+    if (_didAutoScrollToCurrent || !mounted) return;
+    final target = _currentNodeKey.currentContext;
+    if (target == null) return; // e.g. all 5 levels complete — no single "current" node to jump to
+    _didAutoScrollToCurrent = true;
+    Scrollable.ensureVisible(target, alignment: 0.12, duration: const Duration(milliseconds: 400), curve: Curves.easeOutCubic);
   }
 
   @override
@@ -119,16 +135,21 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
     return Scaffold(
       backgroundColor: AppColors.white,
       body: ResponsiveBody(
-        child: ListView(
-          controller: _scrollController,
-          padding: EdgeInsets.zero,
+        child: Column(
           children: [
+            // The blue header is a fixed sibling above the scroll area (not
+            // the first item inside the ListView) so it stays pinned while
+            // the level path scrolls under it — per direct feedback that it
+            // "will be sticky scroll types". Its rounded bottom corners +
+            // card shadow keep it reading as a distinct banner over the
+            // scrolling content beneath.
             Container(
               width: double.infinity,
               padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
               decoration: const BoxDecoration(
                 color: AppColors.blue,
                 borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
+                boxShadow: AppShadows.card,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -162,15 +183,17 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                 ],
               ),
             ),
-            // Generous vertical rhythm between nodes (xxxl, not the old
-            // list's tight md gaps) is what makes this read as "spacious"
-            // rather than a dense list — the zigzag alignment does the rest.
-            Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxxl, AppSpacing.xl, 0),
-              child: Column(
+            Expanded(
+              child: ListView(
+                controller: _scrollController,
+                // Generous vertical rhythm between nodes (xxxl, not the old
+                // list's tight md gaps) is what makes this read as "spacious"
+                // rather than a dense list — the zigzag alignment does the rest.
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxxl, AppSpacing.xl, AppSpacing.xl),
                 children: [
                   for (final meta in careerDnaLevelMeta)
                     Padding(
+                      key: currentMeta?.level == meta.level ? _currentNodeKey : null,
                       padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
                       child: _PathNode(
                         meta: meta,
@@ -187,33 +210,30 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                       ),
                     ),
                   if (allComplete)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: AppSpacing.xl),
-                      child: GestureDetector(
-                        onTap: () => context.push('/college/career-dna/final-report'),
-                        child: Container(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
-                          child: Row(
-                            children: [
-                              const Icon(Ionicons.star, size: 22, color: AppColors.yellow),
-                              const SizedBox(width: AppSpacing.md),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text('See your full results', style: AppTextStyles.bodyLg.copyWith(color: AppColors.white, fontWeight: AppFontWeight.semibold)),
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 2),
-                                      child: Text('Every level, combined into one result.', style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70)),
-                                    ),
-                                  ],
-                                ),
+                    GestureDetector(
+                      onTap: () => context.push('/college/career-dna/final-report'),
+                      child: Container(
+                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
+                        child: Row(
+                          children: [
+                            const Icon(Ionicons.star, size: 22, color: AppColors.yellow),
+                            const SizedBox(width: AppSpacing.md),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text('See your full results', style: AppTextStyles.bodyLg.copyWith(color: AppColors.white, fontWeight: AppFontWeight.semibold)),
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: 2),
+                                    child: Text('Every level, combined into one result.', style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70)),
+                                  ),
+                                ],
                               ),
-                              const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.whiteA70),
-                            ],
-                          ),
+                            ),
+                            const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.whiteA70),
+                          ],
                         ),
                       ),
                     ),

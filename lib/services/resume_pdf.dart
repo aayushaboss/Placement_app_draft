@@ -147,24 +147,29 @@ pw.Widget _educationEntry(ResumeEducation e, pw.Font bold, pw.Font regular) => p
       ),
     );
 
-// No image embedding here — consistent with every other section in this
-// PDF, which is text-only; a certificate image (if the user attached one)
-// is shown on-screen in the resume summary but not printed. The link, if
-// present, appears as a plain text line — pdf package Link widgets aren't
-// used elsewhere in this document, so this stays a plain string for now.
-pw.Widget _certificationEntry(ResumeCertification c, pw.Font bold, pw.Font regular) => pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 8),
-      child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
-        children: [
-          pw.Text(c.name.isEmpty ? 'Certification' : c.name, style: pw.TextStyle(font: bold, fontSize: 11, color: _ink)),
-          pw.Text(
-            [c.duration, if ((c.link ?? '').isNotEmpty) c.link!].where((s) => s.isNotEmpty).join(' · '),
-            style: pw.TextStyle(font: regular, fontSize: 10, color: _gray),
-          ),
-        ],
-      ),
-    );
+// The certificate image itself isn't embedded — it's stored as a
+// browser blob: URL (from image_picker on web) that doesn't survive a
+// page reload, so there's nothing reliable to decode here. Instead the
+// PDF now *acknowledges* an attached certificate on its own line rather
+// than silently dropping every trace of it — a reader can then ask for
+// proof. The link, if present, appears as a plain text line.
+pw.Widget _certificationEntry(ResumeCertification c, pw.Font bold, pw.Font regular) {
+  final meta = [
+    c.duration,
+    if ((c.link ?? '').isNotEmpty) c.link!,
+    if ((c.imagePath ?? '').isNotEmpty) 'Certificate attached',
+  ].where((s) => s.isNotEmpty).join(' · ');
+  return pw.Padding(
+    padding: const pw.EdgeInsets.only(bottom: 8),
+    child: pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Text(c.name.isEmpty ? 'Certification' : c.name, style: pw.TextStyle(font: bold, fontSize: 11, color: _ink)),
+        if (meta.isNotEmpty) pw.Text(meta, style: pw.TextStyle(font: regular, fontSize: 10, color: _gray)),
+      ],
+    ),
+  );
+}
 
 pw.Widget _projectEntry(ResumeProject p, pw.Font bold, pw.Font regular) => pw.Padding(
       padding: const pw.EdgeInsets.only(bottom: 8),

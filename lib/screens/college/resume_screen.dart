@@ -64,6 +64,24 @@ class _ResumeScreenState extends State<ResumeScreen> {
   late final bool _hadSummary = _showSummary;
 
   @override
+  void initState() {
+    super.initState();
+    // Hydrate the editable review-stage state from the existing resume so
+    // that re-uploading a PDF from Summary mode actually triggers the
+    // "Replace your current edits?" confirm — without this, _skills /
+    // _education / _projects start empty here even for a user with a rich
+    // quiz-built resume, and _analyze() silently overwrites it all with the
+    // mock fixture.
+    final resume = context.read<AppState>().user?.resume;
+    if (resume != null) {
+      _skills = List.of(resume.skills);
+      _education = List.of(resume.education);
+      _projects = List.of(resume.projects);
+      _nameController.text = resume.name;
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     _skillInputController.dispose();
@@ -448,7 +466,12 @@ class _ResumeScreenState extends State<ResumeScreen> {
     // experienceLevel when the user explicitly answers "no experience"
     // (not left blank/skipped), so that counts as done too.
     final sections = [
-      (title: 'Basic info', icon: Ionicons.person_outline, done: resume != null, step: 0),
+      // Needs a real name, not just "the resume object exists" — filling
+      // only Intro + Languages autosaves a ParsedResume, and `done:
+      // resume != null` then showed "Basic info ✓" while `hasResume` (which
+      // the apply gate checks) was still false because there's no
+      // skills/education/projects yet.
+      (title: 'Basic info', icon: Ionicons.person_outline, done: resume?.name.trim().isNotEmpty ?? false, step: 0),
       (title: 'Education', icon: Ionicons.school_outline, done: resume?.education.isNotEmpty ?? false, step: 1),
       (
         title: 'Experience',

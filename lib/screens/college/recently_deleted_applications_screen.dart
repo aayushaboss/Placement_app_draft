@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
+import 'package:provider/provider.dart';
 
 import '../../mockData/mock_applications.dart';
 import '../../models/application.dart';
+import '../../state/app_state.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -39,6 +41,11 @@ class _RecentlyDeletedApplicationsScreenState extends State<RecentlyDeletedAppli
   void _restore(Application a) {
     restoreApplication(a.id);
     _load();
+    // Kept-alive tabs (Home's Applied badges, the Applications tab) re-read
+    // from listApplications() on a dataVersion bump — without this a
+    // restored application's job stays showing "Apply" on a backgrounded
+    // feed.
+    context.read<AppState>().bumpDataVersion();
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text('Restored ${a.opportunity.title} — check Applications')));
@@ -70,6 +77,7 @@ class _RecentlyDeletedApplicationsScreenState extends State<RecentlyDeletedAppli
     if (confirmed == true && mounted) {
       permanentlyDelete(a.id);
       _load();
+      context.read<AppState>().bumpDataVersion();
     }
   }
 
@@ -194,7 +202,7 @@ class _DeletedApplicationCard extends StatelessWidget {
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: PillButton(label: 'Delete forever', variant: PillVariant.ghost, icon: Ionicons.trash_outline, compact: true, onPressed: onDeleteForever),
+                  child: PillButton(label: 'Delete', variant: PillVariant.ghost, icon: Ionicons.trash_outline, compact: true, onPressed: onDeleteForever),
                 ),
               ],
             ),

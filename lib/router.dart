@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import 'models/career_dna.dart';
 import 'nav.dart';
 import 'screens/dev/style_guide_screen.dart';
 import 'screens/auth/login_screen.dart';
@@ -142,6 +143,25 @@ GoRouter buildRouter(AppState appState, GlobalKey<ScaffoldMessengerState> scaffo
       if (user != null && !isAuthEntry) {
         final expected = routeForUser(user);
         if (expected != '/tabs' && expected != path) return expected;
+      }
+
+      // Career Quiz deep-link guard: levels unlock sequentially, so
+      // pasting /college/career-dna/level/5/quiz with L1-4 unfinished
+      // otherwise loads real L5 questions and — on submit — persists a
+      // garbage result and marks L5 "complete" while the earlier levels
+      // aren't. Also bounces an out-of-range level number (the screens'
+      // own `firstWhere` on the meta list would throw a StateError).
+      final careerLevel = RegExp(r'^/college/career-dna/level/(\d+)/(intro|quiz|complete)$').firstMatch(path);
+      if (careerLevel != null) {
+        final level = int.tryParse(careerLevel.group(1)!);
+        final action = careerLevel.group(2);
+        if (user == null || level == null || level < 1 || level > 5) return '/tabs/career-dna';
+        if ((action == 'intro' || action == 'quiz') && !user.isCareerDnaLevelUnlocked(level)) {
+          return '/tabs/career-dna';
+        }
+        if (action == 'complete' && !user.careerDnaOrEmpty.isLevelComplete(level)) {
+          return '/tabs/career-dna';
+        }
       }
 
       return null;

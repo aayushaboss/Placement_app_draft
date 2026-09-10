@@ -97,17 +97,15 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     // goal without needing separate reactive plumbing.
     _type = _typeForGoal(user?.goal);
     final prefs = user?.preferences;
-    final appliedIds = listApplications().map((a) => a.opportunityId).toSet();
-    // Already-applied postings belong on the Applications tab, not the
-    // discovery feed — showing them here (with seed demo applications
-    // attached from before the user even signed up) reads as "I already
-    // applied to this?" confusion on a feed meant for finding something new.
+    // Already-applied postings stay in the feed (shown with a disabled
+    // "Applied ✓" button, per direct feedback) rather than being filtered
+    // out — vanishing on apply read as "did that work?".
     final results = filterOpportunities(
       type: _type == 'All' ? null : _type,
       workMode: prefs?.workMode,
       employmentType: prefs?.employmentType,
       locations: prefs?.cities,
-    ).where((o) => !appliedIds.contains(o.id)).toList();
+    ).toList();
     // Most-relevant-first, matching the user's selected roles/resume —
     // ties keep the original (curated) order via a stable sort.
     results.sort(
@@ -259,6 +257,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
       deadlineLabel: o.deadlineLabel,
       deadlineUrgent: o.deadlineIsUrgent,
       saved: appState.isOpportunitySaved(o.id),
+      applied: isOpportunityApplied(o.id),
       onToggleSave: () => appState.toggleSavedOpportunity(o.id),
       onTap: () => context.push('/opportunity/${o.id}'),
       onApply: () => startApplyFlow(context, o, onApplied: () => setState(() {})),
@@ -483,7 +482,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                             // it, a wrapped title could strand a single
                             // word alone on its own line.
                             AutoCarousel(
-                              height: 124,
+                              height: 132,
                               cards: [
                                 GestureDetector(
                                   onTap: () => context.push('/booking?kind=placement'),
@@ -524,17 +523,17 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              // Leads with the recruiter-visibility
-                                              // hook — the core reason to take the
-                                              // test — rather than the test's own
-                                              // name, per direct feedback that this
-                                              // should be the first thing a student
-                                              // sees, not a footnote under the name.
-                                              Text(noOrphan('Get noticed by recruiters'), style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
+                                              // Leads with the concrete benefit —
+                                              // recruiters getting to see the
+                                              // student's strengths — since that's
+                                              // the actual reason to take the test,
+                                              // per direct feedback that the card's
+                                              // job-to-be-done wasn't landing.
+                                              Text(noOrphan('Let recruiters see your strengths'), style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
                                               Padding(
                                                 padding: const EdgeInsets.only(top: 4),
                                                 child: Text(
-                                                  noOrphan('Recruiters see your Big Five (OCEAN) results when hiring — take the free test.'),
+                                                  noOrphan('Take the free 10-minute test.'),
                                                   style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 13),
                                                 ),
                                               ),

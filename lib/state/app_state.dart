@@ -4,6 +4,7 @@ import 'dart:html' as html show window;
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../mockData/mock_applications.dart' show demoShowcaseUserId, setApplicationsUser;
 import '../models/career_dna.dart';
 import '../models/user.dart';
 import '../utils/app_language_prefs_key.dart';
@@ -65,7 +66,7 @@ class AppState extends ChangeNotifier {
     if (_devAlwaysStartSignedOut) {
       await prefs.remove(_tokenKey);
       await prefs.remove(_demoUserKey);
-      _user = null;
+      _setUser(null);
       _loading = false;
       notifyListeners();
       return;
@@ -73,7 +74,7 @@ class AppState extends ChangeNotifier {
 
     final token = prefs.getString(_tokenKey);
     if (token == null || token.isEmpty) {
-      _user = null;
+      _setUser(null);
       _loading = false;
       notifyListeners();
       _listenForCrossTabChanges();
@@ -89,7 +90,16 @@ class AppState extends ChangeNotifier {
     // Google-namespaced key too here is what keeps a lost Google session
     // recoverable, without reopening the OTP-side collision.
     final saved = await _loadSessionUser(prefs) ?? await _getSavedUser(prefs, identifier) ?? await _getSavedUser(prefs, 'google:$identifier');
-    _user = saved ?? _makeNewUser(identifier);
+    if (saved == null) {
+      // A token with no recoverable profile anywhere = a stale/tampered
+      // token. Clear it and start signed out rather than fabricating a
+      // blank user (which used to drop straight into onboarding with a
+      // half-real identity).
+      await prefs.remove(_tokenKey);
+      _setUser(null);
+    } else {
+      _setUser(saved);
+    }
     _loading = false;
     notifyListeners();
     _listenForCrossTabChanges();
@@ -180,6 +190,15 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_viewedStoriesKey, _viewedStoryIds);
+  }
+
+  /// The one place `_user` is assigned — keeps the applications store
+  /// scoped to whoever's signed in (so one account never sees another's
+  /// applications, and a fresh signup starts with an empty tab). Callers
+  /// still `notifyListeners()` themselves.
+  void _setUser(User? u) {
+    _user = u;
+    setApplicationsUser(u?.id);
   }
 
   User _makeNewUser(String identifier) => User(
@@ -330,32 +349,40 @@ class AppState extends ChangeNotifier {
 
     await prefs.setString(_tokenKey, 'demo:$identifier');
     await _persistUser(next);
-    _user = next;
+    _setUser(next);
     notifyListeners();
     return next;
   }
 
   /// Prototype stand-in for "Continue with Google" — a real integration
-  /// would hand back a verified name/email/(sometimes) city instantly, no
-  /// OTP step. Segment, college/class, and everything else Google wouldn't
-  /// actually know still gets asked on the profile screen right after.
+  /// would hand back a verified name/email instantly, no OTP step.
+  /// Segment, college/class, and everything else Google wouldn't actually
+  /// know still gets asked on the profile screen right after.
   Future<User> mockGoogleSignIn() async {
     // TODO: replace with real Google OAuth
     await Future.delayed(const Duration(milliseconds: 500));
-    final identifier = 'aayusha.pagare@gmail.com';
-    final next = User(
-      id: 'demo-google-${DateTime.now().millisecondsSinceEpoch}',
-      identifier: identifier,
-      signInMethod: 'google',
-      name: 'Aayusha Pagare',
-      city: 'Pune',
-      appLanguage: _appLanguage,
-      onboardingComplete: false,
-    );
+    const identifier = 'aayusha.pagare@gmail.com';
     final prefs = await SharedPreferences.getInstance();
+    // Resume an already-onboarded Google account instead of rebuilding a
+    // blank one — logging out and tapping "Continue with Google" again
+    // used to drop the user back into onboarding AND overwrite their saved
+    // profile. (Round AC fixed only the OTP returning-login path.)
+    final saved = await _getSavedUser(prefs, 'google:$identifier');
+    final next = saved ??
+        User(
+          // Stable id (not a per-login timestamp) so this account's
+          // applications survive a re-login, and so it can own the seed
+          // "showcase" applications — see demoShowcaseUserId.
+          id: demoShowcaseUserId,
+          identifier: identifier,
+          signInMethod: 'google',
+          name: 'Aayusha Pagare',
+          appLanguage: _appLanguage,
+          onboardingComplete: false,
+        );
     await prefs.setString(_tokenKey, 'demo:$identifier');
     await _persistUser(next);
-    _user = next;
+    _setUser(next);
     notifyListeners();
     return next;
   }
@@ -370,7 +397,7 @@ class AppState extends ChangeNotifier {
     await prefs.setString(appLanguagePrefsKey, value);
     if (_user != null) {
       final updated = _user!.copyWith(appLanguage: value);
-      _user = updated;
+      _setUser(updated);
       await _persistUser(updated);
     }
     notifyListeners();
@@ -394,8 +421,16 @@ class AppState extends ChangeNotifier {
 
   Future<User> updateProfile(User Function(User current) patch) async {
     // TODO: replace with real API call
-    final updated = patch(_user ?? _makeNewUser('guest'));
-    _user = updated;
+    final current = _user;
+    if (current == null) {
+      // Every real caller runs with a signed-in user (onboarding, profile
+      // edit, resume build, career-quiz submit/unlock — all router-gated).
+      // Fabricating a tokenless "demo-guest" here just silently corrupts
+      // state; fail loudly instead.
+      throw StateError('updateProfile called with no signed-in user');
+    }
+    final updated = patch(current);
+    _setUser(updated);
     await _persistUser(updated);
     notifyListeners();
     return updated;
@@ -409,14 +444,14 @@ class AppState extends ChangeNotifier {
       // actually had a user in memory, so a refresh before first sign-in
       // isn't a no-op churn of listeners.
       if (_user != null) {
-        _user = null;
+        _setUser(null);
         notifyListeners();
       }
       return;
     }
     final saved = await _loadSessionUser(prefs);
     if (saved != null) {
-      _user = saved;
+      _setUser(saved);
       notifyListeners();
     }
   }
@@ -432,7 +467,17 @@ class AppState extends ChangeNotifier {
     // session/account permanently hides it for every subsequent sign-in on
     // this browser, including a fresh account going through onboarding.
     await prefs.remove(fomoDismissedPrefsKey);
-    _user = null;
+    // Per-account state that would otherwise leak into whoever signs in
+    // next on this browser: saved jobs, read-notification state, viewed
+    // stories, and the in-memory "you were applying to X" reminder.
+    _savedOpportunityIds = [];
+    _viewedStoryIds = [];
+    _readNotificationIds = [];
+    _pendingApplyOpportunityId = null;
+    await prefs.remove(_savedOpportunitiesKey);
+    await prefs.remove(_viewedStoriesKey);
+    await prefs.remove(_readNotificationsKey);
+    _setUser(null);
     notifyListeners();
   }
 }

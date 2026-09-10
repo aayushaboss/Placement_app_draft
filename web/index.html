@@ -105,6 +105,30 @@
       bottom: 0;
       right: 0;
     }
+
+    /* Portrait-only on phones. SystemChrome.setPreferredOrientations has no
+       effect in a browser tab, so this overlay is the actual mechanism: it
+       covers the whole app whenever a short viewport (a phone) is held in
+       landscape. The max-height gate keeps desktop/tablet landscape — which
+       is tall enough — completely unaffected. */
+    #rotate-notice {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100000;
+      background-color: #0A2FFF;
+      color: #fff;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 28px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 17px;
+      line-height: 1.5;
+    }
+    @media screen and (orientation: landscape) and (max-height: 500px) {
+      #rotate-notice { display: flex; }
+    }
   </style>
   <script id="splash-screen-script">
     function removeSplashFromWeb() {
@@ -130,6 +154,7 @@
   </script>
 </head>
 <body>
+  <div id="rotate-notice">Rotate your device to portrait to use Aerostar&nbsp;Edge.</div>
   <div id="splash-backdrop"></div>
   <picture id="splash">
       <source srcset="splash/img/light-1x.png 1x, splash/img/light-2x.png 2x, splash/img/light-3x.png 3x, splash/img/light-4x.png 4x" media="(prefers-color-scheme: light)">

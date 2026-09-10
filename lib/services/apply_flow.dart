@@ -29,8 +29,7 @@ Future<void> startApplyFlow(
   Opportunity opportunity, {
   VoidCallback? onApplied,
 }) async {
-  final alreadyApplied = listApplications().any((a) => a.opportunityId == opportunity.id);
-  if (alreadyApplied) {
+  if (isOpportunityApplied(opportunity.id)) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("You've already applied — check Applications for updates.")),
     );
@@ -75,6 +74,26 @@ void continueApplyAfterResume(BuildContext context, String opportunityId, {VoidC
     context.go('/tabs');
     return;
   }
+  // This path used to skip the already-applied and deadline guards that
+  // startApplyFlow enforces — so finishing a resume for a job you'd
+  // already applied to (or whose deadline lapsed while you were building
+  // it) would drop you straight into the screening sheet again.
+  final existing = listApplications().where((a) => a.opportunityId == opportunityId);
+  if (existing.isNotEmpty) {
+    context.go('/application/${existing.first.id}');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("You've already applied — here's your application.")),
+    );
+    return;
+  }
+  final daysLeft = opportunity.daysUntilDeadline;
+  if (daysLeft != null && daysLeft < 0) {
+    context.go('/tabs');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("This opportunity's deadline has passed.")),
+    );
+    return;
+  }
   _showScreeningSheet(context, opportunity, onApplied);
 }
 
@@ -91,10 +110,19 @@ void _showApplyGateSheet(BuildContext context, User? user, Opportunity opportuni
   showModalBottomSheet(
     context: context,
     backgroundColor: AppColors.white,
+    // Scrollable + keyboard-aware — a 3+ item missing list with the
+    // keyboard up used to overflow this fixed-height sheet.
+    isScrollControlled: true,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
     builder: (sheetContext) => Padding(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxl),
-      child: Column(
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.xl,
+        AppSpacing.lg,
+        AppSpacing.xl,
+        AppSpacing.xxxl + MediaQuery.of(sheetContext).viewInsets.bottom,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -192,6 +220,7 @@ void _showApplyGateSheet(BuildContext context, User? user, Opportunity opportuni
             ),
           ),
         ],
+        ),
       ),
     ),
   );
@@ -317,30 +346,50 @@ class _ScreeningSheetState extends State<_ScreeningSheet> {
       if (value.isNotEmpty) answers[widget.opportunity.screeningQuestions[i]] = value;
     }
     final note = _noteController.text.trim();
-    createApplication(
+    final result = createApplication(
       widget.opportunity.id,
       note: note.isEmpty ? null : note,
       screeningAnswers: answers.isEmpty ? null : answers,
     );
-    // Clear a pending "you were applying to X" reminder once that exact
-    // apply actually goes through — read before any context.mounted check
-    // below, for the same reason onApplied fires unconditionally.
+
+    if (result == null) {
+      // The opportunity vanished between the gate and here — nothing was
+      // created. Don't fire onApplied or show the "submitted!" sheet.
+      if (!mounted) return;
+      setState(() => _sending = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Couldn't submit — this opportunity is no longer available.")),
+      );
+      return;
+    }
+
     final appState = context.read<AppState>();
+    // Clear a pending "you were applying to X" reminder once that exact
+    // apply goes through — read before any context.mounted check below.
     if (appState.pendingApplyOpportunityId == widget.opportunity.id) {
       appState.setPendingApplyOpportunity(null);
     }
-    HapticFeedback.heavyImpact();
-    // Fire onApplied unconditionally, before any context-dependent step —
-    // the application record already exists at this point regardless of
-    // whether this widget is still mounted, so the caller's own state
-    // (e.g. a card's Applied badge) should update either way. Previously
-    // this was gated behind the same mounted check as the pop/success
-    // sheet below, so navigating away in the instant between tap and here
-    // left the record created but every bit of UI unaware of it.
+    // The single cross-screen signal: every context.watch<AppState>()
+    // screen rebuilds and every dataVersion-gated screen re-loads, so an
+    // applied job flips to "Applied ✓" (and shows on the Applications tab)
+    // everywhere at once, not just on the screen that triggered the apply.
+    appState.bumpDataVersion();
     widget.onApplied?.call();
+
     final parentContext = context;
     if (!parentContext.mounted) return;
     Navigator.of(parentContext).pop();
+
+    if (!result.isNew) {
+      // Dedupe hit (double-tap, or re-applying via the resume-gate path) —
+      // no new application, so skip the full celebration.
+      HapticFeedback.selectionClick();
+      ScaffoldMessenger.of(parentContext).showSnackBar(
+        const SnackBar(content: Text("You've already applied — check Applications.")),
+      );
+      return;
+    }
+    HapticFeedback.heavyImpact();
     _showSuccessSheet(parentContext);
   }
 

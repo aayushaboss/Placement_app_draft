@@ -99,16 +99,18 @@ class _SearchScreenState extends State<SearchScreen> {
   // params independently (used by the Home filter screen), this just wires
   // a search here to respect them too instead of ignoring them.
   void _runSearch() {
-    final appliedIds = listApplications().map((a) => a.opportunityId).toSet();
     final user = context.read<AppState>().user;
     final prefs = user?.preferences;
+    // Already-applied results stay in the list with a disabled "Applied ✓"
+    // button (the row re-renders from isOpportunityApplied on the next
+    // build, which the screen's context.watch<AppState>() triggers).
     final results = filterOpportunities(
       query: _controller.text,
       location: _locationController.text,
       workMode: prefs?.workMode,
       employmentType: prefs?.employmentType,
       locations: prefs?.cities,
-    ).where((o) => !appliedIds.contains(o.id)).toList();
+    ).toList();
     results.sort((a, b) => b.matchScoreFor(user).compareTo(a.matchScoreFor(user)));
     setState(() {
       _results = results;
@@ -314,6 +316,7 @@ class _SearchScreenState extends State<SearchScreen> {
       deadlineLabel: o.deadlineLabel,
       deadlineUrgent: o.deadlineIsUrgent,
       saved: appState.isOpportunitySaved(o.id),
+      applied: isOpportunityApplied(o.id),
       onToggleSave: () => appState.toggleSavedOpportunity(o.id),
       onTap: () {
         _saveRecentSearch(_controller.text);

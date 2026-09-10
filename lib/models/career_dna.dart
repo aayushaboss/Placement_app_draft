@@ -299,6 +299,24 @@ class CareerDnaProfile {
   int get completedLevelCount => [level1, level2, level3, level4, level5].where((l) => l != null).length;
   bool get allLevelsComplete => completedLevelCount == 5;
 
+  /// Whether that level's quiz has been finished (its result persisted).
+  bool isLevelComplete(int level) {
+    switch (level) {
+      case 1:
+        return level1 != null;
+      case 2:
+        return level2 != null;
+      case 3:
+        return level3 != null;
+      case 4:
+        return level4 != null;
+      case 5:
+        return level5 != null;
+      default:
+        return false;
+    }
+  }
+
   /// Whether that level's report/PDF can be downloaded right now — Level 1
   /// always (it's free), Levels 2-5 only once individually paid for.
   bool isLevelReportUnlocked(int level) => level == 1 || paidLevels.contains(level);

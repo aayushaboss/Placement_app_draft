@@ -92,15 +92,25 @@ class _SupportScreenState extends State<SupportScreen> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
                 children: [
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
-                    children: [
-                      AppChip(label: 'All', selected: _activeCategoryId == null, onPressed: () => _selectCategory(null)),
-                      ...mockFaqCategories.map(
-                        (c) => AppChip(label: c.label, selected: _activeCategoryId == c.id, onPressed: () => _selectCategory(c.id)),
-                      ),
-                    ],
+                  // One horizontally-scrolling row rather than a Wrap — the 5
+                  // category labels wrapped to ~3 rows on a phone. Same
+                  // ListView.separated(horizontal) shape the school home
+                  // screen's cluster chips already use.
+                  SizedBox(
+                    height: 40,
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      padding: EdgeInsets.zero,
+                      itemCount: mockFaqCategories.length + 1,
+                      separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.sm),
+                      itemBuilder: (context, i) {
+                        if (i == 0) {
+                          return AppChip(label: 'All', selected: _activeCategoryId == null, onPressed: () => _selectCategory(null));
+                        }
+                        final c = mockFaqCategories[i - 1];
+                        return AppChip(label: c.label, selected: _activeCategoryId == c.id, onPressed: () => _selectCategory(c.id));
+                      },
+                    ),
                   ),
                   const SizedBox(height: AppSpacing.xl),
                   // One shared card (radius + soft shadow) around every FAQ

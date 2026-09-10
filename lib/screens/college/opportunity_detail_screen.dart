@@ -52,7 +52,7 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
     }
   }
 
-  bool get _applied => _opportunity != null && listApplications().any((a) => a.opportunityId == _opportunity!.id);
+  bool get _applied => _opportunity != null && isOpportunityApplied(_opportunity!.id);
 
   void _apply() {
     final o = _opportunity;

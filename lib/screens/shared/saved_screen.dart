@@ -131,7 +131,7 @@ class _SavedScreenState extends State<SavedScreen> {
       deadlineLabel: o.deadlineLabel,
       deadlineUrgent: o.deadlineIsUrgent,
       saved: appState.isOpportunitySaved(o.id),
-      applied: listApplications().any((a) => a.opportunityId == o.id),
+      applied: isOpportunityApplied(o.id),
       onToggleSave: () => appState.toggleSavedOpportunity(o.id),
       onTap: () => context.push('/opportunity/${o.id}'),
       onApply: () => startApplyFlow(context, o, onApplied: () => setState(() {})),

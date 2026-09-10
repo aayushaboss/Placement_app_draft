@@ -92,6 +92,7 @@ class ApplicationsTrackerScreen extends StatefulWidget {
 
 class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
   List<Application> _apps = [];
+  int _lastSeenDataVersion = -1;
   final _scrollController = ScrollController();
 
   @override
@@ -163,6 +164,17 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Kept alive by StatefulShellRoute.indexedStack — without this, a job
+    // applied-to from another tab (or restored from Recently Deleted)
+    // wouldn't show here until a pull-to-refresh. Mirrors college_feed_screen.
+    final appState = context.watch<AppState>();
+    if (appState.dataVersion != _lastSeenDataVersion) {
+      _lastSeenDataVersion = appState.dataVersion;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
+
     // 2 columns at tablet width — same reasoning as opportunity_list_screen:
     // a plain wider single-column cap would leave a thin card stretched
     // down the middle instead of actually using the extra room.

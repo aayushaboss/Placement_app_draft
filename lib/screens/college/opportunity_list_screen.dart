@@ -42,15 +42,12 @@ class _OpportunityListScreenState extends State<OpportunityListScreen> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final user = appState.user;
-    final appliedIds = listApplications().map((a) => a.opportunityId).toSet();
 
-    // A fixed ID list is already the exact, curated set a notification
-    // promised — keep that order rather than re-ranking it by match score
-    // the way the generic category/profile feeds below are sorted.
+    // Already-applied openings stay in the list with a disabled "Applied ✓"
+    // button rather than being filtered out.
     final results = widget.ids != null
-        ? widget.ids!.map(getOpportunityById).whereType<Opportunity>().where((o) => !appliedIds.contains(o.id)).toList()
+        ? widget.ids!.map(getOpportunityById).whereType<Opportunity>().toList()
         : (filterOpportunities(categories: widget.category == null ? null : [widget.category!])
-            .where((o) => !appliedIds.contains(o.id))
             .toList()
           ..sort((a, b) => b.matchScoreFor(user).compareTo(a.matchScoreFor(user))));
 
@@ -113,6 +110,7 @@ class _OpportunityListScreenState extends State<OpportunityListScreen> {
                               deadlineLabel: o.deadlineLabel,
                               deadlineUrgent: o.deadlineIsUrgent,
                               saved: appState.isOpportunitySaved(o.id),
+                              applied: isOpportunityApplied(o.id),
                               onToggleSave: () => appState.toggleSavedOpportunity(o.id),
                               onTap: () => context.push('/opportunity/${o.id}'),
                               onApply: () => startApplyFlow(context, o, onApplied: () => setState(() {})),

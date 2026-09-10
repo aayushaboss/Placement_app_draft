@@ -6,6 +6,23 @@ import 'mock_opportunities.dart';
 
 DateTime _daysAgo(int days) => DateTime.now().subtract(Duration(days: days));
 
+/// The 4 seed applications (Interview / Offer / 2× Rejected) belong to this
+/// fixed showcase identity — the mock "Continue with Google" account, which
+/// is given the matching stable id `demo-showcase` in AppState. A genuine
+/// fresh phone/email signup gets a different id, so their Applications tab
+/// starts empty and only ever shows applications they actually submitted —
+/// no fabricated Offer/Interview, and no cross-account leakage of one
+/// user's applications (or their notes/screening answers via a deep link)
+/// into another's.
+const demoShowcaseUserId = 'demo-showcase';
+
+/// The user whose applications the list/lookup functions below return.
+/// Set by AppState whenever the signed-in user changes (bootstrap, OTP
+/// verify, Google sign-in, logout, cross-tab refresh). Null → no user →
+/// empty everywhere.
+String? _applicationsUserId;
+void setApplicationsUser(String? userId) => _applicationsUserId = userId;
+
 List<Application> _applications = _seedApplications();
 
 List<Application> _seedApplications() {
@@ -15,8 +32,8 @@ List<Application> _seedApplications() {
   if (interviewOpp != null) {
     apps.add(Application(
       id: 'app-seed-interview',
-      userId: 'demo',
-      opportunityId: interviewOpp.id,
+      userId: demoShowcaseUserId,
+      opportunityId:interviewOpp.id,
       opportunity: ApplicationOpportunitySummary(
         title: interviewOpp.title,
         company: interviewOpp.company,
@@ -61,8 +78,8 @@ List<Application> _seedApplications() {
   if (offerOpp != null) {
     apps.add(Application(
       id: 'app-seed-offer',
-      userId: 'demo',
-      opportunityId: offerOpp.id,
+      userId: demoShowcaseUserId,
+      opportunityId:offerOpp.id,
       opportunity: ApplicationOpportunitySummary(
         title: offerOpp.title,
         company: offerOpp.company,
@@ -101,8 +118,8 @@ List<Application> _seedApplications() {
   if (rejectedOpp != null) {
     apps.add(Application(
       id: 'app-seed-rejected',
-      userId: 'demo',
-      opportunityId: rejectedOpp.id,
+      userId: demoShowcaseUserId,
+      opportunityId:rejectedOpp.id,
       opportunity: ApplicationOpportunitySummary(
         title: rejectedOpp.title,
         company: rejectedOpp.company,
@@ -131,8 +148,8 @@ List<Application> _seedApplications() {
   if (secondRejectedOpp != null) {
     apps.add(Application(
       id: 'app-seed-rejected-2',
-      userId: 'demo',
-      opportunityId: secondRejectedOpp.id,
+      userId: demoShowcaseUserId,
+      opportunityId:secondRejectedOpp.id,
       opportunity: ApplicationOpportunitySummary(
         title: secondRejectedOpp.title,
         company: secondRejectedOpp.company,
@@ -164,6 +181,11 @@ List<Application> _seedApplications() {
   return apps;
 }
 
+/// Every list/lookup below is scoped to the current signed-in user (set by
+/// AppState via [setApplicationsUser]) — so one account never sees
+/// another's applications, and a fresh signup starts with an empty tab.
+bool _mine(Application a) => a.userId == _applicationsUserId;
+
 /// Excludes soft-deleted entries — see [removeApplication]/[deletedAt].
 /// Sorted once, centrally, so every caller sees the same order: an Offer
 /// is the one status worth surfacing above everything else regardless of
@@ -171,7 +193,7 @@ List<Application> _seedApplications() {
 /// Offers relative to each other) falls back to most-recently-applied
 /// first.
 List<Application> listApplications() {
-  final apps = _applications.where((a) => a.deletedAt == null).toList();
+  final apps = _applications.where((a) => _mine(a) && a.deletedAt == null).toList();
   apps.sort((a, b) {
     final aOffer = a.status == 'Offer' ? 0 : 1;
     final bOffer = b.status == 'Offer' ? 0 : 1;
@@ -186,7 +208,8 @@ List<Application> listApplications() {
 /// Apply/Applied state should use this instead of hand-rolling the same
 /// listApplications() lookup (several call sites used to, and drifted:
 /// some hardcoded `false` regardless of the real answer).
-bool isOpportunityApplied(String opportunityId) => _applications.any((a) => a.opportunityId == opportunityId && a.deletedAt == null);
+bool isOpportunityApplied(String opportunityId) =>
+    _applications.any((a) => _mine(a) && a.opportunityId == opportunityId && a.deletedAt == null);
 
 /// Soft delete — swiping an application away no longer removes it outright,
 /// it just marks when it was deleted. The entry never actually leaves
@@ -201,7 +224,7 @@ void removeApplication(String id) =>
 /// retention) once there's a real backend to run that on a schedule — no
 /// timer in this prototype, so deleted entries just persist for the session.
 List<Application> listRecentlyDeleted() {
-  final deleted = _applications.where((a) => a.deletedAt != null).toList();
+  final deleted = _applications.where((a) => _mine(a) && a.deletedAt != null).toList();
   deleted.sort((a, b) => b.deletedAt!.compareTo(a.deletedAt!));
   return deleted;
 }
@@ -215,12 +238,20 @@ void restoreApplication(String id) =>
 /// entry.
 void permanentlyDelete(String id) => _applications = _applications.where((a) => a.id != id).toList();
 
+/// Deep-link safe: a link to another user's application id (or a
+/// soft-deleted one) returns null rather than rendering someone else's
+/// application detail — note, screening answers and all.
 Application? getApplicationById(String id) {
-  final matches = _applications.where((a) => a.id == id);
+  final matches = _applications.where((a) => _mine(a) && a.id == id && a.deletedAt == null);
   return matches.isEmpty ? null : matches.first;
 }
 
-Application? createApplication(
+/// Returns `null` if the opportunity can't be resolved (nothing created);
+/// `(isNew: false)` if the current user already has a live application for
+/// it (a no-op — no duplicate ever created); `(isNew: true)` on a genuine
+/// new application. Callers use `isNew` to decide whether to show the full
+/// "submitted!" confirmation or just an "already applied" note.
+({Application application, bool isNew})? createApplication(
   String opportunityId, {
   String? note,
   Map<String, String>? screeningAnswers,
@@ -228,14 +259,14 @@ Application? createApplication(
   // Excludes soft-deleted matches — otherwise re-applying after deleting an
   // application for this opportunity would just hand back the still-hidden
   // deleted entry instead of creating a fresh, visible one.
-  final existing = _applications.where((a) => a.opportunityId == opportunityId && a.deletedAt == null);
-  if (existing.isNotEmpty) return existing.first;
+  final existing = _applications.where((a) => _mine(a) && a.opportunityId == opportunityId && a.deletedAt == null);
+  if (existing.isNotEmpty) return (application: existing.first, isNew: false);
   final opp = getOpportunityById(opportunityId);
   if (opp == null) return null;
   final now = DateTime.now();
   final application = Application(
-    id: 'app-${now.millisecondsSinceEpoch}',
-    userId: 'demo',
+    id: 'app-${now.microsecondsSinceEpoch}',
+    userId: _applicationsUserId ?? demoShowcaseUserId,
     opportunityId: opportunityId,
     opportunity: ApplicationOpportunitySummary(
       title: opp.title,
@@ -255,5 +286,5 @@ Application? createApplication(
     // an actual update to show.
   );
   _applications = [application, ..._applications];
-  return application;
+  return (application: application, isNew: true);
 }
