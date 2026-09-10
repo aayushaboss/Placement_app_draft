@@ -5,11 +5,10 @@ import '../theme/spacing.dart';
 import '../theme/text_styles.dart';
 
 /// Heading for a horizontal carousel row on the feeds — the section title in
-/// all-caps blue, 16px to match the Profile section-card titles. No fill:
-/// the blue colour alone (the only blue text on the feed) carries the
-/// "highlight", the way the existing `UPCOMING SESSION` kicker does, without
-/// a band on every heading making a multi-carousel feed feel busy. An
-/// optional count follows in grey.
+/// blue, 16px to match the Profile section-card titles. No fill: the blue
+/// colour alone (the only blue text on the feed) carries the "highlight",
+/// without a band on every heading making a multi-carousel feed feel busy.
+/// An optional count follows in grey.
 class CarouselSectionHeading extends StatelessWidget {
   final String title;
   final int? count;
@@ -26,14 +25,13 @@ class CarouselSectionHeading extends StatelessWidget {
         children: [
           Flexible(
             child: Text(
-              title.toUpperCase(),
+              title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: AppTextStyles.h3.copyWith(
                 color: AppColors.blue,
                 fontSize: 16,
                 fontWeight: AppFontWeight.semibold,
-                letterSpacing: 0.4,
               ),
             ),
           ),
