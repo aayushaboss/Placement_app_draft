@@ -261,7 +261,7 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
                           child: Text(
                             noOrphan('Your ${isPlacement ? 'placement session' : 'counseling session'} is confirmed.'),
                             textAlign: TextAlign.center,
-                            style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 15),
+                            style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 16),
                           ),
                         ),
                         Container(
@@ -314,7 +314,7 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
                                         Text(widget.venueName, textAlign: TextAlign.left, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.semibold)),
                                       Padding(
                                         padding: const EdgeInsets.only(top: 2),
-                                        child: Text(widget.venueAddress, textAlign: TextAlign.left, style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13, height: 1.4)),
+                                        child: Text(widget.venueAddress, textAlign: TextAlign.left, style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12, height: 1.4)),
                                       ),
                                     ],
                                   ),

@@ -57,7 +57,7 @@ void _showPrepSheet(BuildContext context, List<Course> courses, {required String
             padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
             child: Text(
               noOrphan(subtitle),
-              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5),
+              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12),
             ),
           ),
           ...courses.map((c) => PrepCourseCard(
@@ -362,7 +362,7 @@ class _SwipeHintBannerState extends State<_SwipeHintBanner> {
               const SizedBox(width: AppSpacing.sm),
               Text(
                 'Swipe a card left to delete it',
-                style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5, fontWeight: AppFontWeight.medium),
+                style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
               ),
             ],
           ),
@@ -429,10 +429,10 @@ class _ApplicationCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(a.opportunity.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                          Text(a.opportunity.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.medium)),
                           Padding(
                             padding: const EdgeInsets.only(top: 1),
-                            child: Text(a.opportunity.company, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5)),
+                            child: Text(a.opportunity.company, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                           ),
                         ],
                       ),

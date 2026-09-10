@@ -176,7 +176,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Text(
                     _mode == _LoginMode.phone ? 'Phone number' : 'Email address',
-                    style: AppTextStyles.label.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium),
+                    style: AppTextStyles.label.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium),
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.sm),
@@ -217,7 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
                           child: Text(
                             'or',
-                            style: AppTextStyles.label.copyWith(color: AppColors.gray400, fontSize: 13),
+                            style: AppTextStyles.label.copyWith(color: AppColors.gray400, fontSize: 12),
                           ),
                         ),
                         const Expanded(child: Divider(color: AppColors.border, height: 1)),
@@ -235,7 +235,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Text(
                       'Demo: any valid phone or email works — the code is ${AppState.demoOtpCode}',
                       textAlign: TextAlign.center,
-                      style: AppTextStyles.label.copyWith(color: AppColors.gray400, fontSize: 13),
+                      style: AppTextStyles.label.copyWith(color: AppColors.gray400, fontSize: 12),
                     ),
                   ),
                 ],

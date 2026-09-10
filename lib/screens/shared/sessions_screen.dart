@@ -294,7 +294,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(d != null ? '${d.day}' : '-', style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 20, fontWeight: AppFontWeight.medium)),
-                                        Text(d != null ? _monthShort[d.month - 1] : '', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 11, fontWeight: AppFontWeight.medium)),
+                                        Text(d != null ? _monthShort[d.month - 1] : '', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 12, fontWeight: AppFontWeight.medium)),
                                       ],
                                     ),
                                   ),
@@ -310,7 +310,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                                         ),
                                         Padding(
                                           padding: const EdgeInsets.only(top: 2),
-                                          child: Text('${_prettyDate(b.date)} • ${b.time}', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13)),
+                                          child: Text('${_prettyDate(b.date)} • ${b.time}', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                                         ),
                                         Padding(
                                           padding: const EdgeInsets.only(top: AppSpacing.sm),
@@ -367,7 +367,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                                             children: [
                                               const Icon(Ionicons.calendar_outline, size: 15, color: AppColors.blue),
                                               const SizedBox(width: AppSpacing.sm),
-                                              Text('Reschedule', style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                                              Text('Reschedule', style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
                                             ],
                                           ),
                                         ),
@@ -386,7 +386,7 @@ class _SessionsScreenState extends State<SessionsScreen> {
                                             children: [
                                               const Icon(Ionicons.close_circle_outline, size: 15, color: AppColors.error),
                                               const SizedBox(width: AppSpacing.sm),
-                                              Text('Cancel', style: AppTextStyles.label.copyWith(color: AppColors.error, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                                              Text('Cancel', style: AppTextStyles.label.copyWith(color: AppColors.error, fontSize: 12, fontWeight: AppFontWeight.medium)),
                                             ],
                                           ),
                                         ),

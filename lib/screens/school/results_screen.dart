@@ -123,7 +123,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                     children: [
                       Text(
                         'YOUR TOP MATCH',
-                        style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 13, fontWeight: AppFontWeight.medium, letterSpacing: 1.4),
+                        style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 12, fontWeight: AppFontWeight.medium, letterSpacing: 1.4),
                       ),
                       Padding(
                         padding: const EdgeInsets.only(top: AppSpacing.sm),
@@ -162,7 +162,7 @@ class _ResultsScreenState extends State<ResultsScreen> {
                         padding: const EdgeInsets.only(top: AppSpacing.md),
                         child: Text(
                           top.why,
-                          style: AppTextStyles.bodyLg.copyWith(color: AppColors.white, fontSize: 15, height: 22 / 15),
+                          style: AppTextStyles.bodyLg.copyWith(color: AppColors.white, fontSize: 16, height: 22 / 15),
                         ),
                       ),
                     ],
@@ -272,7 +272,7 @@ class _MatchCard extends StatelessWidget {
               ),
               const SizedBox(width: AppSpacing.md),
               Expanded(
-                child: Text(match.cluster, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 17, fontWeight: AppFontWeight.bold)),
+                child: Text(match.cluster, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.bold)),
               ),
               Text('${match.matchPercent}%', style: AppTextStyles.h2.copyWith(color: AppColors.blue, fontSize: 20, fontWeight: AppFontWeight.medium)),
             ],

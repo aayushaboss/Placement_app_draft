@@ -105,7 +105,7 @@ class OpportunityRow extends StatelessWidget {
                     // direct feedback that card titles read too large. ink +
                     // medium still outranks the gray/regular subtitle by
                     // weight and colour.
-                    style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 13),
+                    style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 12),
                   ),
                 ),
                 if (subtitle != null && subtitle!.isNotEmpty)
@@ -115,7 +115,7 @@ class OpportunityRow extends StatelessWidget {
                       subtitle!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13),
+                      style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
                     ),
                   ),
                 if (meta.where((m) => m.trim().isNotEmpty).isNotEmpty)
@@ -163,7 +163,7 @@ class OpportunityRow extends StatelessWidget {
                             children: [
                               Text(
                                 'View details',
-                                style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium),
+                                style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
                               ),
                               const SizedBox(width: 2),
                               const Icon(Ionicons.arrow_forward, size: 13, color: AppColors.blue),
@@ -210,7 +210,7 @@ class _MetaItem extends StatelessWidget {
         const SizedBox(width: AppSpacing.xs),
         Text(
           label,
-          style: AppTextStyles.caption.copyWith(color: color, fontSize: 12.5, fontWeight: AppFontWeight.medium),
+          style: AppTextStyles.caption.copyWith(color: color, fontSize: 12, fontWeight: AppFontWeight.medium),
         ),
       ],
     );

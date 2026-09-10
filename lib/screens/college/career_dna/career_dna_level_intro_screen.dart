@@ -55,7 +55,7 @@ class CareerDnaLevelIntroScreen extends StatelessWidget {
                       padding: const EdgeInsets.only(top: AppSpacing.xl),
                       child: Text(
                         'Level ${meta.level}',
-                        style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 13, fontWeight: AppFontWeight.medium, letterSpacing: 1.4),
+                        style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 12, fontWeight: AppFontWeight.medium, letterSpacing: 1.4),
                       ),
                     ),
                     Padding(

@@ -92,7 +92,7 @@ class _StatSummary extends StatelessWidget {
           description,
           maxLines: 3,
           overflow: TextOverflow.ellipsis,
-          style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 11, height: 1.35),
+          style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, height: 1.35),
         ),
       ],
     );
@@ -130,13 +130,13 @@ class _Legend extends StatelessWidget {
                   children: [
                     Text(
                       '${s.label}: ${s.percent.round()}%',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.ink, fontSize: 11, fontWeight: AppFontWeight.medium),
+                      style: AppTextStyles.caption.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.medium),
                     ),
                     if (s.isYou)
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                         decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(4)),
-                        child: Text('You', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 9.5, fontWeight: AppFontWeight.bold)),
+                        child: Text('You', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.bold)),
                       ),
                   ],
                 ),

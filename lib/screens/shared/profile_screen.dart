@@ -129,7 +129,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
         title: Text(
           'Log out?',
-          style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 17, fontWeight: AppFontWeight.semibold),
+          style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.semibold),
         ),
         content: Text(
           "You'll need to sign in again to get back to your account.",
@@ -329,7 +329,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(width: 5),
                         Text(
                           _segmentLabels[user?.segment] ?? 'Student',
-                          style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium),
+                          style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
                         ),
                       ],
                     ),
@@ -377,11 +377,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: hasResume
                           ? Text(
                               _skillsSummary(resume?.skills ?? const []),
-                              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5),
+                              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12),
                             )
                           : Text(
                               'Add your resume so recruiters can find you.',
-                              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5),
+                              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12),
                             ),
                     ),
                   // Basic details and Goals & roles used to be two separate
@@ -410,15 +410,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               // card's content and shouldn't compete with
                               // it at nearly the same weight.
                               style: e.key == 0
-                                  ? AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14.5, fontWeight: AppFontWeight.medium)
-                                  : AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5),
+                                  ? AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium)
+                                  : AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12),
                             ),
                           ),
                         ),
                         if (!isSchool) ...[
                           Padding(
                             padding: const EdgeInsets.only(top: AppSpacing.sm),
-                            child: Text(_goalLabel(user?.goal), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
+                            child: Text(_goalLabel(user?.goal), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12)),
                           ),
                           if (user?.roles?.isNotEmpty ?? false)
                             Padding(
@@ -443,7 +443,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       onTap: () => _editBasics(context),
                       child: Text(
                         hasPhoto ? 'Photo added' : 'Add a photo so recruiters recognize you.',
-                        style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5),
+                        style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12),
                       ),
                     ),
                   // College-only — a video pitch is a recruiter-facing
@@ -463,13 +463,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const SizedBox(width: AppSpacing.sm),
                                 Text(
                                   'Video profile added',
-                                  style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 13.5, fontWeight: AppFontWeight.medium),
+                                  style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
                                 ),
                               ],
                             )
                           : Text(
                               noOrphan('Pitch yourself with a short video.'),
-                              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5),
+                              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12),
                             ),
                     ),
                   // The old standalone "Career preferences" card is gone —
@@ -541,13 +541,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     Expanded(
                                       child: Text(
                                         r.label,
-                                        style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium),
+                                        style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium),
                                       ),
                                     ),
                                     if (r.trailing != null)
                                       Padding(
                                         padding: const EdgeInsets.only(right: AppSpacing.sm),
-                                        child: Text(r.trailing!, style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
+                                        child: Text(r.trailing!, style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12)),
                                       ),
                                     const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
                                   ],
@@ -664,7 +664,7 @@ class _SectionCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     title,
-                    style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 15),
+                    style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 16),
                   ),
                 ),
                 if (done != null) ...[
@@ -766,7 +766,7 @@ class _NotificationToggleRowState extends State<_NotificationToggleRow> {
           Expanded(
             child: Text(
               'Push notifications',
-              style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium),
+              style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium),
             ),
           ),
           // onChanged: null when already granted — a disabled Switch can't

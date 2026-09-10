@@ -192,7 +192,7 @@ class AppTag extends StatelessWidget {
     final text = Text(
       label,
       style: AppTextStyles.caption.copyWith(
-        fontSize: 11,
+        fontSize: 12,
         fontWeight: AppFontWeight.medium,
         letterSpacing: 0.3,
         color: color,

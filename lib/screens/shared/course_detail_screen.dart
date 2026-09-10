@@ -84,7 +84,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                             Text(c.title, style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontSize: 20, fontWeight: AppFontWeight.bold, height: 26 / 20)),
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
-                              child: Text(c.category, style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 15, fontWeight: AppFontWeight.medium)),
+                              child: Text(c.category, style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 16, fontWeight: AppFontWeight.medium)),
                             ),
                           ],
                         ),

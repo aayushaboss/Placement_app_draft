@@ -50,8 +50,8 @@ class CourseCarouselSection extends StatelessWidget {
           child: RichText(
             text: TextSpan(
               children: [
-                TextSpan(text: title, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 13, fontWeight: AppFontWeight.semibold)),
-                TextSpan(text: '  (${courses.length})', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13)),
+                TextSpan(text: title, style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.semibold)),
+                TextSpan(text: '  (${courses.length})', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12)),
               ],
             ),
             maxLines: 1,
@@ -142,7 +142,7 @@ class _CourseCard extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       // 13px — same size as the card's own meta lines, per
                       // direct feedback that card titles read too large.
-                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 13, height: 1.2),
+                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 12, height: 1.2),
                     ),
                   ),
                 ],
@@ -157,7 +157,7 @@ class _CourseCard extends StatelessWidget {
               const Spacer(),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('View syllabus →', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                child: Text('View syllabus →', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
               ),
             ],
           ),
@@ -194,7 +194,7 @@ class _CourseViewAllTile extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('View all', style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+              Text('View all', style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
               const SizedBox(width: 4),
               const Icon(Ionicons.arrow_forward, size: 15, color: AppColors.blue),
             ],
@@ -221,7 +221,7 @@ class _MetaLine extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5, fontWeight: AppFontWeight.medium),
+            style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
           ),
         ),
       ],

@@ -178,7 +178,7 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
                         Expanded(
                           child: Text(
                             headerLabel,
-                            style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 11, fontWeight: AppFontWeight.medium, letterSpacing: 0.3),
+                            style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium, letterSpacing: 0.3),
                           ),
                         ),
                         if (_recent.isNotEmpty)

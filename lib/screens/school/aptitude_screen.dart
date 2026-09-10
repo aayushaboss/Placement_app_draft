@@ -108,7 +108,7 @@ class _AptitudeScreenState extends State<AptitudeScreen> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
-        title: Text('Leave without finishing?', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 17, fontWeight: AppFontWeight.semibold)),
+        title: Text('Leave without finishing?', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.semibold)),
         content: Text(
           "Your answers so far won't be saved.",
           style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),

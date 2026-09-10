@@ -53,7 +53,7 @@ class _ExpandableTextState extends State<ExpandableText> {
                   padding: const EdgeInsets.only(top: AppSpacing.xs),
                   child: Text(
                     _expanded ? 'View less' : 'View more',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12.5, fontWeight: AppFontWeight.medium),
+                    style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
                   ),
                 ),
               ),

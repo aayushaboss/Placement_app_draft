@@ -76,7 +76,7 @@ class _NotDoneYetCard extends StatelessWidget {
             Text('$completed of 5 levels complete', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold)),
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.xs),
-              child: Text(noOrphan('Finish every level to see your combined results.'), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
+              child: Text(noOrphan('Finish every level to see your combined results.'), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12)),
             ),
             Padding(
               padding: const EdgeInsets.only(top: AppSpacing.lg),
@@ -166,7 +166,7 @@ class _SynthesisContent extends StatelessWidget {
                 Text('See all 5 directions, your top roles, and next steps', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
-                  child: Text(noOrphan('Unlock your full report to see the complete picture.'), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
+                  child: Text(noOrphan('Unlock your full report to see the complete picture.'), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12)),
                 ),
                 PillButton(label: 'Unlock', icon: Ionicons.lock_open_outline, onPressed: () => context.push('/college/career-dna/level/5/unlock')),
               ],
@@ -205,7 +205,7 @@ class _SynthesisContent extends StatelessWidget {
                           child: Text('${i + 1}', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontWeight: AppFontWeight.bold)),
                         ),
                         const SizedBox(width: AppSpacing.md),
-                        Expanded(child: Text(result.nextSteps[i], style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5))),
+                        Expanded(child: Text(result.nextSteps[i], style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 12))),
                       ],
                     ),
                   ),

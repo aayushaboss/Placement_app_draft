@@ -41,7 +41,7 @@ class ProgressRing extends StatelessWidget {
               strokeCap: StrokeCap.round,
             ),
           ),
-          Text('$percent%', style: AppTextStyles.caption.copyWith(color: textColor, fontSize: 11, fontWeight: AppFontWeight.bold)),
+          Text('$percent%', style: AppTextStyles.caption.copyWith(color: textColor, fontSize: 12, fontWeight: AppFontWeight.bold)),
         ],
       ),
     );

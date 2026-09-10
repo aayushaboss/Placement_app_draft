@@ -1509,7 +1509,7 @@ class _IntroStep extends StatelessWidget {
                                     // label column elsewhere in this file.
                                     SizedBox(
                                       width: 92,
-                                      child: Text(r.$2, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5)),
+                                      child: Text(r.$2, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                                     ),
                                     Expanded(
                                       child: Text(
@@ -1517,7 +1517,7 @@ class _IntroStep extends StatelessWidget {
                                         textAlign: TextAlign.left,
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 13.5),
+                                        style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 12),
                                       ),
                                     ),
                                     const SizedBox(width: AppSpacing.sm),
@@ -1543,7 +1543,7 @@ class _IntroStep extends StatelessWidget {
                         const SizedBox(width: AppSpacing.xs),
                         Text(
                           'Something wrong? Edit your profile',
-                          style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium),
+                          style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
                         ),
                       ],
                     ),
@@ -1796,14 +1796,14 @@ class _FactRow extends StatelessWidget {
             // 92, not _IntroStep's 64 — "Institution" and "Company" (used
             // here, unlike _IntroStep's shorter Name/College/Course/Year)
             // don't fit 64 without wrapping to a second line.
-            SizedBox(width: 92, child: Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5))),
+            SizedBox(width: 92, child: Text(label, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12))),
             Expanded(
               child: Text(
                 value,
                 textAlign: TextAlign.left,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 13.5),
+                style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 12),
               ),
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -2118,12 +2118,12 @@ class _EducationStep extends StatelessWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(e.degree, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium)),
+                                  Text(e.degree, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
                                   Padding(
                                     padding: const EdgeInsets.only(top: 2),
                                     child: Text(
                                       [e.institution, e.duration, if (e.gpa != null && e.gpa!.isNotEmpty) e.gpa!].where((s) => s.isNotEmpty).join(' • '),
-                                      style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13),
+                                      style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
                                     ),
                                   ),
                                 ],
@@ -2429,12 +2429,12 @@ class _ExperienceStep extends StatelessWidget {
                                     children: [
                                       Text(
                                         '${w.role} — ${w.company}',
-                                        style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium),
+                                        style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium),
                                       ),
                                       if (w.duration.isNotEmpty)
                                         Padding(
                                           padding: const EdgeInsets.only(top: 2),
-                                          child: Text(w.duration, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13)),
+                                          child: Text(w.duration, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                                         ),
                                     ],
                                   ),
@@ -2445,7 +2445,7 @@ class _ExperienceStep extends StatelessWidget {
                                     child: ExpandableText(
                                       text: w.description,
                                       maxLines: 3,
-                                      style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13),
+                                      style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
                                     ),
                                   ),
                               ],
@@ -2765,11 +2765,11 @@ class _CertificationsStep extends StatelessWidget {
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(c.name, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium)),
+                                      Text(c.name, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
                                       if (c.duration.isNotEmpty)
                                         Padding(
                                           padding: const EdgeInsets.only(top: 2),
-                                          child: Text(c.duration, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13)),
+                                          child: Text(c.duration, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                                         ),
                                     ],
                                   ),
@@ -2777,7 +2777,7 @@ class _CertificationsStep extends StatelessWidget {
                                 if ((c.link ?? '').isNotEmpty)
                                   Padding(
                                     padding: const EdgeInsets.only(top: 4),
-                                    child: Text('View certificate', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                                    child: Text('View certificate', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
                                   ),
                               ],
                             ),
@@ -2951,7 +2951,7 @@ class _SuggestionChip extends StatelessWidget {
           children: [
             const Icon(Ionicons.add, size: 14, color: AppColors.blue),
             const SizedBox(width: AppSpacing.xs),
-            Text(label, style: AppTextStyles.label.copyWith(color: AppColors.ink, fontSize: 13, fontWeight: AppFontWeight.medium)),
+            Text(label, style: AppTextStyles.label.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.medium)),
           ],
         ),
       ),
@@ -2976,7 +2976,7 @@ class _RemovableChip extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+            Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
             const SizedBox(width: AppSpacing.sm),
             const Icon(Ionicons.close, size: 14, color: AppColors.blue),
           ],
@@ -3145,7 +3145,7 @@ class _SummaryStep extends StatelessWidget {
                       maxLines: 5,
                       minLines: 5,
                       maxLength: 600,
-                      style: AppTextStyles.bodyLg.copyWith(fontSize: 15, color: AppColors.ink, height: 1.4),
+                      style: AppTextStyles.bodyLg.copyWith(fontSize: 16, color: AppColors.ink, height: 1.4),
                       decoration: InputDecoration(
                         contentPadding: const EdgeInsets.all(AppSpacing.lg),
                         hintText: "e.g. B.Tech student at XYZ College with hands-on skills in Python, SQL, and Excel, driven to deliver real, measurable impact.",
@@ -3185,7 +3185,7 @@ class _SummaryStep extends StatelessWidget {
                           const SizedBox(width: AppSpacing.sm),
                           Text(
                             label,
-                            style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium),
+                            style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
                           ),
                         ],
                       ),

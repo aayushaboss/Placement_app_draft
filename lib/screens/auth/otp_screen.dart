@@ -181,7 +181,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                     padding: const EdgeInsets.only(top: AppSpacing.md),
                     child: Text(
                       'Enter the 6-digit code sent to ${widget.identifier}',
-                      style: AppTextStyles.body.copyWith(color: AppColors.whiteA70, fontSize: 15),
+                      style: AppTextStyles.body.copyWith(color: AppColors.whiteA70, fontSize: 16),
                     ),
                   ),
                   GestureDetector(
@@ -288,7 +288,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
                         padding: const EdgeInsets.only(top: AppSpacing.sm),
                         child: Text(
                           _resendError!,
-                          style: AppTextStyles.body.copyWith(color: AppColors.yellow, fontSize: 13, fontWeight: AppFontWeight.medium),
+                          style: AppTextStyles.body.copyWith(color: AppColors.yellow, fontSize: 12, fontWeight: AppFontWeight.medium),
                         ),
                       ),
                     ),

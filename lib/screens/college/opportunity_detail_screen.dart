@@ -139,7 +139,7 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                             Text(o.title, style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontSize: 20, fontWeight: AppFontWeight.semibold, height: 26 / 20)),
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
-                              child: Text(o.company, style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 15, fontWeight: AppFontWeight.medium)),
+                              child: Text(o.company, style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 16, fontWeight: AppFontWeight.medium)),
                             ),
                           ],
                         ),
@@ -165,7 +165,7 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                       children: [
                         const Icon(Ionicons.people_outline, size: 14, color: AppColors.gray500),
                         const SizedBox(width: AppSpacing.xs),
-                        Text('${o.applicantCount} people applied', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5, fontWeight: AppFontWeight.medium)),
+                        Text('${o.applicantCount} people applied', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium)),
                       ],
                     ),
                   ),

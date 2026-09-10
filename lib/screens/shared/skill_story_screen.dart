@@ -233,7 +233,7 @@ class _QuestionView extends StatelessWidget {
                           Expanded(
                             child: Text(
                               option.label,
-                              style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 15),
+                              style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 16),
                             ),
                           ),
                           if (revealed && isPicked)

@@ -270,7 +270,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                       m == 'online' ? 'Online' : 'Offline',
                                       style: AppTextStyles.bodyLg.copyWith(
                                         color: active ? AppColors.blue : AppColors.gray500,
-                                        fontSize: 15,
+                                        fontSize: 16,
                                         fontWeight: AppFontWeight.medium,
                                       ),
                                     ),
@@ -300,7 +300,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                 Text(offlineVenue.name, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.semibold)),
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
-                                  child: Text(offlineVenue.address, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5)),
+                                  child: Text(offlineVenue.address, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                                 ),
                               ],
                             ),
@@ -328,7 +328,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                 Expanded(
                                   child: Text(
                                     'This session is in ${offlineVenue.city} — your profile says $userCity. You can still book, or switch to an online session instead.',
-                                    style: AppTextStyles.caption.copyWith(color: AppColors.ink, fontSize: 12.5, height: 1.4),
+                                    style: AppTextStyles.caption.copyWith(color: AppColors.ink, fontSize: 12, height: 1.4),
                                   ),
                                 ),
                               ],
@@ -339,7 +339,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                 onTap: () => setState(() => _mode = 'online'),
                                 child: Text(
                                   'Switch to online instead',
-                                  style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12.5, fontWeight: AppFontWeight.semibold),
+                                  style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.semibold),
                                 ),
                               ),
                             ),
@@ -373,7 +373,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                 children: [
                                   Text(d.day, style: AppTextStyles.caption.copyWith(color: selected ? AppColors.whiteA70 : AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium)),
                                   Text(d.date, style: AppTextStyles.h3.copyWith(color: selected ? AppColors.white : AppColors.ink, fontSize: 20, fontWeight: AppFontWeight.medium)),
-                                  Text(d.month, style: AppTextStyles.caption.copyWith(color: selected ? AppColors.whiteA70 : AppColors.gray400, fontSize: 11, fontWeight: AppFontWeight.medium)),
+                                  Text(d.month, style: AppTextStyles.caption.copyWith(color: selected ? AppColors.whiteA70 : AppColors.gray400, fontSize: 12, fontWeight: AppFontWeight.medium)),
                                 ],
                               ),
                             ),
@@ -416,7 +416,7 @@ class _BookingScreenState extends State<BookingScreen> {
                                 s,
                                 style: AppTextStyles.label.copyWith(
                                   color: selected ? AppColors.white : (disabled ? AppColors.gray400 : AppColors.ink),
-                                  fontSize: 13,
+                                  fontSize: 12,
                                   fontWeight: AppFontWeight.medium,
                                 ),
                               ),

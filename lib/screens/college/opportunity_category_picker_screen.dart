@@ -60,7 +60,7 @@ class _OpportunityCategoryPickerScreenState extends State<OpportunityCategoryPic
               alignment: Alignment.centerLeft,
               child: Text(
                 'Select up to ${mockAllRoles.length}',
-                style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5, fontWeight: AppFontWeight.medium),
+                style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
               ),
             ),
           ),

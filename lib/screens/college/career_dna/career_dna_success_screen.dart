@@ -102,7 +102,7 @@ class _CareerDnaSuccessScreenState extends State<CareerDnaSuccessScreen> with Si
                                         ? "You've finished the whole Career Quiz journey."
                                         : 'Nicely done — your ${meta.title} results are ready.'),
                                     textAlign: TextAlign.center,
-                                    style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 15),
+                                    style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 16),
                                   ),
                                 ),
                               ],

@@ -217,7 +217,7 @@ class _FaqTile extends StatelessWidget {
                   Expanded(
                     child: Text(
                       noOrphan(item.question),
-                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 14.5, fontWeight: AppFontWeight.medium, height: 1.35),
+                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium, height: 1.35),
                     ),
                   ),
                   const SizedBox(width: AppSpacing.sm),
@@ -238,7 +238,7 @@ class _FaqTile extends StatelessWidget {
                     padding: const EdgeInsets.fromLTRB(AppSpacing.lg, 0, AppSpacing.lg, AppSpacing.lg),
                     child: Text(
                       item.answer,
-                      style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.45),
+                      style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12, height: 1.45),
                     ),
                   )
                 : const SizedBox(width: double.infinity),
@@ -281,10 +281,10 @@ class _ContactRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(label, style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium)),
+                  Text(label, style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
-                    child: Text(subtitle, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5)),
+                    child: Text(subtitle, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                   ),
                 ],
               ),

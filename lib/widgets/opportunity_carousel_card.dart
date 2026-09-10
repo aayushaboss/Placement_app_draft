@@ -102,7 +102,7 @@ class OpportunityCarouselCard extends StatelessWidget {
                             // outranks the gray/regular company line by weight
                             // and colour, so it stays the dominant element in
                             // the card without a size jump.
-                            style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 13, height: 1.2),
+                            style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 12, height: 1.2),
                           ),
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
@@ -110,7 +110,7 @@ class OpportunityCarouselCard extends StatelessWidget {
                               company,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13),
+                              style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
                             ),
                           ),
                         ],
@@ -211,7 +211,7 @@ class _MetaLine extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5, fontWeight: AppFontWeight.medium),
+            style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
           ),
         ),
       ],

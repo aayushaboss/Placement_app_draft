@@ -289,7 +289,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
         // inside the same horizontal-xl Padding the cards do.
         Padding(
           padding: const EdgeInsets.only(top: AppSpacing.lg, bottom: AppSpacing.sm),
-          child: Text('${entry.key} (${entry.value.length})', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 15)),
+          child: Text('${entry.key} (${entry.value.length})', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 16)),
         ),
         for (final o in entry.value) Padding(padding: const EdgeInsets.only(bottom: AppSpacing.lg), child: _oppRow(context, appState, user, o)),
       ],
@@ -470,12 +470,12 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                         crossAxisAlignment: CrossAxisAlignment.start,
                                         mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Text('UPCOMING SESSION', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 11, fontWeight: AppFontWeight.medium, letterSpacing: 0.8)),
+                                          Text('UPCOMING SESSION', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium, letterSpacing: 0.8)),
                                           Padding(
                                             padding: const EdgeInsets.only(top: 2),
                                             child: Text(
                                               upcoming.kind == 'placement' ? (upcoming.sessionType ?? 'Placement session') : 'Counseling with ${upcoming.counselor}',
-                                              style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.bold),
+                                              style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.bold),
                                             ),
                                           ),
                                           Padding(
@@ -536,7 +536,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                               Text(noOrphan('Talk to a placement expert'), style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 16, fontWeight: AppFontWeight.bold)),
                                               Padding(
                                                 padding: const EdgeInsets.only(top: 4),
-                                                child: Text(noOrphan('1:1 guidance to land your next role.'), style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 13)),
+                                                child: Text(noOrphan('1:1 guidance to land your next role.'), style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12)),
                                               ),
                                             ],
                                           ),
@@ -574,7 +574,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                                   noOrphan('Free 10-min test, attached to your resume for recruiters.'),
                                                   maxLines: 3,
                                                   overflow: TextOverflow.ellipsis,
-                                                  style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 13, height: 1.3),
+                                                  style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12, height: 1.3),
                                                 ),
                                               ),
                                             ],
@@ -615,12 +615,12 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                         Expanded(
                                           child: Text(
                                             '${_opps.length} ${_opps.length == 1 ? 'opportunity' : 'opportunities'} found',
-                                            style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, fontWeight: AppFontWeight.medium),
+                                            style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
                                           ),
                                         ),
                                         GestureDetector(
                                           onTap: _clearFilters,
-                                          child: Text('Clear filters', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                                          child: Text('Clear filters', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
                                         ),
                                       ],
                                     ),

@@ -68,7 +68,7 @@ class SearchAppearancesScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           'Sample data — this will reflect your real activity once recruiter analytics are live.',
-                          style: AppTextStyles.caption.copyWith(color: AppColors.warning, fontSize: 12.5, fontWeight: AppFontWeight.medium, height: 1.3),
+                          style: AppTextStyles.caption.copyWith(color: AppColors.warning, fontSize: 12, fontWeight: AppFontWeight.medium, height: 1.3),
                         ),
                       ),
                     ],
@@ -95,7 +95,7 @@ class SearchAppearancesScreen extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                             decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.pill)),
-                            child: Text('Last 14 days', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 11.5, fontWeight: AppFontWeight.medium)),
+                            child: Text('Last 14 days', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium)),
                           ),
                         ],
                       ),
@@ -110,7 +110,7 @@ class SearchAppearancesScreen extends StatelessWidget {
                 ),
                 Text(
                   noOrphan('Search phrases that likely surfaced your profile, based on your roles and skills.'),
-                  style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13),
+                  style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.md),
@@ -176,7 +176,7 @@ class _SearchTrendChart extends StatelessWidget {
                               ? Container(
                                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
                                   decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(AppRadius.sm)),
-                                  child: Text('${a.count}', style: AppTextStyles.caption.copyWith(color: AppColors.white, fontSize: 10.5, fontWeight: AppFontWeight.bold)),
+                                  child: Text('${a.count}', style: AppTextStyles.caption.copyWith(color: AppColors.white, fontSize: 12, fontWeight: AppFontWeight.bold)),
                                 )
                               : null,
                         ),
@@ -210,7 +210,7 @@ class _SearchTrendChart extends StatelessWidget {
                 child: Text(
                   showLabel ? '${a.date.day}' : '',
                   textAlign: TextAlign.center,
-                  style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 10),
+                  style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12),
                 ),
               );
             }).toList(),

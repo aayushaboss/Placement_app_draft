@@ -34,7 +34,7 @@ class FieldLabel extends StatelessWidget {
       padding: EdgeInsets.only(top: tight ? AppSpacing.lg : AppSpacing.xxl, bottom: AppSpacing.sm),
       child: Text(
         text,
-        style: AppTextStyles.label.copyWith(color: AppColors.gray500, fontSize: 12.5),
+        style: AppTextStyles.label.copyWith(color: AppColors.gray500, fontSize: 12),
       ),
     );
   }

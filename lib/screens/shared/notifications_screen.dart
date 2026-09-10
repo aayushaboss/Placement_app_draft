@@ -205,7 +205,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                                           .copyWith(
                                                             color:
                                                                 AppColors.ink,
-                                                            fontSize: 15,
+                                                            fontSize: 16,
                                                             fontWeight:
                                                                 AppFontWeight
                                                                     .medium,
@@ -223,7 +223,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                                             .copyWith(
                                                               color: AppColors
                                                                   .gray500,
-                                                              fontSize: 13,
+                                                              fontSize: 12,
                                                             ),
                                                       ),
                                                     ),

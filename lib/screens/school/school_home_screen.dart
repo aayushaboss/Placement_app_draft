@@ -168,12 +168,12 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    Text('UPCOMING SESSION', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 11, fontWeight: AppFontWeight.medium, letterSpacing: 0.8)),
+                                    Text('UPCOMING SESSION', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium, letterSpacing: 0.8)),
                                     Padding(
                                       padding: const EdgeInsets.only(top: 2),
                                       child: Text(
                                         upcoming.kind == 'placement' ? (upcoming.sessionType ?? 'Placement session') : 'Counseling with ${upcoming.counselor}',
-                                        style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.bold),
+                                        style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.bold),
                                       ),
                                     ),
                                     Padding(
@@ -207,7 +207,7 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
                                     Text('Book free counseling', style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
                                     Padding(
                                       padding: const EdgeInsets.only(top: 4),
-                                      child: Text(noOrphan('Talk 1:1 with an expert about your path.'), style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 13)),
+                                      child: Text(noOrphan('Talk 1:1 with an expert about your path.'), style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12)),
                                     ),
                                   ],
                                 ),
@@ -286,7 +286,7 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
                               // otherwise aims for.
                               child: Padding(
                                 padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
-                                child: Text('Retake test', style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                                child: Text('Retake test', style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
                               ),
                             ),
                           ],

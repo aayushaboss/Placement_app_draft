@@ -142,7 +142,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       padding: const EdgeInsets.only(top: AppSpacing.sm),
                       child: Text(
                         noOrphan('Internships and jobs curated just for you.'),
-                        style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 15),
+                        style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 16),
                       ),
                     ),
                     // Centered in the remaining space below the subtitle

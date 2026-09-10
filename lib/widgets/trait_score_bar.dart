@@ -54,7 +54,7 @@ class TraitScoreBar extends StatelessWidget {
         if (caption != null)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.xs),
-            child: Text(caption!, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5)),
+            child: Text(caption!, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
           ),
       ],
     );

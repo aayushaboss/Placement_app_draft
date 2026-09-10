@@ -94,7 +94,7 @@ class HomeHeader extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: AppTextStyles.label.copyWith(
                     color: AppColors.gray500,
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: AppFontWeight.medium,
                   ),
                 ),

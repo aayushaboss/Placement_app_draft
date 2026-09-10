@@ -301,7 +301,7 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
   Widget _categoryHeading(String category, int count) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.sm),
-      child: Text('$category ($count)', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 15)),
+      child: Text('$category ($count)', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 16)),
     );
   }
 
@@ -371,7 +371,7 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
               Expanded(
                 child: Text(
                   '${results.length} ${results.length == 1 ? 'course' : 'courses'} found',
-                  style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, fontWeight: AppFontWeight.medium),
+                  style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
                 ),
               ),
               if (isSearching)
@@ -379,7 +379,7 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
                   onTap: () => setState(_searchController.clear),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
-                    child: Text('Clear search', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                    child: Text('Clear search', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
                   ),
                 ),
               if (isFiltering)
@@ -387,7 +387,7 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
                   onTap: () => setState(() => _filter = const CourseFilterSelection()),
                   child: Padding(
                     padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm, horizontal: AppSpacing.xs),
-                    child: Text('Clear filters', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                    child: Text('Clear filters', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
                   ),
                 ),
             ],
@@ -418,10 +418,10 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Recent searches', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 15)),
+                Text('Recent searches', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 16)),
                 GestureDetector(
                   onTap: _clearRecentSearches,
-                  child: Text('Clear', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                  child: Text('Clear', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
                 ),
               ],
             ),
@@ -478,7 +478,7 @@ class _RecentSearchChip extends StatelessWidget {
           children: [
             const Icon(Ionicons.time_outline, size: 14, color: AppColors.gray500),
             const SizedBox(width: AppSpacing.sm),
-            Text(label, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, fontWeight: AppFontWeight.medium)),
+            Text(label, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.medium)),
           ],
         ),
       ),
@@ -517,7 +517,7 @@ class _CredibilityCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, fontWeight: AppFontWeight.medium)),
+                Text(title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.medium)),
                 const SizedBox(height: 2),
                 Text(
                   caption,

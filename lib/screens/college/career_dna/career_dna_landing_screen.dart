@@ -166,7 +166,7 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                     padding: const EdgeInsets.only(top: AppSpacing.xs),
                     child: Text(
                       noOrphan(currentMeta != null ? 'Level ${currentMeta.level} · ${currentMeta.title}' : 'All 5 levels complete!'),
-                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 14.5),
+                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 14),
                     ),
                   ),
                   // Small trust line — deliberately lighter/smaller than
@@ -177,7 +177,7 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
                       noOrphan('Approved by 100+ Psychologists, Researchers, PhDs and Business Leaders.'),
-                      style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 11),
+                      style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12),
                     ),
                   ),
                 ],
@@ -334,7 +334,7 @@ class _PathNode extends StatelessWidget {
                   margin: const EdgeInsets.only(bottom: AppSpacing.xs),
                   padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 3),
                   decoration: BoxDecoration(color: AppColors.yellow, borderRadius: BorderRadius.circular(AppRadius.pill)),
-                  child: Text('START', style: AppTextStyles.label.copyWith(color: AppColors.ink, fontSize: 11, fontWeight: AppFontWeight.bold, letterSpacing: 0.6)),
+                  child: Text('START', style: AppTextStyles.label.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.bold, letterSpacing: 0.6)),
                 ),
               circle,
               // Shows the level's title beneath its number on every node
@@ -379,7 +379,7 @@ class _PathNode extends StatelessWidget {
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 11, height: 1.25),
+                          style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, height: 1.25),
                         ),
                       ),
                     ],

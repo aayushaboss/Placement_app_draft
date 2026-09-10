@@ -134,7 +134,7 @@ class _CareerDnaPaymentScreenState extends State<CareerDnaPaymentScreen> {
                           children: [
                             const Icon(Ionicons.checkmark_circle, size: 16, color: AppColors.success),
                             const SizedBox(width: AppSpacing.sm),
-                            Expanded(child: Text(item, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 13.5, height: 1.35))),
+                            Expanded(child: Text(item, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 12, height: 1.35))),
                           ],
                         ),
                       ),

@@ -70,7 +70,7 @@ class RecruiterActionsScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           'Sample data — this will reflect your real activity once recruiter analytics are live.',
-                          style: AppTextStyles.caption.copyWith(color: AppColors.warning, fontSize: 12.5, fontWeight: AppFontWeight.medium, height: 1.3),
+                          style: AppTextStyles.caption.copyWith(color: AppColors.warning, fontSize: 12, fontWeight: AppFontWeight.medium, height: 1.3),
                         ),
                       ),
                     ],
@@ -79,7 +79,7 @@ class RecruiterActionsScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.lg),
                 Text(
                   noOrphan("What recruiters have done with your profile — most recent first."),
-                  style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5, height: 1.3),
+                  style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12, height: 1.3),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 ...actions.map((a) => Container(
@@ -100,15 +100,15 @@ class RecruiterActionsScreen extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(a.company, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14.5, fontWeight: AppFontWeight.medium)),
+                                Text(a.company, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium)),
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
-                                  child: Text(a.action, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5)),
+                                  child: Text(a.action, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                                 ),
                               ],
                             ),
                           ),
-                          Text(relativeTimeLabel(a.at), style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 11.5)),
+                          Text(relativeTimeLabel(a.at), style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12)),
                         ],
                       ),
                     )),

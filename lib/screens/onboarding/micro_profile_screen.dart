@@ -576,7 +576,7 @@ class _AutofillBanner extends StatelessWidget {
           Expanded(
             child: Text(
               noOrphan(text),
-              style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12.5, fontWeight: AppFontWeight.medium),
+              style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
             ),
           ),
         ],

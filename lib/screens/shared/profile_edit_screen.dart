@@ -413,7 +413,7 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                         ),
                         Padding(
                           padding: const EdgeInsets.only(top: AppSpacing.sm),
-                          child: Text('Tap to upload from camera or gallery', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13)),
+                          child: Text('Tap to upload from camera or gallery', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                         ),
                         Padding(
                           padding: const EdgeInsets.only(top: AppSpacing.xs),

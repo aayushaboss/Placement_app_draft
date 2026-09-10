@@ -97,8 +97,8 @@ class ApplicationDetailScreen extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(app.opportunity.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 13)),
-                      Text(app.opportunity.company, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13)),
+                      Text(app.opportunity.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 12)),
+                      Text(app.opportunity.company, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                     ],
                   ),
                 ),
@@ -136,7 +136,7 @@ class ApplicationDetailScreen extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(entry.key, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5, fontWeight: AppFontWeight.medium)),
+                                Text(entry.key, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium)),
                                 Padding(
                                   padding: const EdgeInsets.only(top: 2),
                                   child: Text(entry.value, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14)),
@@ -145,7 +145,7 @@ class ApplicationDetailScreen extends StatelessWidget {
                             ),
                           ),
                         if (app.note?.trim().isNotEmpty ?? false) ...[
-                          Text('Note to recruiter', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5, fontWeight: AppFontWeight.medium)),
+                          Text('Note to recruiter', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium)),
                           Padding(
                             padding: const EdgeInsets.only(top: 2),
                             child: Text(app.note!.trim(), style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14)),
@@ -368,7 +368,7 @@ class _MessageBubble extends StatelessWidget {
               ),
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.xs, left: AppSpacing.xs),
-                child: Text(relativeTimeLabel(message.at), style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 11)),
+                child: Text(relativeTimeLabel(message.at), style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12)),
               ),
             ],
           ),
@@ -400,7 +400,7 @@ class _InterviewCard extends StatelessWidget {
               const Icon(Ionicons.calendar, size: 16, color: AppColors.blue),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
-                child: Text(details.round, style: AppTextStyles.body.copyWith(color: AppColors.blue, fontWeight: AppFontWeight.medium, fontSize: 13)),
+                child: Text(details.round, style: AppTextStyles.body.copyWith(color: AppColors.blue, fontWeight: AppFontWeight.medium, fontSize: 12)),
               ),
             ],
           ),
@@ -466,7 +466,7 @@ class _RejectionRecoveryCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             "This company's call doesn't reflect your fit elsewhere — here's where to go next.",
-            style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12.5, height: 18 / 12.5),
+            style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, height: 18 / 12.5),
           ),
           const SizedBox(height: AppSpacing.md),
           Row(
@@ -514,7 +514,7 @@ class _RecoveryAction extends StatelessWidget {
             children: [
               Icon(icon, size: 18, color: AppColors.blue),
               const SizedBox(height: AppSpacing.xs),
-              Text(label, textAlign: TextAlign.center, style: AppTextStyles.caption.copyWith(color: AppColors.ink, fontSize: 11.5, fontWeight: AppFontWeight.medium)),
+              Text(label, textAlign: TextAlign.center, style: AppTextStyles.caption.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.medium)),
             ],
           ),
         ),
@@ -591,7 +591,7 @@ class _InsightsSection extends StatelessWidget {
                             i.title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.caption.copyWith(color: AppColors.ink, fontSize: 12.5, fontWeight: AppFontWeight.medium),
+                            style: AppTextStyles.caption.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.medium),
                           ),
                         ),
                       ],

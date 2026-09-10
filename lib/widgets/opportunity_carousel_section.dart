@@ -78,7 +78,7 @@ class OpportunityCarouselSection extends StatelessWidget {
                   // step up, not heavy).
                   style: AppTextStyles.h3.copyWith(
                     color: AppColors.ink,
-                    fontSize: 13,
+                    fontSize: 12,
                     fontWeight: AppFontWeight.semibold,
                   ),
                 ),
@@ -86,7 +86,7 @@ class OpportunityCarouselSection extends StatelessWidget {
                   text: '  (${opportunities.length})',
                   style: AppTextStyles.body.copyWith(
                     color: AppColors.gray500,
-                    fontSize: 13,
+                    fontSize: 12,
                   ),
                 ),
               ],
@@ -181,7 +181,7 @@ class _ViewAllTile extends StatelessWidget {
             children: [
               Text(
                 'View all',
-                style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium),
+                style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
               ),
               const SizedBox(width: 4),
               const Icon(Ionicons.arrow_forward, size: 15, color: AppColors.blue),

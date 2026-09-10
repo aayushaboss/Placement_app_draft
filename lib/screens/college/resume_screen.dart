@@ -326,7 +326,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
-        title: Text('Edit your resume?', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 17, fontWeight: AppFontWeight.semibold)),
+        title: Text('Edit your resume?', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.semibold)),
         content: Text(
           "You'll go through the resume builder to update your details.",
           style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
@@ -527,7 +527,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
                         padding: const EdgeInsets.only(top: AppSpacing.sm, bottom: AppSpacing.xl),
                         child: _ResumeSectionChecklist(sections: sections, onTap: _goToStep),
                       ),
-                      if (resume.name.trim().isNotEmpty) _SummarySection(label: 'Full name', child: Text(resume.name, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium))),
+                      if (resume.name.trim().isNotEmpty) _SummarySection(label: 'Full name', child: Text(resume.name, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium))),
                       if (resume.summary?.trim().isNotEmpty ?? false)
                         _SummarySection(label: 'Summary', child: Text(resume.summary!, style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14, height: 1.4))),
                       if (resume.skills.isNotEmpty)
@@ -598,7 +598,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
                     onTap: _confirmEdit,
                     child: Text(
                       'Start over from the beginning',
-                      style: AppTextStyles.label.copyWith(color: AppColors.gray500, fontSize: 13, fontWeight: AppFontWeight.medium),
+                      style: AppTextStyles.label.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
                     ),
                   ),
                 ),
@@ -641,7 +641,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
                   Expanded(
                     child: Text(
                       'Finish this to apply to ${pendingOpportunity.title}',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12.5, fontWeight: AppFontWeight.medium),
+                      style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
                     ),
                   ),
                   const Icon(Ionicons.chevron_forward, size: 16, color: AppColors.blue),
@@ -662,7 +662,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
               Expanded(
                 child: Text(
                   noOrphan("Saved to your profile — no need to re-upload later."),
-                  style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12.5, fontWeight: AppFontWeight.medium),
+                  style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
                 ),
               ),
             ],
@@ -841,7 +841,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(noOrphan("Don't have a resume? Build it here"), style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 15)),
+                        Text(noOrphan("Don't have a resume? Build it here"), style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 16)),
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
                           child: Text('A few quick questions — about a minute', style: AppTextStyles.caption.copyWith(color: AppColors.gray500)),
@@ -892,7 +892,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text(s, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                            Text(s, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
                             const SizedBox(width: AppSpacing.sm),
                             const Icon(Ionicons.close, size: 14, color: AppColors.blue),
                           ],
@@ -940,12 +940,12 @@ class _ResumeScreenState extends State<ResumeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(e.degree.isEmpty ? 'Degree' : e.degree, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium)),
+                    Text(e.degree.isEmpty ? 'Degree' : e.degree, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
                     Padding(
                       padding: const EdgeInsets.only(top: 2),
                       child: Text(
                         [e.institution, e.duration].where((s) => s.isNotEmpty).join(' • '),
-                        style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13),
+                        style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
                       ),
                     ),
                   ],
@@ -964,14 +964,14 @@ class _ResumeScreenState extends State<ResumeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(p.title.isEmpty ? 'Project' : p.title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium)),
+                    Text(p.title.isEmpty ? 'Project' : p.title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
                     if (p.description.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: ExpandableText(
                           text: p.description,
                           maxLines: 3,
-                          style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13),
+                          style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
                         ),
                       ),
                   ],
@@ -1024,7 +1024,7 @@ class _ResumeSectionChecklist extends StatelessWidget {
                     ),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
-                      child: Text(sections[i].title, style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium)),
+                      child: Text(sections[i].title, style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
                     ),
                     Icon(
                       sections[i].done ? Ionicons.checkmark_circle : Ionicons.ellipse_outline,
@@ -1055,7 +1055,7 @@ class _SummarySection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: AppTextStyles.label.copyWith(color: AppColors.gray500, fontSize: 12.5, fontWeight: AppFontWeight.medium)),
+          Text(label, style: AppTextStyles.label.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium)),
           const SizedBox(height: AppSpacing.sm),
           child,
         ],
@@ -1079,11 +1079,11 @@ class _SummaryCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title.isEmpty ? 'Untitled' : title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 15, fontWeight: AppFontWeight.medium)),
+          Text(title.isEmpty ? 'Untitled' : title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
           if (subtitle.isNotEmpty)
             Padding(
               padding: const EdgeInsets.only(top: 2),
-              child: Text(subtitle, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13)),
+              child: Text(subtitle, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
             ),
         ],
       ),
@@ -1100,7 +1100,7 @@ class _ReadOnlyChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
-      child: Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+      child: Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
     );
   }
 }

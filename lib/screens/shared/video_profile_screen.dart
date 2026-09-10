@@ -96,7 +96,7 @@ class _VideoProfileSheetState extends State<_VideoProfileSheet> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
-        title: Text('Discard this video?', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 17, fontWeight: AppFontWeight.semibold)),
+        title: Text('Discard this video?', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.semibold)),
         content: Text("It hasn't been saved yet.", style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14)),
         actions: [
           TextButton(
@@ -222,7 +222,7 @@ class _VideoProfileSheetState extends State<_VideoProfileSheet> {
             children: [
               Text("You're signed out", style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 18, fontWeight: AppFontWeight.semibold)),
               const SizedBox(height: AppSpacing.sm),
-              Text('Sign back in to edit your profile.', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13.5)),
+              Text('Sign back in to edit your profile.', style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12)),
               const SizedBox(height: AppSpacing.lg),
               PillButton(
                 label: 'Sign in',
@@ -316,7 +316,7 @@ class _VideoGuidelinesCard extends StatelessWidget {
             children: [
               const Icon(Ionicons.videocam, size: 20, color: AppColors.blue),
               const SizedBox(width: AppSpacing.sm),
-              Text('Add a video profile', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14.5, fontWeight: AppFontWeight.semibold)),
+              Text('Add a video profile', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.semibold)),
             ],
           ),
           Padding(
@@ -334,7 +334,7 @@ class _VideoGuidelinesCard extends StatelessWidget {
                               child: Container(width: 4, height: 4, decoration: const BoxDecoration(color: AppColors.gray400, shape: BoxShape.circle)),
                             ),
                             const SizedBox(width: AppSpacing.sm),
-                            Expanded(child: Text(noOrphan(t), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 13, height: 1.3))),
+                            Expanded(child: Text(noOrphan(t), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12, height: 1.3))),
                           ],
                         ),
                       ))
@@ -382,7 +382,7 @@ class _VideoAttachedCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 GestureDetector(
                   onTap: onChange,
-                  child: Text('Change', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12.5, fontWeight: AppFontWeight.medium)),
+                  child: Text('Change', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
                 ),
               ],
             ),

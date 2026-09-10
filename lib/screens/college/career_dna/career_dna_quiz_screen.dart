@@ -186,7 +186,7 @@ class _CareerDnaQuizScreenState extends State<CareerDnaQuizScreen> {
       builder: (dialogContext) => AlertDialog(
         backgroundColor: AppColors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
-        title: Text(noOrphan('Are you sure you want to quit?'), style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 17, fontWeight: AppFontWeight.semibold)),
+        title: Text(noOrphan('Are you sure you want to quit?'), style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.semibold)),
         content: Text(
           noOrphan("You'll lose your progress on this level."),
           style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
@@ -406,7 +406,7 @@ class _QuestionBody extends StatelessWidget {
               child: Text(
                 noOrphan(question.text),
                 textAlign: TextAlign.left,
-                style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontSize: 19, fontWeight: AppFontWeight.medium, height: 1.3),
+                style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontSize: 18, fontWeight: AppFontWeight.medium, height: 1.3),
               ),
             ),
           ),

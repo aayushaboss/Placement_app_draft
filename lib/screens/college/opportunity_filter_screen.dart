@@ -161,7 +161,7 @@ class _OpportunityFilterScreenState extends State<OpportunityFilterScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+            Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
             const SizedBox(width: AppSpacing.sm),
             const Icon(Ionicons.close, size: 14, color: AppColors.blue),
           ],
@@ -178,7 +178,7 @@ class _OpportunityFilterScreenState extends State<OpportunityFilterScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
-      child: Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+      child: Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
     );
   }
 
@@ -317,7 +317,7 @@ class _OpportunityFilterScreenState extends State<OpportunityFilterScreen> {
                 // action and shouldn't visually compete with Apply.
                 GestureDetector(
                   onTap: _reset,
-                  child: Text('Reset', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 13, fontWeight: AppFontWeight.medium)),
+                  child: Text('Reset', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
                 ),
               ],
             ),

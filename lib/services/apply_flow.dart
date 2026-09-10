@@ -216,7 +216,7 @@ void _showApplyGateSheet(BuildContext context, User? user, Opportunity opportuni
             child: Text(
               'Not now',
               textAlign: TextAlign.center,
-              style: AppTextStyles.body.copyWith(color: AppColors.gray400, fontSize: 13, fontWeight: AppFontWeight.medium),
+              style: AppTextStyles.body.copyWith(color: AppColors.gray400, fontSize: 12, fontWeight: AppFontWeight.medium),
             ),
           ),
         ],
@@ -443,7 +443,7 @@ class _ScreeningSheetState extends State<_ScreeningSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(o.screeningQuestions[i], style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 15)),
+                      Text(o.screeningQuestions[i], style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 16)),
                       Padding(
                         padding: const EdgeInsets.only(top: AppSpacing.sm),
                         child: Wrap(
@@ -491,7 +491,7 @@ class _ScreeningSheetState extends State<_ScreeningSheet> {
                 ),
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.xl),
-                child: Text('Note to recruiter (optional)', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 15)),
+                child: Text('Note to recruiter (optional)', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 16)),
               ),
               Padding(
                 padding: const EdgeInsets.only(top: AppSpacing.sm),
@@ -527,7 +527,7 @@ class _ScreeningSheetState extends State<_ScreeningSheet> {
                   child: Text(
                     'Not now',
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.body.copyWith(color: AppColors.gray400, fontSize: 13, fontWeight: AppFontWeight.medium),
+                    style: AppTextStyles.body.copyWith(color: AppColors.gray400, fontSize: 12, fontWeight: AppFontWeight.medium),
                   ),
                 ),
               ),
