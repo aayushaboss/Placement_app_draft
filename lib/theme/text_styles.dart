@@ -9,30 +9,29 @@ class AppFontWeight {
 
   static const black = FontWeight.w900;
   static const extrabold = FontWeight.w800;
-  // Restored to w700 (Round V) — an earlier round dialed this down to w600
-  // to de-emphasize bold text, but that collapsed bold and semibold onto
-  // the exact same numeric weight, leaving size as the only thing carrying
-  // hierarchy between a heading and its own card titles/sub-copy. Card
-  // titles were separately moved off `bold` and onto `medium` (Round S) to
-  // keep them reading lighter than their section heading, so restoring
-  // `bold` here only makes those section headings read correctly heavier
-  // again — it reinforces that fix rather than reversing it.
-  static const bold = FontWeight.w700;
+  // Capped at w600 to match a live audit of Internshala's mobile site
+  // (internshala.com at a 375px viewport, computed styles read directly):
+  // their heaviest weight anywhere — job-card titles, detail-page hero
+  // titles, section headings, primary buttons — is 600. Nothing goes to
+  // 700+. Hierarchy there comes from SIZE (14 card title / 16 section
+  // heading / 18 detail hero) plus color (dark ink vs. gray), not from an
+  // extra weight step, so collapsing bold onto semibold here doesn't lose
+  // hierarchy — the size scale below already carries it.
+  static const bold = FontWeight.w600;
   static const semibold = FontWeight.w600;
   static const medium = FontWeight.w500;
   static const regular = FontWeight.w400;
 }
 
 /// Mirrors frontend/src/theme.ts `type` scale.
-/// Weights trimmed a third time after auditing internshala.com's mobile
-/// site directly: their job-card title (the single most prominent text on
-/// the card) is regular 400, company name is medium 500, meta text is
-/// regular 400, and the heaviest weight found anywhere on the page —
-/// including what stands in for a page heading — was semibold 600. Bold
-/// and up essentially don't appear. Ours leaned much heavier (extrabold
-/// titles, bold everywhere) which is what read as "thick" — so every
-/// weight here drops a step or two, keeping bold/extrabold for the rare
-/// cases that still need real emphasis rather than as the default.
+/// Sizes and weights re-audited directly against Internshala's mobile site
+/// (computed styles at a 375px viewport): job-card title 14px/600 ink,
+/// company name 13px/500 gray (rounded to our 12px floor), meta text
+/// 14px/500 gray, section heading 16px/600, detail-page hero title
+/// 18px/600, primary button label 14px/600. Nothing on their site goes
+/// past 18px or past weight 600 — hierarchy is carried by a narrow size
+/// ladder (14 → 16 → 18) plus color (dark ink vs. gray), not by dramatic
+/// size jumps or heavier weights.
 class AppTextStyles {
   AppTextStyles._();
 

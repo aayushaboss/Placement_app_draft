@@ -101,11 +101,9 @@ class OpportunityRow extends StatelessWidget {
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    // 13px — matches the company/subtitle line below, per
-                    // direct feedback that card titles read too large. ink +
-                    // medium still outranks the gray/regular subtitle by
-                    // weight and colour.
-                    style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 12),
+                    // 14px/semibold — matches Internshala's measured
+                    // job-card title (14px/600).
+                    style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 14),
                   ),
                 ),
                 if (subtitle != null && subtitle!.isNotEmpty)
@@ -115,7 +113,7 @@ class OpportunityRow extends StatelessWidget {
                       subtitle!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
+                      style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
                     ),
                   ),
                 if (meta.where((m) => m.trim().isNotEmpty).isNotEmpty)

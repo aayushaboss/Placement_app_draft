@@ -123,7 +123,9 @@ class _PillButtonState extends State<PillButton> {
                 widget.label,
                 style: widget.compact
                     ? AppTextStyles.body.copyWith(fontWeight: AppFontWeight.medium, color: _fg, fontSize: 12)
-                    : AppTextStyles.bodyLg.copyWith(fontWeight: AppFontWeight.medium, color: _fg),
+                    // semibold, matching Internshala's measured primary
+                    // button label (14px/600).
+                    : AppTextStyles.bodyLg.copyWith(fontWeight: AppFontWeight.semibold, color: _fg),
               ),
             ],
           );

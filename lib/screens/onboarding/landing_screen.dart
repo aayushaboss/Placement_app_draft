@@ -136,7 +136,7 @@ class _LandingScreenState extends State<LandingScreen> {
                     // line at most screen widths.
                     Text(
                       'Your future job\nis looking for you too.',
-                      style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 30, fontWeight: AppFontWeight.extrabold, height: 34 / 30),
+                      style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 30, fontWeight: AppFontWeight.bold, height: 34 / 30),
                     ),
                     Padding(
                       padding: const EdgeInsets.only(top: AppSpacing.sm),

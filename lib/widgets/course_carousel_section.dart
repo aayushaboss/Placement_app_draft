@@ -132,9 +132,9 @@ class _CourseCard extends StatelessWidget {
                       course.title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      // 13px — same size as the card's own meta lines, per
-                      // direct feedback that card titles read too large.
-                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 12, height: 1.2),
+                      // 14px/semibold — matches Internshala's measured
+                      // card title (14px/600).
+                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 14, height: 1.2),
                     ),
                   ),
                 ],

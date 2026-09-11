@@ -49,7 +49,7 @@ class PrepCourseCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(course.title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.medium)),
+                  Text(course.title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.semibold)),
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text('${course.duration} • ${course.modules} modules', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),

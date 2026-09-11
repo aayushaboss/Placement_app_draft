@@ -125,9 +125,9 @@ class ContentCard extends StatelessWidget {
                                 title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                // 13px — matches the subtitle line, per direct
-                                // feedback that card titles read too large.
-                                style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium, fontSize: 12),
+                                // 14px/semibold — matches Internshala's
+                                // measured card title (14px/600).
+                                style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 14),
                               ),
                             ),
                             if (subtitle != null && subtitle!.isNotEmpty)
@@ -137,7 +137,7 @@ class ContentCard extends StatelessWidget {
                                   subtitle!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
+                                  style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
                                 ),
                               ),
                           ],

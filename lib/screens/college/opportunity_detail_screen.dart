@@ -136,7 +136,9 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(o.title, style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontSize: 20, fontWeight: AppFontWeight.semibold, height: 26 / 20)),
+                            // 18px/600 — matches Internshala's measured
+                            // detail-page hero title exactly.
+                            Text(o.title, style: AppTextStyles.h2.copyWith(color: AppColors.ink)),
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
                               child: Text(o.company, style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 16, fontWeight: AppFontWeight.medium)),

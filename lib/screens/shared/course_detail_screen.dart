@@ -81,7 +81,9 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(c.title, style: AppTextStyles.h1.copyWith(color: AppColors.ink, fontSize: 20, fontWeight: AppFontWeight.bold, height: 26 / 20)),
+                            // 18px/600 — matches Internshala's measured
+                            // detail-page hero title exactly.
+                            Text(c.title, style: AppTextStyles.h2.copyWith(color: AppColors.ink)),
                             Padding(
                               padding: const EdgeInsets.only(top: 2),
                               child: Text(c.category, style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 16, fontWeight: AppFontWeight.medium)),

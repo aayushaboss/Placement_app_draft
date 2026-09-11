@@ -306,7 +306,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     padding: const EdgeInsets.only(top: AppSpacing.md),
                     child: Text(
                       user?.name ?? 'Student',
-                      style: AppTextStyles.h2.copyWith(color: AppColors.white, fontSize: 22, fontWeight: AppFontWeight.extrabold),
+                      style: AppTextStyles.h2.copyWith(color: AppColors.white, fontSize: 22, fontWeight: AppFontWeight.bold),
                     ),
                   ),
                   Padding(
