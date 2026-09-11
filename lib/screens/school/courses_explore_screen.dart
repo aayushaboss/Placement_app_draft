@@ -435,15 +435,10 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
             ),
           ),
         ],
-        // AppSpacing.xl between each stacked carousel — same fix as
-        // college_feed_screen.dart's _sections(), same reason: each
-        // carousel's own built-in clearance (AppShadows.cardBuffer) is
-        // sized to stop card shadows clipping, not to read as this app's
-        // usual section-to-section rhythm.
-        for (var i = 0; i < carousels.length; i++) ...[
-          if (i > 0) const SizedBox(height: AppSpacing.xl),
-          carousels[i],
-        ],
+        // No manual inter-carousel gap needed — CarouselSectionHeading
+        // already supplies a divider + AppSpacing.xl clearance above each
+        // one, including the first.
+        ...carousels,
       ];
     }
 

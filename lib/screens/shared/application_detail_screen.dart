@@ -172,10 +172,11 @@ class ApplicationDetailScreen extends StatelessWidget {
                   const SizedBox(height: AppSpacing.sm),
                   const _RejectionRecoveryCard(),
                 ],
-                const SizedBox(height: AppSpacing.xl),
                 // However this application turns out, the page shouldn't
                 // be a dead end — give the reader somewhere to go next
-                // instead of just a status feed with nothing below it.
+                // instead of just a status feed with nothing below it. No
+                // manual top gap here — CarouselSectionHeading already
+                // supplies a divider + AppSpacing.xl clearance above it.
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: -AppSpacing.xl),
                   child: _SuggestedForYou(app: app, user: user),

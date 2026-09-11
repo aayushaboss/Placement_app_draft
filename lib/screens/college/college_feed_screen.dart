@@ -179,12 +179,10 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
       if (items.isEmpty) return;
       final capped = items.take(_sectionCap).toList();
       shownOpps.addAll(capped);
-      // AppSpacing.xl between stacked carousels, not just each one's own
-      // built-in shadow-clearance (AppShadows.cardBuffer, 16px, tuned to
-      // stop card shadows clipping — not a design rhythm) — otherwise
-      // several carousels back to back read as "stacked together" against
-      // the rest of the app's AppSpacing.xl section-to-section gap.
-      if (sections.isNotEmpty) sections.add(const SizedBox(height: AppSpacing.xl));
+      // No manual inter-section gap here — CarouselSectionHeading (used by
+      // OpportunityCarouselSection/CourseCarouselSection) now carries its
+      // own top divider + clearance, so every section supplies its own
+      // separation from the one above it.
       sections.add(OpportunityCarouselSection(
         title: title,
         opportunities: capped,
@@ -235,7 +233,6 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     // Course.category, which uses a different vocabulary entirely.
     final upskillCourses = prepCoursesForOpportunities(shownOpps);
     if (upskillCourses.isNotEmpty) {
-      if (sections.isNotEmpty) sections.add(const SizedBox(height: AppSpacing.xl));
       sections.add(CourseCarouselSection(
         // Explicitly says "courses" — "Boost your chances" gave no signal
         // this section was a different content type from the job carousels
@@ -644,21 +641,10 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                               ),
                             )
                           else
-                            Padding(
-                              // Unlike the other section gaps on this page,
-                              // nothing upstream supplies this one for free
-                              // — HomeDashboardCards' own trailing shadow
-                              // buffer only covers the gap *before* its
-                              // nudge banner (_BoostTip), not after it, and
-                              // the banner itself has no shadow of its own
-                              // to lean on. AppSpacing.xl, not
-                              // AppShadows.cardBuffer — matches the gap
-                              // _BoostSection puts *above* that same banner,
-                              // so it reads as equidistant from the cards on
-                              // both sides instead of 4px tighter below.
-                              padding: const EdgeInsets.only(top: AppSpacing.xl),
-                              child: Column(children: _sections(_opps, appState, user)),
-                            ),
+                            // No manual top gap here — the first carousel's
+                            // own CarouselSectionHeading already supplies a
+                            // divider + AppSpacing.xl clearance above it.
+                            Column(children: _sections(_opps, appState, user)),
                         ],
                       ),
                     ),

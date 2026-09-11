@@ -251,7 +251,15 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
                       )
                     : ListView(
                         controller: _scrollController,
-                        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xxxl),
+                        // Top clearance — was 0, so the first card sat flush
+                        // against the "N active applications" subtitle above
+                        // AND had its own top shadow clipped by the
+                        // ListView's bounds (a plain ListView clips to its
+                        // box regardless of the Padding above it in the
+                        // outer Column). AppSpacing.xl comfortably exceeds
+                        // AppShadows.cardBuffer (16px), so this both adds
+                        // breathing room and stops the clip.
+                        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
                         children: [
                           if (columns == 1)
                             ..._apps.asMap().entries.map((entry) => Padding(
