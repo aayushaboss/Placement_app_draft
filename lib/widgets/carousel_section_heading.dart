@@ -15,7 +15,13 @@ class CarouselSectionHeading extends StatelessWidget {
   final String title;
   final int? count;
 
-  const CarouselSectionHeading({super.key, required this.title, this.count});
+  /// Small "View all" link at the far right of the heading row, baseline-
+  /// aligned with the title. Optional — null hides it entirely (e.g.
+  /// courses_explore_screen.dart's own per-category carousels, which are
+  /// already the "view all" destination).
+  final VoidCallback? onViewAll;
+
+  const CarouselSectionHeading({super.key, required this.title, this.count, this.onViewAll});
 
   @override
   Widget build(BuildContext context) {
@@ -49,6 +55,21 @@ class CarouselSectionHeading extends StatelessWidget {
                 Text(
                   '($count)',
                   style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12),
+                ),
+              ],
+              if (onViewAll != null) ...[
+                // Spacer, not a fixed gap — pushes the link to the row's
+                // far right regardless of how long the title/count are,
+                // while the title above stays free to ellipsize instead of
+                // being squeezed by a fixed-width trailing element.
+                const Spacer(),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onViewAll,
+                  child: Text(
+                    'View all',
+                    style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
+                  ),
                 ),
               ],
             ],

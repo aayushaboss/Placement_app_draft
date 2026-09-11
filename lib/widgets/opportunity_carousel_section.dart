@@ -67,7 +67,7 @@ class OpportunityCarouselSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        CarouselSectionHeading(title: title, count: opportunities.length),
+        CarouselSectionHeading(title: title, count: opportunities.length, onViewAll: onViewAll),
         // No explicit gap here — the carousel's own top padding below is
         // the gap, and it's also the shadow-safety buffer for
         // AppShadows.card (see AppShadows.cardBuffer).
