@@ -428,6 +428,22 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Testing-only escape hatch — NOT the normal sign-out path (that's
+  /// [logout], which deliberately preserves the saved profile so signing
+  /// back in resumes it, per mockGoogleSignIn's own doc comment). This
+  /// instead permanently erases the fixed Google demo account from the
+  /// shared demo-users map, so the *next* "Continue with Google" finds
+  /// nothing to resume and genuinely re-runs onboarding from scratch —
+  /// letting the onboarding flow be exercised repeatedly on demand without
+  /// weakening the real returning-user behavior for anyone else.
+  Future<void> resetDemoAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final map = await _loadUsersMap(prefs);
+    map.remove('google:aayusha.pagare@gmail.com');
+    await _saveUsersMap(prefs, map);
+    await logout();
+  }
+
   Future<void> logout() async {
     // Keep profile in _demoUsersKey so the same phone/email can log back in
     // without re-doing onboarding.
