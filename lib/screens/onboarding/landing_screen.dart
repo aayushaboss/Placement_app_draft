@@ -136,7 +136,11 @@ class _LandingScreenState extends State<LandingScreen> {
                     // line at most screen widths.
                     Text(
                       'Your future job\nis looking for you too.',
-                      style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 30, fontWeight: AppFontWeight.bold, height: 34 / 30),
+                      // Deliberate exception to the app-wide "cap at
+                      // semibold" rule — this is the one marketing
+                      // headline that should read as thick/bold as it
+                      // originally did, per direct feedback.
+                      style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 30, fontWeight: AppFontWeight.extrabold, height: 34 / 30),
                     ),
                     Padding(
                       padding: const EdgeInsets.only(top: AppSpacing.sm),
