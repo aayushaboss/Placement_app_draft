@@ -347,27 +347,27 @@ class AppState extends ChangeNotifier {
   /// would hand back a verified name/email instantly, no OTP step.
   /// Segment, college/class, and everything else Google wouldn't actually
   /// know still gets asked on the profile screen right after.
+  ///
+  /// Deliberately always starts a fresh, blank onboarding — never resumes
+  /// a previously-saved profile for this identity, even if one exists.
+  /// An earlier version of this method resumed an already-onboarded
+  /// account instead, but per direct, explicit instruction every tap of
+  /// "Continue with Google" must go through the full onboarding flow.
   Future<User> mockGoogleSignIn() async {
     // TODO: replace with real Google OAuth
     await Future.delayed(const Duration(milliseconds: 500));
     const identifier = 'aayusha.pagare@gmail.com';
     final prefs = await SharedPreferences.getInstance();
-    // Resume an already-onboarded Google account instead of rebuilding a
-    // blank one — logging out and tapping "Continue with Google" again
-    // used to drop the user back into onboarding AND overwrite their saved
-    // profile. (Round AC fixed only the OTP returning-login path.)
-    final saved = await _getSavedUser(prefs, 'google:$identifier');
-    final next = saved ??
-        User(
-          // Stable id (not a per-login timestamp) so this account's
-          // applications survive a re-login, and so it can own the seed
-          // "showcase" applications — see demoShowcaseUserId.
-          id: demoShowcaseUserId,
-          identifier: identifier,
-          signInMethod: 'google',
-          name: 'Aayusha Pagare',
-          onboardingComplete: false,
-        );
+    final next = User(
+      // Stable id (not a per-login timestamp) so this account's
+      // applications survive a re-login, and so it can own the seed
+      // "showcase" applications — see demoShowcaseUserId.
+      id: demoShowcaseUserId,
+      identifier: identifier,
+      signInMethod: 'google',
+      name: 'Aayusha Pagare',
+      onboardingComplete: false,
+    );
     await prefs.setString(_tokenKey, 'demo:$identifier');
     await _persistUser(next);
     _setUser(next);
@@ -426,22 +426,6 @@ class AppState extends ChangeNotifier {
       _setUser(saved);
       notifyListeners();
     }
-  }
-
-  /// Testing-only escape hatch — NOT the normal sign-out path (that's
-  /// [logout], which deliberately preserves the saved profile so signing
-  /// back in resumes it, per mockGoogleSignIn's own doc comment). This
-  /// instead permanently erases the fixed Google demo account from the
-  /// shared demo-users map, so the *next* "Continue with Google" finds
-  /// nothing to resume and genuinely re-runs onboarding from scratch —
-  /// letting the onboarding flow be exercised repeatedly on demand without
-  /// weakening the real returning-user behavior for anyone else.
-  Future<void> resetDemoAccount() async {
-    final prefs = await SharedPreferences.getInstance();
-    final map = await _loadUsersMap(prefs);
-    map.remove('google:aayusha.pagare@gmail.com');
-    await _saveUsersMap(prefs, map);
-    await logout();
   }
 
   Future<void> logout() async {

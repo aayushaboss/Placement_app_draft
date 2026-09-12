@@ -156,50 +156,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     context.go('/onboarding');
   }
 
-  /// Testing-only — not the normal sign-out path. Permanently erases the
-  /// Google demo account's saved profile so the next "Continue with
-  /// Google" genuinely restarts onboarding instead of resuming it, which
-  /// is what a real user re-signing-in should see (the intentional
-  /// default, per AppState.mockGoogleSignIn's own doc comment). Kept as a
-  /// separate, clearly-labeled action rather than changing that default.
-  Future<void> _resetDemoAccount(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.xl)),
-        title: Text(
-          'Reset demo account?',
-          style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.semibold),
-        ),
-        content: Text(
-          'For testing onboarding only — this permanently erases this Google account\'s saved profile and applications. The next "Continue with Google" will start onboarding from scratch.',
-          style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(
-              'Cancel',
-              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontWeight: AppFontWeight.medium),
-            ),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(
-              'Reset',
-              style: AppTextStyles.body.copyWith(color: AppColors.error, fontWeight: AppFontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !context.mounted) return;
-    final appState = context.read<AppState>();
-    await appState.resetDemoAccount();
-    if (!context.mounted) return;
-    context.go('/onboarding');
-  }
 
   void _editBasics(BuildContext context) => context.push('/profile-edit?returnTo=%2Ftabs%2Fprofile');
   // /college/resume, not /college/resume/build directly — that screen is
@@ -619,21 +575,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             style: AppTextStyles.bodyLg.copyWith(color: AppColors.gray500, fontSize: 16, fontWeight: AppFontWeight.medium),
                           ),
                         ],
-                      ),
-                    ),
-                  ),
-                  // Testing-only utility, deliberately de-emphasized (small
-                  // muted text, not a button) so it doesn't read as part of
-                  // the normal sign-in/account flow — see
-                  // _resetDemoAccount's own doc comment for why this is
-                  // separate from Log out.
-                  GestureDetector(
-                    onTap: () => _resetDemoAccount(context),
-                    child: Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.lg),
-                      child: Text(
-                        'Reset demo account (testing)',
-                        style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12, fontWeight: AppFontWeight.medium),
                       ),
                     ),
                   ),
