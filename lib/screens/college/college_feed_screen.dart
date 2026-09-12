@@ -231,7 +231,10 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     // whatever the student actually saw above (via each opportunity's own
     // curated prepCourses), not a fragile category-string match against
     // Course.category, which uses a different vocabulary entirely.
-    final upskillCourses = prepCoursesForOpportunities(shownOpps);
+    // take: 5 (not the function's own default of 4) — CourseCarouselSection's
+    // trailing "View all" tile only ever renders once there are >=5 items,
+    // so the default cap made it permanently unreachable here specifically.
+    final upskillCourses = prepCoursesForOpportunities(shownOpps, take: 5);
     if (upskillCourses.isNotEmpty) {
       sections.add(CourseCarouselSection(
         // Explicitly says "courses" — "Boost your chances" gave no signal

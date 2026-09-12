@@ -432,7 +432,12 @@ List<SyllabusModule> courseSyllabus(Course course) {
 
 List<Course> recommendedCourses([List<String> clusters = const []]) {
   final recs = mockCourses.where((c) => clusters.contains(c.cluster)).toList();
-  final list = recs.isNotEmpty ? recs : mockCourses.take(4).toList();
+  // Fallback also takes 6 (not 4) — the final .take(6) below is a no-op
+  // ceiling if the fallback itself already capped lower, which meant a
+  // user with no cluster match (or none yet) could never see enough
+  // courses here to reach CourseCarouselSection's own >=5 "View all" tile
+  // threshold.
+  final list = recs.isNotEmpty ? recs : mockCourses.take(6).toList();
   return list.take(6).toList();
 }
 
@@ -452,5 +457,14 @@ List<Course> prepCoursesForOpportunities(Iterable<Opportunity> opportunities, {i
     }
   }
   final courses = prepCoursesFor(ids);
-  return courses.isNotEmpty ? courses.take(take).toList() : mockCourses.take(take).toList();
+  if (courses.length >= take) return courses.take(take).toList();
+  // Top up with the general catalog (deduped) rather than stopping short —
+  // a small real-matched pool otherwise permanently keeps this carousel
+  // under CourseCarouselSection's own >=5 "View all" tile threshold.
+  final result = [...courses];
+  for (final c in mockCourses) {
+    if (result.length >= take) break;
+    if (!result.any((r) => r.id == c.id)) result.add(c);
+  }
+  return result;
 }
