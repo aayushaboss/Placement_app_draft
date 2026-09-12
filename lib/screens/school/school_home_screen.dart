@@ -316,7 +316,7 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
                     ],
                     // No manual top gap — CarouselSectionHeading already
                     // supplies a divider + AppSpacing.xl clearance above it.
-                    CourseCarouselSection(title: 'Recommended for you', courses: _courses),
+                    CourseCarouselSection(title: 'Recommended for you', courses: _courses, onViewAll: () => context.go('/tabs/explore')),
                     Padding(
                       padding: const EdgeInsets.only(top: AppSpacing.xl, left: AppSpacing.xl, right: AppSpacing.xl),
                       child: Text('Resources for you', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
