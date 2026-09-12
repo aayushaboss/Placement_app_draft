@@ -5,7 +5,6 @@ import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../mockData/mock_applications.dart' show demoShowcaseUserId, setApplicationsUser;
-import '../models/career_dna.dart';
 import '../models/user.dart';
 import '../utils/fomo_prefs_key.dart';
 
@@ -373,22 +372,6 @@ class AppState extends ChangeNotifier {
     _setUser(next);
     notifyListeners();
     return next;
-  }
-
-  /// Prototype stand-in for a real payment gateway — a real integration
-  /// would call out to Razorpay/Stripe etc. and only add `level` to
-  /// `paidLevels` on a verified webhook/callback, not an artificial delay.
-  /// Mirrors mockGoogleSignIn()'s own shape: fixed delay, always succeeds.
-  /// Each Career DNA level (2-5) is paid for individually — Level 1 is
-  /// always free and never passed here.
-  Future<void> mockUnlockCareerDnaLevel(int level) async {
-    // TODO: replace with real payment gateway (Razorpay/Stripe) + webhook verification
-    await Future.delayed(const Duration(milliseconds: 900));
-    await updateProfile((current) {
-      final profile = current.careerDnaOrEmpty;
-      if (profile.paidLevels.contains(level)) return current; // already paid — no duplicate entry
-      return current.copyWith(careerDna: profile.copyWith(paidLevels: [...profile.paidLevels, level]));
-    });
   }
 
   Future<User> updateProfile(User Function(User current) patch) async {

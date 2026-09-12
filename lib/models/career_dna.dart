@@ -317,9 +317,11 @@ class CareerDnaProfile {
     }
   }
 
-  /// Whether that level's report/PDF can be downloaded right now — Level 1
-  /// always (it's free), Levels 2-5 only once individually paid for.
-  bool isLevelReportUnlocked(int level) => level == 1 || paidLevels.contains(level);
+  /// Whether that level's report/PDF can be downloaded right now — every
+  /// level's report is free once that level is complete (Career DNA has no
+  /// paywall). `paidLevels` is kept only as harmless vestigial state from
+  /// when this used to gate on payment.
+  bool isLevelReportUnlocked(int level) => true;
 
   CareerDnaProfile copyWith({
     CareerDnaLevel1Result? level1,

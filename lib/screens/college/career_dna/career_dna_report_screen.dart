@@ -13,22 +13,23 @@ import '../../../theme/colors.dart';
 import '../../../theme/shadows.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/text_styles.dart';
+import '../../../utils/career_dna_trait_summary.dart';
 import '../../../utils/no_orphan.dart';
 import '../../../widgets/back_chevron.dart';
+import '../../../widgets/career_dna_trait_summary_card.dart';
 import '../../../widgets/pill_button.dart';
 import '../../../widgets/responsive_body.dart';
 
 /// Per-level report — no on-screen narrative "overview" any more (that
 /// content — hero/snapshot/growth paragraphs — has been removed for every
-/// level, per direct feedback). This screen now only ever shows one of
-/// three lean states per level: not-ready-yet, ready-to-download (Level 1
-/// always, Levels 2-4 once the existing single ₹51 payment has unlocked
-/// everything), or locked-needs-payment (Levels 2-4 only, before paying).
-/// The narrative-generation logic that used to live here (dimension-phrase
-/// sentences, archetype heroes, etc.) still exists — it just moved
-/// entirely into career_dna_report_pdf.dart, which still puts that detail
-/// into the actual downloadable PDF; it's just not shown on this screen
-/// before/instead of downloading any more.
+/// level, per direct feedback). Career DNA has no paywall: this screen now
+/// only ever shows one of two lean states per level — not-ready-yet, or
+/// ready-to-download once that level is complete. The narrative-generation
+/// logic that used to live here (dimension-phrase sentences, archetype
+/// heroes, etc.) still exists — it just moved entirely into
+/// career_dna_report_pdf.dart, which still puts that detail into the
+/// actual downloadable PDF; it's just not shown on this screen before/
+/// instead of downloading any more.
 /// Level 5 has its own dedicated final-synthesis screen
 /// (career_dna_final_report_screen.dart) instead of this per-level shape,
 /// since it combines every level rather than reporting just one.
@@ -57,10 +58,6 @@ class CareerDnaReportScreen extends StatelessWidget {
 
     final completed = _isLevelComplete(profile, level);
     final meta = careerDnaLevelMeta.firstWhere((m) => m.level == level);
-    // Level 1 is always free — a lead-magnet, no paywall at all. Levels
-    // 2-4 each require their own individual ₹51 payment now — no single
-    // payment unlocks more than one level.
-    final canDownload = completed && profile.isLevelReportUnlocked(level);
 
     return Scaffold(
       backgroundColor: AppColors.white,
@@ -70,12 +67,7 @@ class CareerDnaReportScreen extends StatelessWidget {
           children: [
             BackChevron(color: AppColors.ink, fallbackRoute: '/tabs/career-dna'),
             const SizedBox(height: AppSpacing.lg),
-            if (!completed)
-              _NotReadyCard(level: level)
-            else if (canDownload)
-              _LevelReportReadyView(level: level, meta: meta)
-            else
-              _LevelReportLockedView(level: level, meta: meta),
+            if (!completed) _NotReadyCard(level: level) else _LevelReportReadyView(level: level, meta: meta, profile: profile),
           ],
         ),
       ),
@@ -101,16 +93,17 @@ bool _isLevelComplete(CareerDnaProfile p, int level) {
   }
 }
 
-/// Level 1 (always), or Levels 2-4 once globally unlocked — a lean "your
-/// report is ready" view: checkmark, title, file-info card, a per-level-
-/// only PDF download (not the combined multi-level one), and a "Continue
-/// to Level N+1" CTA. Safe to always show Continue here: this only ever
-/// renders once level N is already complete, and unlocking is strictly
-/// sequential, so level N+1 is guaranteed to already be unlocked.
+/// Any completed level (1-4) — a lean "your report is ready" view: the
+/// compact trait-summary card, checkmark, title, file-info card, a
+/// per-level-only PDF download (not the combined multi-level one), and a
+/// "Continue to Level N+1" CTA. Safe to always show Continue here: this
+/// only ever renders once level N is already complete, and unlocking is
+/// strictly sequential, so level N+1 is guaranteed to already be unlocked.
 class _LevelReportReadyView extends StatefulWidget {
   final int level;
   final CareerDnaLevelMeta meta;
-  const _LevelReportReadyView({required this.level, required this.meta});
+  final CareerDnaProfile profile;
+  const _LevelReportReadyView({required this.level, required this.meta, required this.profile});
 
   @override
   State<_LevelReportReadyView> createState() => _LevelReportReadyViewState();
@@ -149,11 +142,16 @@ class _LevelReportReadyViewState extends State<_LevelReportReadyView> {
   Widget build(BuildContext context) {
     final user = context.watch<AppState>().user;
     final nextLevel = widget.level + 1; // always <=5 — level 5 redirects before this widget ever builds
+    final traitSummary = buildLevelTraitSummary(widget.profile, widget.level);
 
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.xl),
       child: Column(
         children: [
+          if (traitSummary != null) ...[
+            CareerDnaTraitSummaryCard(data: traitSummary),
+            const SizedBox(height: AppSpacing.xl),
+          ],
           Container(
             width: 80,
             height: 80,
@@ -227,59 +225,6 @@ class _LevelReportReadyViewState extends State<_LevelReportReadyView> {
             child: PillButton(
               label: 'Continue to Level $nextLevel',
               onPressed: () => context.push('/college/career-dna/level/$nextLevel/intro'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Levels 2-4, before that specific level's own payment has unlocked it —
-/// no narrative teaser text at all (that's the whole point of the earlier
-/// round's change), just a lean "here's what's waiting, unlock to see it"
-/// prompt. Each level is paid for individually — this is not shared with
-/// any other level's unlock state.
-class _LevelReportLockedView extends StatelessWidget {
-  final int level;
-  final CareerDnaLevelMeta meta;
-  const _LevelReportLockedView({required this.level, required this.meta});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(top: AppSpacing.xl),
-      child: Column(
-        children: [
-          Container(
-            width: 80,
-            height: 80,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
-            child: const Icon(Ionicons.lock_closed, size: 34, color: AppColors.blue),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.lg),
-            child: Text(
-              'Your ${meta.title} report is ready',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.h2.copyWith(color: AppColors.ink, fontSize: 22, fontWeight: AppFontWeight.semibold),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.sm),
-            child: Text(
-              noOrphan('Unlock it to see what your answers mean.'),
-              textAlign: TextAlign.center,
-              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xl),
-            child: PillButton(
-              label: 'Unlock — ₹51',
-              icon: Ionicons.lock_open_outline,
-              onPressed: () => context.push('/college/career-dna/level/$level/unlock'),
             ),
           ),
         ],

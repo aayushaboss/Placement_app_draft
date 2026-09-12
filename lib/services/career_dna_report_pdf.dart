@@ -11,6 +11,7 @@ import '../mockData/career_dna/career_dna_level4_data.dart';
 import '../mockData/career_dna/career_dna_level_meta.dart';
 import '../models/career_dna.dart';
 import '../models/user.dart';
+import '../utils/career_dna_narrative.dart' as narrative;
 
 const _blue = PdfColor.fromInt(0xFF0A2FFF);
 const _ink = PdfColor.fromInt(0xFF1C1C1E);
@@ -130,9 +131,9 @@ class _Fonts {
 }
 
 List<pw.Widget> _level1Section(String? name, CareerDnaLevel1Result r, _Fonts f) {
-  final first = _firstSentence(r.archetype.naturalStyle);
+  final first = narrative.firstSentence(r.archetype.naturalStyle);
   final rest = r.archetype.naturalStyle.substring(first.length).trim();
-  final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel1DimensionPhrases);
+  final (strengths, growing) = narrative.narrativeSentences(r.dimensionScores, careerDnaLevel1DimensionPhrases);
   return [
     _sectionHeader('Level 1 — Big Five (OCEAN)', f.bold),
     pw.Text(r.archetype.name, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
@@ -146,7 +147,7 @@ List<pw.Widget> _level1Section(String? name, CareerDnaLevel1Result r, _Fonts f) 
     pw.Text(growing, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
     pw.SizedBox(height: 6),
     pw.Text(
-      '${r.archetype.growthAreaText} You could also thrive in places like ${_joinList(r.archetype.environments)}.',
+      '${r.archetype.growthAreaText} You could also thrive in places like ${narrative.joinList(r.archetype.environments)}.',
       style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 1.5),
     ),
     pw.SizedBox(height: 18),
@@ -154,7 +155,7 @@ List<pw.Widget> _level1Section(String? name, CareerDnaLevel1Result r, _Fonts f) 
 }
 
 List<pw.Widget> _level2Section(String? name, CareerDnaLevel2Result r, _Fonts f) {
-  final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel2DimensionPhrases);
+  final (strengths, growing) = narrative.narrativeSentences(r.dimensionScores, careerDnaLevel2DimensionPhrases);
   return [
     _sectionHeader('Level 2 — Situational Judgement Test', f.bold),
     pw.Text(r.headlineText, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
@@ -173,7 +174,7 @@ List<pw.Widget> _level2Section(String? name, CareerDnaLevel2Result r, _Fonts f) 
 }
 
 List<pw.Widget> _level3Section(String? name, CareerDnaLevel3Result r, _Fonts f) {
-  final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel3DimensionPhrases);
+  final (strengths, growing) = narrative.narrativeSentences(r.dimensionScores, careerDnaLevel3DimensionPhrases);
   return [
     _sectionHeader('Level 3 — Hogan Personality Inventory Test', f.bold),
     pw.Text(r.profile.name, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
@@ -187,7 +188,7 @@ List<pw.Widget> _level3Section(String? name, CareerDnaLevel3Result r, _Fonts f) 
     pw.Text(growing, style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 2)),
     pw.SizedBox(height: 6),
     pw.Text(
-      '${r.profile.watchOut} You could also thrive in places like ${_joinList(r.profile.environments)}.',
+      '${r.profile.watchOut} You could also thrive in places like ${narrative.joinList(r.profile.environments)}.',
       style: pw.TextStyle(font: f.regular, fontSize: 10.5, color: _ink, lineSpacing: 1.5),
     ),
     pw.SizedBox(height: 18),
@@ -196,7 +197,7 @@ List<pw.Widget> _level3Section(String? name, CareerDnaLevel3Result r, _Fonts f) 
 
 List<pw.Widget> _level4Section(String? name, CareerDnaLevel4Result r, _Fonts f) {
   final bandCopy = careerDnaWorkplaceReadinessBandCopy[r.band] ?? '';
-  final (strengths, growing) = _narrativeSentences(r.dimensionScores, careerDnaLevel4DimensionPhrases);
+  final (strengths, growing) = narrative.narrativeSentences(r.dimensionScores, careerDnaLevel4DimensionPhrases);
   return [
     _sectionHeader('Level 4 — DISC Assessment', f.bold),
     pw.Text(r.workStyleTitle, style: pw.TextStyle(font: f.bold, fontSize: 15, color: _ink)),
@@ -246,28 +247,6 @@ List<pw.Widget> _level5Section(CareerDnaLevel5Result r, _Fonts f) {
 pw.Widget _heading(String? name, String noun, pw.Font medium) =>
     pw.Text(name != null ? "$name's $noun" : 'Your $noun', style: pw.TextStyle(font: medium, fontSize: 11.5, color: _ink));
 
-/// The opening sentence only — mirrors career_dna_report_screen.dart's own
-/// `_firstSentence` exactly, so the PDF's hero matches the on-screen one.
-String _firstSentence(String text) {
-  final match = RegExp(r'^.*?[.!?](?=\s|$)').firstMatch(text);
-  return match?.group(0) ?? text;
-}
-
-/// Mirrors career_dna_report_screen.dart's own `_narrativeSentences`
-/// exactly — top 3 dimensions named plainly as strengths, bottom 2 framed
-/// as still developing, no numbers anywhere, second person throughout, kept
-/// as two separate sentences so the PDF renders them as distinct
-/// paragraphs rather than one dense block.
-(String, String) _narrativeSentences(Map<String, int> scores, Map<String, String> phrases) {
-  final sorted = scores.entries.toList()..sort((a, b) => b.value.compareTo(a.value));
-  final strengths = sorted.take(3).map((e) => phrases[e.key] ?? e.key).toList();
-  final growing = sorted.reversed.take(2).map((e) => phrases[e.key] ?? e.key).toList();
-
-  final strengthsSentence = 'Looking at how you actually answered, your standout strengths are ${_joinList(strengths)} — these come through clearly and are genuinely worth leaning into.';
-  final growingSentence = "You're still growing into ${_joinList(growing)} — with a bit of intentional practice, that's real room to build, not something holding you back.";
-  return (strengthsSentence, growingSentence);
-}
-
 pw.Widget _sectionHeader(String title, pw.Font bold) => pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
@@ -277,9 +256,3 @@ pw.Widget _sectionHeader(String title, pw.Font bold) => pw.Column(
         pw.SizedBox(height: 8),
       ],
     );
-
-String _joinList(List<String> items) {
-  if (items.isEmpty) return '';
-  if (items.length == 1) return items.first;
-  return '${items.sublist(0, items.length - 1).join(', ')} and ${items.last}';
-}

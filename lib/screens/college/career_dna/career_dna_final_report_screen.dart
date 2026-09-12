@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../../../models/career_dna.dart';
+import '../../../models/user.dart';
+import '../../../services/career_dna_report_pdf.dart';
 import '../../../state/app_state.dart';
 import '../../../theme/colors.dart';
 import '../../../theme/shadows.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/text_styles.dart';
+import '../../../utils/career_dna_trait_summary.dart';
 import '../../../utils/no_orphan.dart';
 import '../../../widgets/back_chevron.dart';
 import '../../../widgets/badges.dart';
+import '../../../widgets/career_dna_trait_summary_card.dart';
 import '../../../widgets/pill_button.dart';
 import '../../../widgets/responsive_body.dart';
 
@@ -22,14 +27,9 @@ const _confidenceLabels = {
 };
 
 /// The final combined "Career DNA" synthesis — reachable only once all 5
-/// levels are complete. Same locked-teaser/unlocked-full branch as the
-/// per-level report screen (free teaser = top direction name only; the
-/// ranked breakdown, roles, strengths/development areas and next-steps
-/// roadmap are gated behind Level 5's own individual ₹51 payment — same as
-/// every other level, no longer a shared unlock-everything flag).
-/// Level 5's own scoring isn't authored yet (Phase B) — until then this
-/// renders a real, honest "still building the synthesis" state rather than
-/// a fake result, once all 5 levels are actually complete.
+/// levels are complete. Career DNA has no paywall: the full ranked
+/// breakdown, roles, strengths/development areas and roadmap always render
+/// once Level 5 is done — no locked/teaser state any more.
 class CareerDnaFinalReportScreen extends StatelessWidget {
   const CareerDnaFinalReportScreen({super.key});
 
@@ -52,7 +52,7 @@ class CareerDnaFinalReportScreen extends StatelessWidget {
             else if (profile.level5 == null)
               const _StillBuildingCard()
             else
-              _SynthesisContent(result: profile.level5!, unlocked: profile.isLevelReportUnlocked(5)),
+              _SynthesisContent(result: profile.level5!),
           ],
         ),
       ),
@@ -109,17 +109,52 @@ class _StillBuildingCard extends StatelessWidget {
   }
 }
 
-class _SynthesisContent extends StatelessWidget {
+class _SynthesisContent extends StatefulWidget {
   final CareerDnaLevel5Result result;
-  final bool unlocked;
-  const _SynthesisContent({required this.result, required this.unlocked});
+  const _SynthesisContent({required this.result});
+
+  @override
+  State<_SynthesisContent> createState() => _SynthesisContentState();
+}
+
+class _SynthesisContentState extends State<_SynthesisContent> {
+  bool _downloading = false;
+
+  Future<void> _downloadCombined(User user) async {
+    if (_downloading) return;
+    setState(() => _downloading = true);
+    try {
+      final bytes = await buildCareerDnaReportPdf(user);
+      final name = (user.name?.trim().isNotEmpty ?? false) ? user.name! : 'career_quiz';
+      final safeName = name.replaceAll(RegExp(r'[^\w\s-]'), '').trim().replaceAll(RegExp(r'\s+'), '_');
+      await Printing.sharePdf(
+        bytes: bytes,
+        filename: '${safeName.isEmpty ? 'career_quiz' : safeName}_combined_report.pdf',
+      );
+    } catch (e) {
+      debugPrint('Career Quiz combined report PDF generation failed: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text("Couldn't generate the PDF"),
+          duration: Duration(seconds: 4),
+          persist: false,
+        ));
+    } finally {
+      if (mounted) setState(() => _downloading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final directions = unlocked ? result.topDirections : result.topDirections.take(1).toList();
+    final result = widget.result;
+    final user = context.watch<AppState>().user;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        CareerDnaTraitSummaryCard(data: buildLevel5TraitSummary(result)),
+        const SizedBox(height: AppSpacing.xl),
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(AppSpacing.xl),
@@ -139,10 +174,20 @@ class _SynthesisContent extends StatelessWidget {
             ],
           ),
         ),
+        Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.lg),
+          child: PillButton(
+            label: 'Download Combined PDF',
+            variant: PillVariant.secondary,
+            icon: Ionicons.download_outline,
+            loading: _downloading,
+            onPressed: user == null ? null : () => _downloadCombined(user),
+          ),
+        ),
         const SizedBox(height: AppSpacing.xl),
         Text('Top Career Directions', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
         const SizedBox(height: AppSpacing.md),
-        for (final d in directions)
+        for (final d in result.topDirections)
           Container(
             margin: const EdgeInsets.only(bottom: AppSpacing.md),
             padding: const EdgeInsets.all(AppSpacing.lg),
@@ -154,65 +199,67 @@ class _SynthesisContent extends StatelessWidget {
               ],
             ),
           ),
-        if (!unlocked)
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Icon(Ionicons.lock_closed, size: 22, color: AppColors.blue),
-                const SizedBox(height: AppSpacing.sm),
-                Text('See all 5 directions, your top roles, and next steps', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
+        Text('Top Job Roles', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
+        const SizedBox(height: AppSpacing.md),
+        Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: result.topRoles.map((r) => AppTag(label: '${r.name} · ${r.fitPercent}%')).toList()),
+        const SizedBox(height: AppSpacing.xl),
+        Text('Your Career Strengths', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
+        const SizedBox(height: AppSpacing.md),
+        Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: result.careerStrengths.map((s) => AppTag(label: s, color: AppColors.blue, bg: AppColors.blueA10)).toList()),
+        const SizedBox(height: AppSpacing.xl),
+        Text('Growth Opportunities', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
+        const SizedBox(height: AppSpacing.md),
+        Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: result.developmentAreas.map((s) => AppTag(label: s, color: AppColors.gray500, bg: AppColors.offWhite)).toList()),
+        const SizedBox(height: AppSpacing.xl),
+        Text('Your Roadmap', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
+        const SizedBox(height: AppSpacing.md),
+        Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.soft),
+          child: Column(
+            children: [
+              for (var i = 0; i < result.nextSteps.length; i++)
                 Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.xs, bottom: AppSpacing.lg),
-                  child: Text(noOrphan('Unlock your full report to see the complete picture.'), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12)),
-                ),
-                PillButton(label: 'Unlock', icon: Ionicons.lock_open_outline, onPressed: () => context.push('/college/career-dna/level/5/unlock')),
-              ],
-            ),
-          )
-        else ...[
-          Text('Top Job Roles', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: result.topRoles.map((r) => AppTag(label: '${r.name} · ${r.fitPercent}%')).toList()),
-          const SizedBox(height: AppSpacing.xl),
-          Text('Your Career Strengths', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: result.careerStrengths.map((s) => AppTag(label: s, color: AppColors.success, bg: AppColors.successA10)).toList()),
-          const SizedBox(height: AppSpacing.xl),
-          Text('Growth Opportunities', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
-          const SizedBox(height: AppSpacing.md),
-          Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.sm, children: result.developmentAreas.map((s) => AppTag(label: s, color: AppColors.gray500, bg: AppColors.offWhite)).toList()),
-          const SizedBox(height: AppSpacing.xl),
-          Text('Your Roadmap', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
-          const SizedBox(height: AppSpacing.md),
-          Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.soft),
-            child: Column(
-              children: [
-                for (var i = 0; i < result.nextSteps.length; i++)
-                  Padding(
-                    padding: EdgeInsets.only(bottom: i == result.nextSteps.length - 1 ? 0 : AppSpacing.md),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 26,
-                          height: 26,
-                          alignment: Alignment.center,
-                          decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
-                          child: Text('${i + 1}', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontWeight: AppFontWeight.bold)),
-                        ),
-                        const SizedBox(width: AppSpacing.md),
-                        Expanded(child: Text(result.nextSteps[i], style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 12))),
-                      ],
-                    ),
+                  padding: EdgeInsets.only(bottom: i == result.nextSteps.length - 1 ? 0 : AppSpacing.md),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 26,
+                        height: 26,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
+                        child: Text('${i + 1}', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontWeight: AppFontWeight.bold)),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Expanded(child: Text(result.nextSteps[i], style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 12))),
+                    ],
                   ),
-              ],
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xl),
+        PillButton(
+          label: 'Retake Level 5',
+          variant: PillVariant.secondary,
+          icon: Ionicons.refresh_outline,
+          onPressed: () => context.push('/college/career-dna/level/5/intro'),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.sm),
+          child: Center(
+            child: GestureDetector(
+              onTap: () => context.go('/tabs/career-dna'),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                child: Text(
+                  'Back to Career Quiz',
+                  style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 14, fontWeight: AppFontWeight.medium),
+                ),
+              ),
             ),
           ),
-        ],
+        ),
       ],
     );
   }

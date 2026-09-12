@@ -35,13 +35,6 @@ class CareerDnaLandingScreen extends StatefulWidget {
 
 class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
   final _scrollController = ScrollController();
-  // Attached to whichever node is "current" (see build()) so the level a
-  // student is actually here for lands above the fold on open, instead of
-  // always starting at Level 1 and making them scroll past every already-
-  // completed level first — most noticeable the deeper into the path
-  // someone is (e.g. arriving at Level 5).
-  final _currentNodeKey = GlobalKey();
-  bool _didAutoScrollToCurrent = false;
 
   @override
   void initState() {
@@ -52,15 +45,6 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
         _scrollController.animateTo(0, duration: const Duration(milliseconds: 300), curve: Curves.easeOut);
       }
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToCurrentLevel());
-  }
-
-  void _scrollToCurrentLevel() {
-    if (_didAutoScrollToCurrent || !mounted) return;
-    final target = _currentNodeKey.currentContext;
-    if (target == null) return; // e.g. all 5 levels complete — no single "current" node to jump to
-    _didAutoScrollToCurrent = true;
-    Scrollable.ensureVisible(target, alignment: 0.12, duration: const Duration(milliseconds: 400), curve: Curves.easeOutCubic);
   }
 
   @override
@@ -216,7 +200,6 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                   ),
                   for (final meta in careerDnaLevelMeta)
                     Padding(
-                      key: currentMeta?.level == meta.level ? _currentNodeKey : null,
                       padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
                       child: _PathNode(
                         meta: meta,

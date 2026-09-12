@@ -516,6 +516,10 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                               // alignment.centerLeft on each card keeps
                               // shorter content vertically centred.
                               height: 112,
+                              // Longer than AutoCarousel's own 5s default —
+                              // this card's 2-line title + 2-line body needs
+                              // more time to actually read before it swaps.
+                              interval: const Duration(seconds: 8),
                               cards: [
                                 GestureDetector(
                                   onTap: () => context.push('/booking?kind=placement'),

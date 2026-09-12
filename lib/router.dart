@@ -10,7 +10,6 @@ import 'screens/auth/otp_screen.dart';
 import 'screens/college/career_dna/career_dna_final_report_screen.dart';
 import 'screens/college/career_dna/career_dna_landing_screen.dart';
 import 'screens/college/career_dna/career_dna_level_intro_screen.dart';
-import 'screens/college/career_dna/career_dna_payment_screen.dart';
 import 'screens/college/career_dna/career_dna_quiz_screen.dart';
 import 'screens/college/career_dna/career_dna_report_screen.dart';
 import 'screens/college/career_dna/career_dna_success_screen.dart';
@@ -205,10 +204,6 @@ GoRouter buildRouter(AppState appState, GlobalKey<ScaffoldMessengerState> scaffo
       GoRoute(
         path: '/college/career-dna/level/:level/report',
         builder: (context, state) => CareerDnaReportScreen(level: int.parse(state.pathParameters['level']!)),
-      ),
-      GoRoute(
-        path: '/college/career-dna/level/:level/unlock',
-        builder: (context, state) => CareerDnaPaymentScreen(level: int.parse(state.pathParameters['level']!)),
       ),
       GoRoute(path: '/college/career-dna/final-report', builder: (context, state) => const CareerDnaFinalReportScreen()),
       GoRoute(
