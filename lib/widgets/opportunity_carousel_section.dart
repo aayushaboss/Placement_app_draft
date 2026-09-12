@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 
 import '../models/opportunity.dart';
 import '../models/opportunity_match.dart';
-import '../theme/colors.dart';
 import '../theme/shadows.dart';
 import '../theme/spacing.dart';
-import '../theme/text_styles.dart';
 import 'carousel_section_heading.dart';
 import 'opportunity_carousel_card.dart';
 
 /// One horizontally-scrolling "topic" row on the browse feed — title, a
-/// count, a "View all" link, then a fixed-height ListView of
-/// [OpportunityCarouselCard]s. Naukri-style browse-by-topic instead of one
-/// long vertical scroll, which stops working once there are more than a
-/// screenful of postings.
+/// count, then a fixed-height ListView of [OpportunityCarouselCard]s.
+/// Naukri-style browse-by-topic instead of one long vertical scroll, which
+/// stops working once there are more than a screenful of postings.
+/// [onViewAll] is unused — kept as a no-op accepted param so existing call
+/// sites don't need to change; there's no "View all" affordance any more.
 class OpportunityCarouselSection extends StatelessWidget {
   final String title;
   final List<Opportunity> opportunities;
@@ -39,8 +37,8 @@ class OpportunityCarouselSection extends StatelessWidget {
     this.onToggleSave,
   });
 
-  /// Cards shown in the lane before the trailing "View all" tile — the
-  /// rest are reachable via that tile / the list screen.
+  /// Cards shown in this lane — the rest are reachable via the full list
+  /// screen (see onTapCard's caller for that route).
   static const _visibleCap = 5;
 
   @override
@@ -48,14 +46,6 @@ class OpportunityCarouselSection extends StatelessWidget {
     if (opportunities.isEmpty) return const SizedBox.shrink();
 
     final visible = opportunities.take(_visibleCap).toList();
-    // "View all" is a trailing card in the lane (not a header link) once
-    // the lane is full — per direct feedback that it reads better as the
-    // 6th tile than as a small link up in the heading. `>=` (not `>`) so a
-    // carousel showing exactly the cap still gets the tile: the list screen
-    // it opens isn't goal-type-filtered the way this feed carousel is, so
-    // it genuinely reveals more.
-    final showViewAllTile = onViewAll != null && opportunities.length >= _visibleCap;
-    final itemCount = visible.length + (showViewAllTile ? 1 : 0);
 
     // No outer bottom padding — the carousel's own bottom shadow buffer
     // (AppSpacing.xxl, from the Row's vertical padding below) already
@@ -93,12 +83,9 @@ class OpportunityCarouselSection extends StatelessWidget {
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppShadows.cardBuffer, AppSpacing.lg, AppShadows.cardBuffer),
               scrollDirection: Axis.horizontal,
-              itemCount: itemCount,
+              itemCount: visible.length,
               separatorBuilder: (_, _) => const SizedBox(width: AppSpacing.md),
               itemBuilder: (context, i) {
-                if (showViewAllTile && i == visible.length) {
-                  return _ViewAllTile(onTap: onViewAll!);
-                }
                 final o = visible[i];
                 final applied = isApplied(o);
                 return OpportunityCarouselCard(
@@ -120,48 +107,6 @@ class OpportunityCarouselSection extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-/// Trailing tile in a carousel lane — same card shell (width, shadow,
-/// radius) as the job cards beside it, just a single centered "View all"
-/// affordance. Replaces the old header "View all" link.
-class _ViewAllTile extends StatelessWidget {
-  final VoidCallback onTap;
-  const _ViewAllTile({required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.white,
-      borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
-        focusColor: AppColors.blueA10,
-        child: Container(
-          width: 140,
-          height: 222,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
-            boxShadow: AppShadows.card,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'View all',
-                style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
-              ),
-              const SizedBox(width: 4),
-              const Icon(Ionicons.arrow_forward, size: 15, color: AppColors.blue),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
