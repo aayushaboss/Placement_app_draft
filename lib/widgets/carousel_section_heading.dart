@@ -15,30 +15,27 @@ class CarouselSectionHeading extends StatelessWidget {
   final String title;
   final int? count;
 
-  /// Small "View all" link at the far right of the heading row, baseline-
-  /// aligned with the title. Optional — null hides it entirely (e.g.
-  /// courses_explore_screen.dart's own per-category carousels, which are
-  /// already the "view all" destination).
-  final VoidCallback? onViewAll;
-
   const CarouselSectionHeading({
     super.key,
     required this.title,
     this.count,
-    this.onViewAll,
   });
 
   @override
   Widget build(BuildContext context) {
     // LayoutBuilder, not SizedBox(width: double.infinity) — the latter
-    // still measured inconsistently per instance in practice (confirmed
-    // live: "View all" landed at a different x on every carousel, never
-    // flush with the true right edge), because this Column only ever
-    // receives LOOSE width constraints from its section's own Column
-    // (crossAxisAlignment.start). LayoutBuilder reads the real, resolved
-    // `constraints.maxWidth` directly and pins the row to exactly that —
-    // deterministic regardless of how the ambient loose constraint
+    // measured inconsistently per instance in practice (this Column only
+    // ever receives LOOSE width constraints from its section's own Column,
+    // crossAxisAlignment.start). LayoutBuilder reads the real, resolved
+    // `constraints.maxWidth` directly and pins the row/divider to exactly
+    // that — deterministic regardless of how the ambient loose constraint
     // resolves, unlike double.infinity's reliance on that being unambiguous.
+    // (There used to be a "View all" link rendered here too — removed: it
+    // duplicated, and could never pixel-match, the trailing "View all" tile
+    // that's already the last card in the row below — see
+    // opportunity_carousel_section.dart's/course_carousel_section.dart's
+    // own _ViewAllTile/_CourseViewAllTile, which is the sole "View all"
+    // affordance now.)
     return LayoutBuilder(
       builder: (context, constraints) {
         return SizedBox(
@@ -91,27 +88,6 @@ class CarouselSectionHeading extends StatelessWidget {
                           style: AppTextStyles.body.copyWith(
                             color: AppColors.gray500,
                             fontSize: 12,
-                          ),
-                        ),
-                      ],
-                      if (onViewAll != null) ...[
-                        // Spacer, not a fixed gap — pushes the link to the
-                        // row's far right regardless of how long the
-                        // title/count are, while the title above stays
-                        // free to ellipsize instead of being squeezed by
-                        // a fixed-width trailing element. Now safe to rely
-                        // on since the Row's own width is pinned above.
-                        const Spacer(),
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: onViewAll,
-                          child: Text(
-                            'View all',
-                            style: AppTextStyles.body.copyWith(
-                              color: AppColors.blue,
-                              fontSize: 12,
-                              fontWeight: AppFontWeight.medium,
-                            ),
                           ),
                         ),
                       ],
