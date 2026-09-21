@@ -15,39 +15,38 @@ import 'pill_button.dart';
 /// urgency), just reflowed for a Naukri-style "scroll sideways within a
 /// topic" browse pattern instead of one long vertical feed.
 ///
-/// [height] is fixed (carousel cards in one row need to line up), but
-/// unlike the old design this no longer uses a `Spacer` to push the button
-/// to the bottom — every card always renders the same four blocks (header /
-/// meta / one status chip / CTA), so natural content height is already
-/// consistent card to card. The one status chip is exactly one of: the
-/// applied badge, the match/deadline chips, or (when neither applies) the
-/// opportunity's own type as a neutral fallback — never blank space.
-///
-/// What actually keeps every card's button at the same y-position isn't the
-/// fixed [height] alone — it's [_titleHeight] reserving identical space for
-/// a 1-line and a 2-line title, so everything below it (divider, meta,
-/// chip, button) starts at the same offset regardless of title length. A
-/// `Spacer` would "fix" alignment too, but it's exactly the mechanism the
-/// previous version of this card used to hide the real bug (an applied
-/// card with no chips just grew empty space instead of shrinking) — not
-/// bringing that back.
+/// [height] is fixed (carousel cards in one row need to line up). Every
+/// piece of content that can vary in size between two real cards —
+/// [_titleHeight] (a 1-line vs. a 2-line title) and [_statusHeight] (the
+/// "Applied" chip is always one line, but two chips like "75% match" +
+/// "4 days left" can wrap to two) — gets a fixed, reserved height instead
+/// of a natural/intrinsic one, so the content block above the button sums
+/// to the *same* total for every card regardless of its data. A `Spacer`
+/// between that block and the button is what actually pins the button to
+/// the card's bottom edge; it's safe here specifically because that sum is
+/// now constant — the previous version's bug was a `Spacer` paired with
+/// content whose height genuinely varied (an applied card's chip row
+/// disappeared entirely instead of reserving space), not the `Spacer`
+/// itself.
 class OpportunityCarouselCard extends StatelessWidget {
   static const double width = 250;
 
   // Real headroom, not a tight fit — this card's own history already
   // learned this lesson once (height bumped 222 → 262 → 290 after the
   // 2-line-title + tags-row combination kept overflowing a "just barely
-  // fits" budget). Computed baseline is ~206 (padding 16×2 + header 56 +
-  // divider 17 + meta 18 + chip row ~23 + button 44, with 8dp gaps between
-  // blocks); this leaves comfortable slack above that instead of repeating
-  // the same near-miss.
-  static const double height = 240;
+  // fits" budget).
+  static const double height = 250;
 
   // 2 lines at the title's own 15px/1.25 line-height (≈18.75px/line) —
   // reserved unconditionally so a 1-line title leaves identical space
-  // below it as a 2-line one, which is what actually aligns every card's
-  // button in the same row (see the class doc comment above).
+  // below it as a 2-line one.
   static const double _titleHeight = 38;
+
+  // Worst case for the status chip row: two compact chips wrapping to two
+  // lines (24px each + 4px runSpacing). Reserved unconditionally so the
+  // single-line "Applied" chip doesn't leave the card shorter than a
+  // two-chip card.
+  static const double _statusHeight = 52;
 
   final String title;
   final String company;
@@ -134,8 +133,11 @@ class OpportunityCarouselCard extends StatelessWidget {
               boxShadow: AppShadows.card,
             ),
             child: Column(
+              // Not mainAxisSize.min — the Spacer before the button needs
+              // this Column filling the Container's fixed height (bounded,
+              // tight constraints already) to know how much leftover space
+              // to absorb.
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,8 +212,12 @@ class OpportunityCarouselCard extends StatelessWidget {
                   ),
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.sm),
-                  child: _statusChip(),
+                  child: SizedBox(
+                    height: _statusHeight,
+                    child: Align(alignment: Alignment.topLeft, child: _statusChip()),
+                  ),
                 ),
+                const Spacer(),
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.sm),
                   child: applied
