@@ -47,9 +47,12 @@ class CarouselSectionHeading extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Padding(
+                // md + xs (16 + 4 = 20) — the plain md gap read as too
+                // tight once the divider that used to sit above the
+                // heading was removed; +4dp per direct feedback.
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.xl,
-                  AppSpacing.md,
+                  AppSpacing.md + AppSpacing.xs,
                   AppSpacing.xl,
                   0,
                 ),
