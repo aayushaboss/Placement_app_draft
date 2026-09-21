@@ -754,7 +754,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
           onTap: _parsing ? null : _pickPdf,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(AppSpacing.xl),
+            padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
               border: Border.all(color: hasPdf ? AppColors.blue : AppColors.border, width: 2),
               borderRadius: BorderRadius.circular(AppRadius.xl),
@@ -763,8 +763,8 @@ class _ResumeScreenState extends State<ResumeScreen> {
             child: Column(
               children: [
                 Container(
-                  width: 44 + AppSpacing.md,
-                  height: 44 + AppSpacing.md,
+                  width: 44 + AppSpacing.sm,
+                  height: 44 + AppSpacing.sm,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
                     color: hasPdf || _parsing ? AppColors.blue : AppColors.blueA10,
@@ -791,7 +791,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
                             ? 'Resume selected'
                             : 'Upload resume PDF',
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold),
+                    style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 14),
                   ),
                 ),
                 Padding(
@@ -803,7 +803,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
                             ? 'Tap again to choose a different PDF.'
                             : "PDF only — we'll extract the details with AI."),
                     textAlign: TextAlign.center,
-                    style: AppTextStyles.body.copyWith(color: AppColors.gray500),
+                    style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
                   ),
                 ),
                 if (hasPdf && !_parsing)
@@ -894,7 +894,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
             onTap: _manual,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: const EdgeInsets.all(AppSpacing.md),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(AppRadius.lg),
                 color: AppColors.blueA10,
@@ -922,10 +922,10 @@ class _ResumeScreenState extends State<ResumeScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Text(noOrphan("Don't have a resume? Build it here"), style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 16)),
+                        Text(noOrphan("Don't have a resume? Build it here"), style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 14)),
                         Padding(
                           padding: const EdgeInsets.only(top: AppSpacing.xs),
-                          child: Text('A few quick questions — about a minute', style: AppTextStyles.caption.copyWith(color: AppColors.gray500)),
+                          child: Text('A few quick questions — about a minute', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium)),
                         ),
                       ],
                     ),
