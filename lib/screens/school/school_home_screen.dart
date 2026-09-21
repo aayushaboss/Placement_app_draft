@@ -237,7 +237,7 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
                         onTap: () => context.go('/tabs/sessions'),
                         child: Container(
                           margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          padding: const EdgeInsets.all(AppSpacing.md),
                           decoration: BoxDecoration(
                             color: AppColors.offWhite,
                             borderRadius: BorderRadius.circular(AppRadius.xl),
@@ -285,7 +285,7 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
                         onTap: () => context.push('/booking?kind=counseling'),
                         child: Container(
                           margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                          padding: const EdgeInsets.all(AppSpacing.xl),
+                          padding: const EdgeInsets.all(AppSpacing.lg),
                           decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
                           child: Row(
                             children: [
@@ -312,7 +312,7 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
                         padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 0),
                         child: Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(AppSpacing.xl),
+                          padding: const EdgeInsets.all(AppSpacing.lg),
                           decoration: BoxDecoration(
                             color: AppColors.white,
                             borderRadius: BorderRadius.circular(AppRadius.lg),

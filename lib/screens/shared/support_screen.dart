@@ -212,7 +212,7 @@ class _FaqTile extends StatelessWidget {
             onTap: onTap,
             behavior: HitTestBehavior.opaque,
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: const EdgeInsets.all(AppSpacing.md),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -264,7 +264,7 @@ class _ContactRow extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
           border: isLast ? null : const Border(bottom: BorderSide(color: AppColors.border, width: 1)),
         ),

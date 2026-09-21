@@ -590,7 +590,7 @@ class _ApplicationCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
           onTap: () => context.push('/application/${a.id}'),
           child: Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: const EdgeInsets.all(AppSpacing.md),
             // Concentric with CompanyMark's own AppRadius.md corner sitting
             // AppSpacing.lg inside it, not an unrelated token.
             decoration: BoxDecoration(

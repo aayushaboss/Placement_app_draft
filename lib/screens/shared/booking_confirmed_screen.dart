@@ -220,7 +220,7 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
                         Container(
                           margin: const EdgeInsets.only(top: AppSpacing.xxl),
                           width: double.infinity,
-                          padding: const EdgeInsets.all(AppSpacing.xl),
+                          padding: const EdgeInsets.all(AppSpacing.lg),
                           decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
                           child: Column(
                             children: [
@@ -242,7 +242,7 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
                           Container(
                             margin: const EdgeInsets.only(top: AppSpacing.md),
                             width: double.infinity,
-                            padding: const EdgeInsets.all(AppSpacing.lg),
+                            padding: const EdgeInsets.all(AppSpacing.md),
                             decoration: BoxDecoration(
                               color: AppColors.white,
                               borderRadius: BorderRadius.circular(AppRadius.lg),

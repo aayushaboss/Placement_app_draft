@@ -306,7 +306,7 @@ class _VideoGuidelinesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -359,7 +359,7 @@ class _VideoAttachedCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       // Concentric with the inner icon box's own AppRadius.md corner
       // sitting AppSpacing.lg inside it, not an unrelated token.
       decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg), boxShadow: AppShadows.card),

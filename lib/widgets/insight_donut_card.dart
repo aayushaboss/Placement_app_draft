@@ -23,7 +23,7 @@ class InsightDonutCard extends StatelessWidget {
 
     return Container(
       width: 240,
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(AppRadius.lg),

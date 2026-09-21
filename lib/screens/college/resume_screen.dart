@@ -1013,7 +1013,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
           ),
           ..._education.map((e) => Container(
                 margin: const EdgeInsets.only(top: AppSpacing.sm),
-                padding: const EdgeInsets.all(AppSpacing.lg),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.xl)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1037,7 +1037,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
           ),
           ..._projects.map((p) => Container(
                 margin: const EdgeInsets.only(top: AppSpacing.sm),
-                padding: const EdgeInsets.all(AppSpacing.lg),
+                padding: const EdgeInsets.all(AppSpacing.md),
                 decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.xl)),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -1151,7 +1151,7 @@ class _SummaryCard extends StatelessWidget {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.xl)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

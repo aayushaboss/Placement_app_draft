@@ -240,7 +240,7 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                     GestureDetector(
                       onTap: () => context.push('/college/career-dna/final-report'),
                       child: Container(
-                        padding: const EdgeInsets.all(AppSpacing.lg),
+                        padding: const EdgeInsets.all(AppSpacing.md),
                         decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
                         child: Row(
                           children: [

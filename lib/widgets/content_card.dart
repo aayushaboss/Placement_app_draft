@@ -99,7 +99,7 @@ class _ContentCardState extends State<ContentCard> {
             // Visible on keyboard focus — see opportunity_row.dart's own note.
             focusColor: AppColors.blueA10,
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: const EdgeInsets.all(AppSpacing.md),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,

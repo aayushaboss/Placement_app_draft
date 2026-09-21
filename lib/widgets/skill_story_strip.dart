@@ -81,7 +81,7 @@ class _StoryCard extends StatelessWidget {
         child: Container(
           width: double.infinity,
           height: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             color: AppColors.blue.withValues(alpha: 0.14),
             borderRadius: BorderRadius.circular(AppRadius.lg),

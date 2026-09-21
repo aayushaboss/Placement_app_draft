@@ -103,7 +103,7 @@ class _CourseCard extends StatelessWidget {
           // internal AppSpacing paddings grew, and 172 no longer fits its
           // content without clipping.
           height: 196,
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),

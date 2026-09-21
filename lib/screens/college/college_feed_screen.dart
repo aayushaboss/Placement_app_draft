@@ -678,7 +678,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                 // noticeably looser gap than every other
                                 // section-to-section gap on this screen.
                                 margin: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, 0),
-                                padding: const EdgeInsets.all(AppSpacing.lg),
+                                padding: const EdgeInsets.all(AppSpacing.md),
                                 decoration: BoxDecoration(
                                   color: AppColors.offWhite,
                                   borderRadius: BorderRadius.circular(AppRadius.xl),

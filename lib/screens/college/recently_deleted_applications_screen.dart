@@ -165,7 +165,7 @@ class _DeletedApplicationCard extends StatelessWidget {
     final deletedAt = DateTime.tryParse(a.deletedAt ?? '') ?? DateTime.now();
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),

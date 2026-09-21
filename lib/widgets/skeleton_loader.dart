@@ -73,7 +73,7 @@ class SkeletonCarouselCard extends StatelessWidget {
       // Matches OpportunityCarouselCard's own fixed height exactly (see
       // that widget's comment on why it's fixed, not intrinsic).
       height: 290,
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
         color: AppColors.white,
         borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
@@ -125,7 +125,7 @@ class SkeletonMatchRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
       child: Row(
         children: [

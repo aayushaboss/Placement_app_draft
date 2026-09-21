@@ -2112,7 +2112,7 @@ class _EducationStep extends StatelessWidget {
                     final e = indexed.value;
                     return Container(
                       margin: const EdgeInsets.only(top: AppSpacing.md),
-                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.lg)),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2417,7 +2417,7 @@ class _ExperienceStep extends StatelessWidget {
                     final w = indexed.value;
                     return Container(
                       margin: const EdgeInsets.only(top: AppSpacing.md),
-                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.lg)),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2760,7 +2760,7 @@ class _CertificationsStep extends StatelessWidget {
                     final c = indexed.value;
                     return Container(
                       margin: const EdgeInsets.only(top: AppSpacing.md),
-                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.lg)),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,

@@ -78,7 +78,7 @@ class SearchAppearancesScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 Container(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

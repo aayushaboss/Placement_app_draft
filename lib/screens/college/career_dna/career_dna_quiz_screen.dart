@@ -475,7 +475,7 @@ class _QuestionBody extends StatelessWidget {
           constraints: BoxConstraints(maxWidth: isTablet ? 640 : double.infinity),
           child: isTablet
               ? Container(
-                  padding: const EdgeInsets.all(AppSpacing.xl),
+                  padding: const EdgeInsets.all(AppSpacing.lg),
                   decoration: BoxDecoration(
                     color: AppColors.white,
                     borderRadius: BorderRadius.circular(AppRadius.xl),

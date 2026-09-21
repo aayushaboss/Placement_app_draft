@@ -95,7 +95,7 @@ class _ResumeReadyViewState extends State<ResumeReadyView> {
                 ),
                 Container(
                   margin: const EdgeInsets.only(top: AppSpacing.xl),
-                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.xl), boxShadow: AppShadows.soft),
                   child: Row(
                     children: [

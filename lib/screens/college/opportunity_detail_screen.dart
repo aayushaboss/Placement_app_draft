@@ -254,7 +254,7 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                       Padding(
                         padding: const EdgeInsets.only(top: AppSpacing.md),
                         child: Container(
-                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          padding: const EdgeInsets.all(AppSpacing.md),
                           decoration: BoxDecoration(color: AppColors.offWhite, borderRadius: BorderRadius.circular(AppRadius.xl)),
                           child: Row(
                             children: [

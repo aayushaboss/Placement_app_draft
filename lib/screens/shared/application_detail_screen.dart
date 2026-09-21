@@ -112,7 +112,7 @@ class ApplicationDetailScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxl),
               children: [
                 Container(
-                  padding: const EdgeInsets.all(AppSpacing.lg),
+                  padding: const EdgeInsets.all(AppSpacing.md),
                   decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.xl), boxShadow: AppShadows.soft),
                   child: _Timeline(app: app),
                 ),
@@ -127,7 +127,7 @@ class ApplicationDetailScreen extends StatelessWidget {
                   const SizedBox(height: AppSpacing.md),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    padding: const EdgeInsets.all(AppSpacing.md),
                     decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.xl), boxShadow: AppShadows.soft),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -446,7 +446,7 @@ class _RejectionRecoveryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.xl)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -544,7 +544,7 @@ class _InsightsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.xl), boxShadow: AppShadows.soft),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

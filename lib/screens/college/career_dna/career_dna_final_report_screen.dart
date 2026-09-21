@@ -161,7 +161,7 @@ class _SynthesisContentState extends State<_SynthesisContent> {
         const SizedBox(height: AppSpacing.xl),
         Container(
           width: double.infinity,
-          padding: const EdgeInsets.all(AppSpacing.xl),
+          padding: const EdgeInsets.all(AppSpacing.lg),
           decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.xl)),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,7 +200,7 @@ class _SynthesisContentState extends State<_SynthesisContent> {
         for (final d in result.topDirections)
           Container(
             margin: const EdgeInsets.only(bottom: AppSpacing.md),
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
             child: Row(
               children: [
@@ -224,7 +224,7 @@ class _SynthesisContentState extends State<_SynthesisContent> {
         Text('Your Roadmap', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
         const SizedBox(height: AppSpacing.md),
         Container(
-          padding: const EdgeInsets.all(AppSpacing.lg),
+          padding: const EdgeInsets.all(AppSpacing.md),
           decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.soft),
           child: Column(
             children: [

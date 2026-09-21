@@ -86,7 +86,7 @@ class RecruiterActionsScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.lg),
                 ...actions.map((a) => Container(
                       margin: const EdgeInsets.only(bottom: AppSpacing.sm),
-                      padding: const EdgeInsets.all(AppSpacing.lg),
+                      padding: const EdgeInsets.all(AppSpacing.md),
                       decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
                       child: Row(
                         children: [

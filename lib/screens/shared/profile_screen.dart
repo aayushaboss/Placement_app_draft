@@ -622,7 +622,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           r.route!.startsWith('/tabs') ? context.go(r.route!) : context.push(r.route!);
                                         }),
                               child: Container(
-                                padding: const EdgeInsets.all(AppSpacing.lg),
+                                padding: const EdgeInsets.all(AppSpacing.md),
                                 decoration: BoxDecoration(
                                   border: i < rows.length - 1 ? const Border(bottom: BorderSide(color: AppColors.border, width: 1)) : null,
                                 ),
@@ -845,7 +845,7 @@ class _SectionCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

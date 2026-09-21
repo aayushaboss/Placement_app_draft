@@ -106,7 +106,7 @@ class _OpportunityRowState extends State<OpportunityRow> {
           // no new interaction, just making the built-in behavior visible.
           focusColor: AppColors.blueA10,
           child: Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.lg), boxShadow: AppShadows.card),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
