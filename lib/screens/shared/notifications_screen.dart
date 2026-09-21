@@ -163,8 +163,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                                   ? context.go(n.route!)
                                                   : context.push(n.route!),
                                         child: Container(
+                                          // md, not lg — at lg's current 24
+                                          // (up from an old 14, per the
+                                          // 8pt-grid rebase) this card reads
+                                          // noticeably chunkier than a
+                                          // typical mobile notification row.
                                           padding: const EdgeInsets.all(
-                                            AppSpacing.lg,
+                                            AppSpacing.md,
                                           ),
                                           child: Row(
                                             crossAxisAlignment:

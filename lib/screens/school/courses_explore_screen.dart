@@ -556,7 +556,13 @@ class _CredibilityCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      // md, not lg — this card sits in an AutoCarousel with a fixed
+      // height: 84 (courses_explore_screen.dart); at lg's current 24 (up
+      // from an old 14, per the 8pt-grid rebase), padding alone consumed
+      // 48 of that 84 and left less than the card's own content (a 40px
+      // icon, or a 2-line title+caption column reaching ~51px) actually
+      // needs — a real overflow, not just a look-and-feel call.
+      padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.lg)),
       child: Row(
         children: [

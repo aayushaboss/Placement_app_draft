@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../data/repositories.dart';
-import '../../mockData/mock_applications.dart' show demoShowcaseUserId;
 import '../../mockData/mock_courses.dart';
 import '../../models/application.dart';
 import '../../models/course.dart';
@@ -240,35 +239,7 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
     // above a separately-scrolling Expanded — a pinned header here left too
     // little of the fold visible, especially with the desktop-only stat
     // tiles/tabs stacked under it too.
-    // Continue-with-Google always signs into the same fixed showcase
-    // identity, seeded with 4 sample applications (see
-    // demoShowcaseUserId's own doc comment in mock_applications.dart) —
-    // previously shown with zero disclosure, so a genuine tester could
-    // easily mistake it for real history they never generated. A
-    // phone/email signup never sees this banner since it never gets the
-    // seed data in the first place.
-    final isShowcaseAccount = appState.user?.id == demoShowcaseUserId;
     final headerItems = <Widget>[
-            if (isShowcaseAccount)
-              Padding(
-                padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm + (isTablet ? AppSpacing.xl : 0), AppSpacing.xl, 0),
-                child: Container(
-                  padding: const EdgeInsets.all(AppSpacing.md),
-                  decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.md)),
-                  child: Row(
-                    children: [
-                      const Icon(Ionicons.eye_outline, size: 16, color: AppColors.blue),
-                      const SizedBox(width: AppSpacing.sm),
-                      Expanded(
-                        child: Text(
-                          noOrphan('Sample data — this shows what your Applications tab looks like once you start applying.'),
-                          style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, height: 1.35),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             Padding(
               // isTablet adds AppSpacing.xl on top — sits directly under
               // TopNavBar's 64px bar with nothing else providing clearance.
