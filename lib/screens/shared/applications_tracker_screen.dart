@@ -243,7 +243,10 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
             Padding(
               // isTablet adds AppSpacing.xl on top — sits directly under
               // TopNavBar's 64px bar with nothing else providing clearance.
-              padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm + (isTablet ? AppSpacing.xl : 0), AppSpacing.xl, AppSpacing.md),
+              // Bottom tightened from md (16) — stacked with listContent's
+              // own top padding right below, the two together read as too
+              // much gap before the first card.
+              padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm + (isTablet ? AppSpacing.xl : 0), AppSpacing.xl, AppSpacing.sm),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -399,10 +402,11 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
         // Top clearance — was 0, so the first card sat flush against the
         // "N active applications" subtitle above AND had its own top
         // shadow clipped (a plain ListView clips to its box regardless of
-        // the Padding above it). AppSpacing.xl comfortably exceeds
-        // AppShadows.cardBuffer (16px), so this both adds breathing room
-        // and stops the clip.
-        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
+        // the Padding above it). lg (24) still comfortably exceeds
+        // AppShadows.cardBuffer (16px) so the clip stays fixed; tightened
+        // from xl (32) — combined with the header's own bottom padding
+        // right above, the gap before the first card read as too much.
+        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxl),
         child: Column(
           children: [
             if (columns == 1)
