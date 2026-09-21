@@ -14,18 +14,13 @@ import '../../theme/text_styles.dart';
 import '../../utils/no_orphan.dart';
 import '../../widgets/app_chip.dart';
 import '../../widgets/autocomplete_field.dart';
-import '../../widgets/date_picker_field.dart';
 import '../../widgets/desktop_field_row.dart';
 import '../../widgets/field_label.dart';
 import '../../widgets/pill_button.dart';
 import '../../widgets/pill_input.dart';
 import '../../widgets/responsive_body.dart';
 
-const _classOptions = ['Class 11', 'Class 12', 'Below 11'];
-const _boardOptions = ['CBSE', 'State', 'IB', 'Other'];
-const _priorExperienceOptions = ['Fresher', '1-2 yrs', '3-5 yrs', '5+ yrs'];
 const _qualificationOptions = ['Below 10th', '10th pass', '12th pass', 'Diploma', 'Graduate', 'Postgraduate'];
-const _educatedQualifications = {'Diploma', 'Graduate', 'Postgraduate'};
 
 const _segmentOptions = [
   (Segment.school, 'School'),
@@ -37,9 +32,15 @@ const _segmentOptions = [
 /// One screen instead of a per-question quiz: whatever the mocked Google
 /// sign-in already handed back (name, city) shows up pre-filled at the top
 /// — with a progress bar proving it — and only the handful of things
-/// Google could never know (segment, college/class, course/board, year)
-/// need actual typing. The "Continue with Email" path lands here too, just
-/// without anything pre-filled, using the exact same fields.
+/// Google could never know (segment, and — for Working — a qualification
+/// chip) need actual typing. The "Continue with Email" path lands here too,
+/// just without anything pre-filled, using the exact same fields.
+///
+/// Deliberately minimal: this screen only hard-gates what's needed to
+/// personalize the very first feed — name, city, segment, and Working's
+/// qualification. Everything else (class/board, college/course/semester,
+/// work history) is asked later via the Profile tab's "Basic info"
+/// checklist item (profile_readiness.dart), not here.
 class MicroProfileScreen extends StatefulWidget {
   const MicroProfileScreen({super.key});
 
@@ -59,23 +60,12 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
   String _identifier = '';
   String _city = '';
   Segment? _segment;
-  String _college = '';
-  String _course = '';
-  String _currentClass = '';
-  String _board = '';
-  String _semester = '';
-  String _priorExperience = '';
-  // Only relevant when _priorExperience == '5+ yrs' — an optional refinement
-  // on top of the bucket chip, not a replacement for it (see
-  // _effectivePriorExperience).
-  final _priorExperienceExactController = TextEditingController();
   String _highestQualification = '';
   bool _loading = false;
   bool _hydrated = false;
 
   bool get _isSchool => _segment == Segment.school;
   bool get _isWorking => _segment == Segment.working;
-  bool get _isEducatedWorking => _isWorking && _educatedQualifications.contains(_highestQualification);
 
   /// Phone sign-up's identifier already is a phone number (auto-filled in
   /// AppState._makeNewUser) — only Google/email sign-ups still need to be
@@ -89,20 +79,10 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
     return digits.length >= 10 && digits.length <= 15;
   }
 
-  // City/College/Course are free-text (AutocompleteField), unlike the
-  // chip-selected fields below them — trimming before every emptiness
-  // check on these three (matching how Name already does) stops a
-  // whitespace-only entry from counting as "filled" and slipping into the
-  // saved profile.
-  // College/course/semester are still shown on this screen (so filling
-  // them in now is one less trip later), but they no longer gate
-  // Continue or count toward this screen's own progress bar — they're
-  // tracked separately by User.hasBasicInfo (profile_readiness.dart),
-  // which already treats them as their own post-onboarding checklist
-  // item ("Basic info") on the Profile tab, complete with its own nudge
-  // to go fill them in. Onboarding only hard-gates what's needed to
-  // personalize the very first feed: name, city, segment, and — for
-  // Working — the qualification chip (a single tap, not a form field).
+  // City is free-text (AutocompleteField), unlike the chip-selected fields
+  // below it — trimming before every emptiness check on it (matching how
+  // Name already does) stops a whitespace-only entry from counting as
+  // "filled" and slipping into the saved profile.
   List<bool> get _filled {
     final base = [
       _nameController.text.trim().isNotEmpty,
@@ -110,8 +90,6 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
       if (_needsPhone) _isValidPhone,
       _segment != null,
     ];
-    if (_segment == null) return base;
-    if (_isSchool) return [...base, _currentClass.isNotEmpty, _board.isNotEmpty];
     if (_isWorking) return [...base, _highestQualification.isNotEmpty];
     return base;
   }
@@ -121,7 +99,6 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
   bool get _canContinue {
     if (_nameController.text.trim().isEmpty || _city.trim().isEmpty || _segment == null) return false;
     if (_needsPhone && !_isValidPhone) return false;
-    if (_isSchool) return _currentClass.isNotEmpty && _board.isNotEmpty;
     if (_isWorking) return _highestQualification.isNotEmpty;
     return true;
   }
@@ -142,32 +119,12 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
     _phoneController.text = user.phone ?? '';
     _signInMethod = user.signInMethod;
     _identifier = user.identifier;
-    // Previously only name/city/signInMethod were restored here — every
-    // other field defaulted to blank on every visit, so the very likely
+    // Only restored on a genuine re-visit (segment already set) — treats
     // "Goals has nothing to pop, falls back to context.go('/onboarding/
-    // profile')" back-navigation path landed on a form that had silently
-    // forgotten everything the user just filled in, even though the
-    // backing User record still had it all. Restoring the rest here too
-    // (only when this is genuinely a re-visit — `user.segment != null`)
-    // treats that path as resuming an edit, not starting fresh.
+    // profile')" as resuming an edit, not starting fresh.
     if (user.segment != null) {
       _segment = user.segment;
-      _currentClass = user.currentClass ?? '';
-      _board = user.board ?? '';
-      _college = user.college ?? '';
-      _course = user.course ?? '';
-      _semester = user.semester ?? '';
       _highestQualification = user.highestQualification ?? '';
-      // Same "5+ yrs" exact-figure restoration already established in
-      // profile_edit_screen.dart's own _hydrate — kept in sync deliberately.
-      final rawPriorExperience = user.priorExperience ?? '';
-      if (rawPriorExperience.isNotEmpty && !_priorExperienceOptions.contains(rawPriorExperience)) {
-        _priorExperience = '5+ yrs';
-        final leadingDigits = RegExp(r'^\d+').firstMatch(rawPriorExperience)?.group(0);
-        if (leadingDigits != null) _priorExperienceExactController.text = leadingDigits;
-      } else {
-        _priorExperience = rawPriorExperience;
-      }
     }
   }
 
@@ -175,111 +132,18 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
   void dispose() {
     _nameController.dispose();
     _phoneController.dispose();
-    _priorExperienceExactController.dispose();
     super.dispose();
-  }
-
-  /// The value actually saved for `priorExperience` — usually just the
-  /// selected bucket chip, but when "5+ yrs" is selected and a precise
-  /// figure was typed, the exact figure wins (e.g. "7 yrs" instead of the
-  /// coarser "5+ yrs"). Kept separate from `_priorExperience` itself so the
-  /// "5+ yrs" chip stays visibly selected while a number is being typed.
-  String get _effectivePriorExperience {
-    final exact = _priorExperienceExactController.text.trim();
-    if (_priorExperience == '5+ yrs' && exact.isNotEmpty) return '$exact yrs';
-    return _priorExperience;
-  }
-
-  void _selectPriorExperience(String value) {
-    HapticFeedback.selectionClick();
-    setState(() {
-      _priorExperience = value;
-      if (value != '5+ yrs') _priorExperienceExactController.clear();
-    });
-  }
-
-  /// The prior-experience question, as a label + chip row, plus — only when
-  /// "5+ yrs" is selected — a small numeric refinement field right below it
-  /// so someone with, say, 8 years doesn't have to settle for the coarse
-  /// bucket. Returns a list (not a single widget) so both call sites can
-  /// splice it directly into their surrounding `Column`'s `children`.
-  List<Widget> _priorExperienceField(String label) {
-    return [
-      FieldLabel(label),
-      Wrap(
-        spacing: AppSpacing.sm,
-        runSpacing: AppSpacing.sm,
-        children: _priorExperienceOptions
-            .map((o) => AppChip(label: o, selected: _priorExperience == o, onPressed: () => _selectPriorExperience(o)))
-            .toList(),
-      ),
-      if (_priorExperience == '5+ yrs') ...[
-        const FieldLabel('Exactly how many years? (optional)', tight: true),
-        PillInput(
-          controller: _priorExperienceExactController,
-          placeholder: 'e.g. 7',
-          icon: Ionicons.time_outline,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-        ),
-      ],
-    ];
   }
 
   void _selectSegment(Segment s) {
     HapticFeedback.selectionClick();
     setState(() {
-      // Switching branches leaves the other branches' fields populated but
-      // hidden — clear them so a change of mind doesn't silently carry
-      // stale values into the submitted profile.
-      if (s == Segment.school) {
-        _college = '';
-        _course = '';
-        _semester = '';
-        _priorExperience = '';
-        _priorExperienceExactController.clear();
-        _highestQualification = '';
-      } else if (s == Segment.working) {
-        _currentClass = '';
-        _board = '';
-        _college = '';
-        _course = '';
-        _semester = '';
-        _priorExperience = '';
-        _priorExperienceExactController.clear();
-      } else {
-        _currentClass = '';
-        _board = '';
-        _highestQualification = '';
-        // Semester is asked for UG only (never shown or collected for
-        // PG) — clearing it unconditionally here, not just when leaving
-        // this branch, is what stops a semester picked while on UG from
-        // silently surviving a switch to PG and getting saved onto a
-        // profile whose own form never displayed or asked for it.
-        // _college/_course aren't cleared the same way: both UG and PG
-        // (and Working+educated) ask for genuinely the same two fields,
-        // so carrying that value across a UG<->PG change of mind is
-        // correct, not stale.
-        if (s == Segment.pg) _semester = '';
-        if (s != Segment.pg) {
-          _priorExperience = '';
-          _priorExperienceExactController.clear();
-        }
-      }
+      // Switching away from Working leaves the qualification chip selected
+      // but hidden — clear it so a change of mind doesn't silently carry a
+      // stale value into the submitted profile.
+      if (s != Segment.working) _highestQualification = '';
       _segment = s;
     });
-  }
-
-  Future<void> _pickSemester() async {
-    final picked = await showOptionListSheet(
-      context,
-      options: mockSemesters,
-      currentValue: _semester.isEmpty ? null : _semester,
-      title: 'Select semester',
-    );
-    if (picked == null) return;
-    HapticFeedback.selectionClick();
-    setState(() => _semester = picked);
   }
 
   void _back() {
@@ -296,40 +160,16 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
     try {
       final appState = context.read<AppState>();
       final isSchool = _isSchool;
-      final isWorking = _isWorking;
-      await appState.updateProfile((current) => isSchool
-          ? current.copyWith(
-              name: _nameController.text.trim(),
-              city: _city.trim(),
-              phone: _needsPhone ? _phoneController.text.trim() : null,
-              segment: _segment,
-              currentClass: _currentClass,
-              board: _board,
-              // School required profile is complete — aptitude is optional after this.
-              onboardingComplete: true,
-              aptitudeSkipped: true,
-            )
-          : isWorking
-              ? current.copyWith(
-                  name: _nameController.text.trim(),
-                  city: _city.trim(),
-                  phone: _needsPhone ? _phoneController.text.trim() : null,
-                  segment: _segment,
-                  highestQualification: _highestQualification,
-                  college: _isEducatedWorking && _college.trim().isNotEmpty ? _college.trim() : null,
-                  course: _isEducatedWorking && _course.trim().isNotEmpty ? _course.trim() : null,
-                  priorExperience: _isEducatedWorking && _priorExperience.isNotEmpty ? _effectivePriorExperience : null,
-                )
-              : current.copyWith(
-                  name: _nameController.text.trim(),
-                  city: _city.trim(),
-                  phone: _needsPhone ? _phoneController.text.trim() : null,
-                  segment: _segment,
-                  college: _college.trim(),
-                  course: _course.trim(),
-                  semester: _semester,
-                  priorExperience: _segment == Segment.pg && _priorExperience.isNotEmpty ? _effectivePriorExperience : null,
-                ));
+      await appState.updateProfile((current) => current.copyWith(
+            name: _nameController.text.trim(),
+            city: _city.trim(),
+            phone: _needsPhone ? _phoneController.text.trim() : null,
+            segment: _segment,
+            highestQualification: _isWorking ? _highestQualification : null,
+            // School's required profile is complete right here — aptitude is optional after this.
+            onboardingComplete: isSchool ? true : null,
+            aptitudeSkipped: isSchool ? true : null,
+          ));
       if (!mounted) return;
       // School's required profile is now the final onboarding step, so it
       // gets the same completion acknowledgment college/UG/PG/working get
@@ -459,7 +299,7 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                     ],
                     // Only Google/email sign-ups reach here — phone sign-up's
                     // identifier already is the phone number (see
-                    // AppState._makeNewUser), so asking again there would be
+                    // AppState._makeNewUser), so asking again here would be
                     // redundant.
                     if (_needsPhone) ...[
                       const FieldLabel('Phone number'),
@@ -480,41 +320,11 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                           .map((s) => AppChip(label: s.$2, selected: _segment == s.$1, onPressed: () => _selectSegment(s.$1)))
                           .toList(),
                     ),
-                    if (_isSchool) ...[
-                      if (isTablet)
-                        DesktopFieldRow(
-                          left: _fieldGroup(
-                            const FieldLabel('Which class are you in?'),
-                            Wrap(
-                              spacing: AppSpacing.sm,
-                              runSpacing: AppSpacing.sm,
-                              children: _classOptions.map((o) => AppChip(label: o, selected: _currentClass == o, onPressed: () => setState(() => _currentClass = o))).toList(),
-                            ),
-                          ),
-                          right: _fieldGroup(
-                            const FieldLabel('Which board do you study under?'),
-                            Wrap(
-                              spacing: AppSpacing.sm,
-                              runSpacing: AppSpacing.sm,
-                              children: _boardOptions.map((o) => AppChip(label: o, selected: _board == o, onPressed: () => setState(() => _board = o))).toList(),
-                            ),
-                          ),
-                        )
-                      else ...[
-                        const FieldLabel('Which class are you in?'),
-                        Wrap(
-                          spacing: AppSpacing.sm,
-                          runSpacing: AppSpacing.sm,
-                          children: _classOptions.map((o) => AppChip(label: o, selected: _currentClass == o, onPressed: () => setState(() => _currentClass = o))).toList(),
-                        ),
-                        const FieldLabel('Which board do you study under?'),
-                        Wrap(
-                          spacing: AppSpacing.sm,
-                          runSpacing: AppSpacing.sm,
-                          children: _boardOptions.map((o) => AppChip(label: o, selected: _board == o, onPressed: () => setState(() => _board = o))).toList(),
-                        ),
-                      ],
-                    ] else if (_isWorking) ...[
+                    // The one and only follow-up question — everything else
+                    // (class/board, college/course/semester, work history)
+                    // is asked later via Profile's "Basic info" checklist,
+                    // not here. See this class's own doc comment.
+                    if (_isWorking) ...[
                       const FieldLabel("What's the highest level you've completed?"),
                       Wrap(
                         spacing: AppSpacing.sm,
@@ -523,125 +333,10 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                             .map((o) => AppChip(
                                   label: o,
                                   selected: _highestQualification == o,
-                                  onPressed: () => setState(() {
-                                    _highestQualification = o;
-                                    // Downgrading away from an institution-level
-                                    // qualification leaves those fields hidden but
-                                    // populated — clear them, same reasoning as
-                                    // the segment-switch clearing above.
-                                    if (!_educatedQualifications.contains(o)) {
-                                      _college = '';
-                                      _course = '';
-                                      _priorExperience = '';
-                                      _priorExperienceExactController.clear();
-                                    }
-                                  }),
+                                  onPressed: () => setState(() => _highestQualification = o),
                                 ))
                             .toList(),
                       ),
-                      if (_isEducatedWorking) ...[
-                        // Same wording as profile_edit_screen.dart and the
-                        // resume builder use for this same concept — three
-                        // different phrasings for one field (institution/
-                        // specialize vs college-or-university/studying vs
-                        // Institution/Degree) read as inconsistent when a
-                        // user moves between onboarding, profile edit, and
-                        // the resume builder for the exact same data.
-                        if (isTablet)
-                          DesktopFieldRow(
-                            left: _fieldGroup(
-                              const FieldLabel('College / University'),
-                              AutocompleteField(
-                                value: _college,
-                                placeholder: 'e.g. BITS Goa',
-                                icon: Ionicons.business_outline,
-                                options: mockColleges,
-                                onChanged: (v) => setState(() => _college = v),
-                              ),
-                            ),
-                            right: _fieldGroup(
-                              const FieldLabel('Course / Degree'),
-                              AutocompleteField(
-                                value: _course,
-                                placeholder: 'e.g. B.Tech, B.Com, Diploma in Mechanical, MBA…',
-                                icon: Ionicons.book_outline,
-                                options: mockCourses,
-                                onChanged: (v) => setState(() => _course = v),
-                              ),
-                            ),
-                          )
-                        else ...[
-                          const FieldLabel('College / University'),
-                          AutocompleteField(
-                            value: _college,
-                            placeholder: 'e.g. BITS Goa',
-                            icon: Ionicons.business_outline,
-                            options: mockColleges,
-                            onChanged: (v) => setState(() => _college = v),
-                          ),
-                          const FieldLabel('Course / Degree'),
-                          AutocompleteField(
-                            value: _course,
-                            placeholder: 'e.g. B.Tech, B.Com, Diploma in Mechanical, MBA…',
-                            icon: Ionicons.book_outline,
-                            options: mockCourses,
-                            onChanged: (v) => setState(() => _course = v),
-                          ),
-                        ],
-                        ..._priorExperienceField('Total work experience (optional)'),
-                      ],
-                    ] else if (_segment != null) ...[
-                      if (isTablet)
-                        DesktopFieldRow(
-                          left: _fieldGroup(
-                            const FieldLabel('College / University'),
-                            AutocompleteField(
-                              value: _college,
-                              placeholder: 'e.g. BITS Goa',
-                              icon: Ionicons.business_outline,
-                              options: mockColleges,
-                              onChanged: (v) => setState(() => _college = v),
-                            ),
-                          ),
-                          right: _fieldGroup(
-                            const FieldLabel('Course / Degree'),
-                            AutocompleteField(
-                              value: _course,
-                              placeholder: _segment == Segment.pg ? 'e.g. Finance, Marketing, HR, Data Science…' : 'e.g. B.Tech, MBA, B.Sc…',
-                              icon: Ionicons.book_outline,
-                              options: mockCourses,
-                              onChanged: (v) => setState(() => _course = v),
-                            ),
-                          ),
-                        )
-                      else ...[
-                        const FieldLabel('College / University'),
-                        AutocompleteField(
-                          value: _college,
-                          placeholder: 'e.g. BITS Goa',
-                          icon: Ionicons.business_outline,
-                          options: mockColleges,
-                          onChanged: (v) => setState(() => _college = v),
-                        ),
-                        const FieldLabel('Course / Degree'),
-                        AutocompleteField(
-                          value: _course,
-                          placeholder: _segment == Segment.pg ? 'e.g. Finance, Marketing, HR, Data Science…' : 'e.g. B.Tech, MBA, B.Sc…',
-                          icon: Ionicons.book_outline,
-                          options: mockCourses,
-                          onChanged: (v) => setState(() => _course = v),
-                        ),
-                      ],
-                      if (_segment != Segment.pg) ...[
-                        const FieldLabel('Which semester are you in?'),
-                        DatePickerField(
-                          value: _semester.isEmpty ? null : _semester,
-                          placeholder: 'Select semester',
-                          icon: Ionicons.layers_outline,
-                          onTap: _pickSemester,
-                        ),
-                      ],
-                      if (_segment == Segment.pg) ..._priorExperienceField('Work experience before this program (optional)'),
                     ],
                   ],
                 ),
