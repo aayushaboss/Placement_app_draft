@@ -157,8 +157,10 @@ class OpportunityCarouselCard extends StatelessWidget {
                   ],
                 ),
                 Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.sm),
-                  child: Row(
+                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  child: Divider(height: 1, color: AppColors.border),
+                ),
+                Row(
                     children: [
                       const Icon(Ionicons.location_outline, size: 14, color: AppColors.gray500),
                       const SizedBox(width: AppSpacing.xs),
@@ -179,7 +181,6 @@ class OpportunityCarouselCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                ),
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.sm),
                   child: _statusChip(),
@@ -190,11 +191,11 @@ class OpportunityCarouselCard extends StatelessWidget {
                       ? const PillButton(
                           label: 'Applied',
                           icon: Ionicons.checkmark_circle,
-                          variant: PillVariant.tonal,
+                          variant: PillVariant.secondary,
                           disabled: true,
                           onPressed: null,
                         )
-                      : PillButton(label: 'Apply', variant: PillVariant.dark, onPressed: onApply),
+                      : PillButton(label: 'Apply', variant: PillVariant.secondary, onPressed: onApply),
                 ),
               ],
             ),
