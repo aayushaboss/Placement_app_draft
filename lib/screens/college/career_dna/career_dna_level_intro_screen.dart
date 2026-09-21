@@ -4,6 +4,7 @@ import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../mockData/career_dna/career_dna_level_meta.dart';
+import '../../../theme/breakpoints.dart';
 import '../../../theme/colors.dart';
 import '../../../theme/spacing.dart';
 import '../../../theme/text_styles.dart';
@@ -28,12 +29,13 @@ class CareerDnaLevelIntroScreen extends StatelessWidget {
     final meta = _meta;
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.blue,
-        body: ResponsiveBody(child: Column(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
@@ -78,10 +80,15 @@ class CareerDnaLevelIntroScreen extends StatelessWidget {
             ),
             Padding(
               padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.lg),
-              child: PillButton(
-                label: 'Start Level ${meta.level}',
-                icon: Ionicons.play,
-                onPressed: () => context.push('/college/career-dna/level/${meta.level}/quiz'),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
+                  child: PillButton(
+                    label: 'Start Level ${meta.level}',
+                    icon: Ionicons.play,
+                    onPressed: () => context.push('/college/career-dna/level/${meta.level}/quiz'),
+                  ),
+                ),
               ),
             ),
           ],

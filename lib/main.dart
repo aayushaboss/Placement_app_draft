@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import 'data/repositories.dart';
 import 'router.dart';
 import 'state/app_state.dart';
 import 'theme/app_theme.dart';
@@ -25,6 +26,7 @@ class AerostarEdgeApp extends StatefulWidget {
 }
 
 class _AerostarEdgeAppState extends State<AerostarEdgeApp> {
+  late final Repositories _repositories;
   late final AppState _appState;
   late final GoRouter _router;
   final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
@@ -32,14 +34,18 @@ class _AerostarEdgeAppState extends State<AerostarEdgeApp> {
   @override
   void initState() {
     super.initState();
-    _appState = AppState()..bootstrap();
+    _repositories = buildRepositories();
+    _appState = AppState(authRepository: _repositories.auth)..bootstrap();
     _router = buildRouter(_appState, _scaffoldMessengerKey);
   }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _appState,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: _appState),
+        Provider<Repositories>.value(value: _repositories),
+      ],
       child: MaterialApp.router(
         title: 'Aerostar Edge',
         debugShowCheckedModeBanner: false,

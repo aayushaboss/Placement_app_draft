@@ -3,11 +3,10 @@ import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../mockData/mock_applications.dart';
+import '../../data/repositories.dart';
 import '../../mockData/mock_bookings.dart';
 import '../../mockData/mock_courses.dart';
 import '../../mockData/mock_notifications.dart';
-import '../../mockData/mock_opportunities.dart';
 import '../../mockData/related_roles.dart';
 import '../../models/booking.dart';
 import '../../models/job_preferences.dart';
@@ -16,6 +15,7 @@ import '../../models/opportunity_match.dart';
 import '../../models/user.dart';
 import '../../services/apply_flow.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -24,18 +24,24 @@ import '../../utils/group_by_category.dart';
 import '../../utils/no_orphan.dart';
 import '../../utils/scroll_to_top_registry.dart';
 import '../../widgets/auto_carousel.dart';
+import '../../widgets/category_tab_bar.dart';
 import '../../widgets/course_carousel_section.dart';
 import '../../widgets/empty_state.dart';
-import '../../widgets/fomo_notification_card.dart';
 import '../../widgets/home_header.dart';
 import '../../widgets/home_search_bar.dart';
 import '../../widgets/opportunity_carousel_section.dart';
 import '../../widgets/opportunity_row.dart';
 import '../../widgets/responsive_body.dart';
 import '../../widgets/skeleton_loader.dart';
+import '../../widgets/sort_dropdown.dart';
 
 const _weekdayShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const _monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+String _firstName(String? fullName) {
+  final trimmed = fullName?.trim() ?? '';
+  return trimmed.isEmpty ? 'there' : trimmed.split(' ').first;
+}
 
 /// Mirrors frontend/src/screens/CollegeFeed.tsx (CollegeFeed).
 /// Standalone for now — will be embedded under the bottom tab bar in Step 4.
@@ -53,10 +59,22 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
   bool _loading = true;
   final _scrollController = ScrollController();
   int _lastSeenDataVersion = -1;
+  // Desktop-only tabs+grid state (see _desktopTopicGrid) — null until a
+  // real topic key is computed and picked, at which point it sticks even
+  // if _load() reruns, so switching a filter doesn't silently reset which
+  // tab the user was looking at.
+  String? _selectedTopic;
+  String _homeSort = 'match';
+  // Consumed once, here, not read fresh in build() — a mid-session
+  // rebuild (a filter change, a data refresh) shouldn't flip the header
+  // back to the generic subtitle just because AppState's own flag was
+  // already cleared by the first build.
+  bool _justOnboarded = false;
 
   @override
   void initState() {
     super.initState();
+    _justOnboarded = context.read<AppState>().consumeJustOnboarded();
     // Branch index 0 (Home) — see router.dart's StatefulShellRoute.
     ScrollToTopRegistry.register(0, () {
       if (_scrollController.hasClients) {
@@ -64,9 +82,6 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
       }
     });
     _load();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) maybeShowFomoSheet(context, isSchool: false);
-    });
   }
 
   @override
@@ -87,7 +102,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     }
   }
 
-  void _load() {
+  Future<void> _load() async {
     final user = context.read<AppState>().user;
     // Pre-filter to whatever the user told onboarding (or the filter
     // screen) they were looking for — choosing "Full-time" and landing on
@@ -100,17 +115,18 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     // Already-applied postings stay in the feed (shown with a disabled
     // "Applied ✓" button, per direct feedback) rather than being filtered
     // out — vanishing on apply read as "did that work?".
-    final results = filterOpportunities(
+    final results = await context.read<Repositories>().opportunities.listOpportunities(
       type: _type == 'All' ? null : _type,
       workMode: prefs?.workMode,
       employmentType: prefs?.employmentType,
       locations: prefs?.cities,
-    ).toList();
+    );
     // Most-relevant-first, matching the user's selected roles/resume —
     // ties keep the original (curated) order via a stable sort.
     results.sort(
       (a, b) => b.matchScoreFor(user).compareTo(a.matchScoreFor(user)),
     );
+    if (!mounted) return;
     setState(() {
       _opps = results;
       _bookings = listBookings();
@@ -146,6 +162,51 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
   Future<void> _clearFilters() async {
     await context.read<AppState>().updateProfile((current) => current.copyWith(preferences: const JobPreferences()));
     _load();
+  }
+
+  // Clears exactly one active facet — used by the removable-chip row so a
+  // single tap can undo just "Remote" or just one city without resetting
+  // every other filter the way _clearFilters does. A fresh JobPreferences(...),
+  // not copyWith — copyWith's `??` fallback can't null out a field.
+  Future<void> _clearFacet({bool workMode = false, bool employmentType = false, String? city}) async {
+    final prefs = context.read<AppState>().user?.preferences ?? const JobPreferences();
+    final updated = JobPreferences(
+      cities: city != null ? prefs.cities.where((c) => c != city).toList() : prefs.cities,
+      workMode: workMode ? null : prefs.workMode,
+      employmentType: employmentType ? null : prefs.employmentType,
+    );
+    await context.read<AppState>().updateProfile((current) => current.copyWith(preferences: updated));
+    _load();
+  }
+
+  // Same pill-chip visual language as OpportunityFilterFields' own
+  // _removableChip (blueA10 bg, blue label, close icon) — no shared widget
+  // exists for it today, so this mirrors that convention rather than
+  // introducing a new one for just this screen.
+  Widget _activeFilterChip(String label, VoidCallback onRemove) {
+    return GestureDetector(
+      onTap: onRemove,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+        decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
+            const SizedBox(width: AppSpacing.sm),
+            const Icon(Ionicons.close, size: 14, color: AppColors.blue),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _activeFilterChips(JobPreferences prefs) {
+    return [
+      if (prefs.workMode != null) _activeFilterChip(prefs.workMode!, () => _clearFacet(workMode: true)),
+      if (prefs.employmentType != null) _activeFilterChip(prefs.employmentType!, () => _clearFacet(employmentType: true)),
+      for (final c in prefs.cities) _activeFilterChip(c, () => _clearFacet(city: c)),
+    ];
   }
 
   static const _sectionCap = 10;
@@ -187,7 +248,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
         title: title,
         opportunities: capped,
         matchLabel: (o) => o.matchLabelFor(user),
-        isApplied: (o) => isOpportunityApplied(o.id),
+        isApplied: (o) => context.read<Repositories>().applications.isOpportunityApplied(o.id),
         isSaved: (o) => appState.isOpportunitySaved(o.id),
         onTapCard: (o) => context.push('/opportunity/${o.id}'),
         onApply: (o) => startApplyFlow(context, o, onApplied: () => setState(() {})),
@@ -250,6 +311,120 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     return sections;
   }
 
+  // Desktop-only sibling of _sections() above — same role + related-backfill
+  // computation (kept in sync deliberately, not shared via a common helper,
+  // since _sections() builds carousel *widgets* directly while this needs
+  // the raw (key, label, opportunities) tuples to feed tabs + one shared
+  // grid instead). Mobile/tablet never call this — _sections() itself is
+  // completely untouched.
+  List<({String key, String label, List<Opportunity> opps})> _topics(List<Opportunity> opps, User? user) {
+    final roles = user?.roles ?? const <String>[];
+    final topics = <({String key, String label, List<Opportunity> opps})>[];
+
+    if (roles.isEmpty) {
+      if (opps.isNotEmpty) topics.add((key: 'all', label: 'Jobs for you', opps: opps));
+      return topics;
+    }
+
+    for (final role in roles) {
+      final inRole = opps.where((o) => o.category.toLowerCase() == role.toLowerCase()).toList();
+      if (inRole.isNotEmpty) topics.add((key: role, label: '$role jobs', opps: inRole));
+    }
+
+    final relatedBudget = (_targetCarouselCount - 1 - roles.length).clamp(0, 3);
+    if (relatedBudget > 0) {
+      final ownRoles = roles.map((r) => r.toLowerCase()).toSet();
+      final addedRelated = <String>{};
+      for (final role in roles) {
+        for (final candidate in relatedRoles[role] ?? const <String>[]) {
+          final key = candidate.toLowerCase();
+          if (ownRoles.contains(key) || addedRelated.contains(key)) continue;
+          if (addedRelated.length >= relatedBudget) break;
+          addedRelated.add(key);
+          final inCategory = opps.where((o) => o.category.toLowerCase() == key).toList();
+          if (inCategory.isNotEmpty) topics.add((key: candidate, label: 'Related to $candidate', opps: inCategory));
+        }
+        if (addedRelated.length >= relatedBudget) break;
+      }
+    }
+
+    return topics;
+  }
+
+  /// Desktop-only replacement for _sections()'s carousel-per-role view —
+  /// category tabs (real per-topic counts) + a real sort control (Best
+  /// match / Deadline soonest — no fabricated "Newest", Opportunity has no
+  /// posted-date field) above one shared 3-column grid, reusing the exact
+  /// same _rowsChunked mechanism the isFiltering branch already uses.
+  // Shared by the unfiltered tabs+grid view and the filtered flat-list view
+  // (see _groupedOppRows) so sort actually applies in both places — it used
+  // to only ever run here, which is exactly why sort silently did nothing
+  // once a facet filter (work mode/employment type/city) was applied.
+  List<Opportunity> _sortOpps(List<Opportunity> opps, User? user) {
+    final sorted = List<Opportunity>.of(opps);
+    if (_homeSort == 'deadline') {
+      sorted.sort((a, b) {
+        final da = DateTime.tryParse(a.deadline);
+        final db = DateTime.tryParse(b.deadline);
+        if (da == null && db == null) return 0;
+        if (da == null) return 1;
+        if (db == null) return -1;
+        return da.compareTo(db);
+      });
+    } else {
+      sorted.sort((a, b) => b.matchScoreFor(user).compareTo(a.matchScoreFor(user)));
+    }
+    return sorted;
+  }
+
+  Widget _desktopTopicGrid(BuildContext context, AppState appState, User? user, List<Opportunity> opps) {
+    final topics = _topics(opps, user);
+    if (topics.isEmpty) return const SizedBox.shrink();
+    final selectedKey = topics.any((t) => t.key == _selectedTopic) ? _selectedTopic! : topics.first.key;
+    final selected = topics.firstWhere((t) => t.key == selectedKey);
+
+    final sorted = _sortOpps(selected.opps, user);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: CategoryTabBar(
+                  tabs: [for (final t in topics) CategoryTab(key: t.key, label: t.label, count: t.opps.length)],
+                  selected: selectedKey,
+                  onSelected: (key) => setState(() => _selectedTopic = key),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.lg),
+              SortDropdown(
+                value: _homeSort,
+                options: const [('match', 'Best match'), ('deadline', 'Deadline soonest')],
+                onChanged: (v) => setState(() => _homeSort = v),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            // 1 column, not 3 — OpportunityRow's title is maxLines:1, and 3
+            // narrow columns forced it to truncate hard ("Associate Product
+            // Mana…"), reading as cramped/messy. A full-width row per card
+            // (a real list) matches the reference mockup's actual structure
+            // and gives every title room to read in full.
+            children: _rowsChunked(context, appState, user, sorted, 1),
+          ),
+        ),
+      ],
+    );
+  }
+
   Widget _oppRow(BuildContext context, AppState appState, User? user, Opportunity o) {
     return OpportunityRow(
       tag: o.type,
@@ -260,11 +435,44 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
       deadlineLabel: o.deadlineLabel,
       deadlineUrgent: o.deadlineIsUrgent,
       saved: appState.isOpportunitySaved(o.id),
-      applied: isOpportunityApplied(o.id),
+      applied: context.read<Repositories>().applications.isOpportunityApplied(o.id),
       onToggleSave: () => appState.toggleSavedOpportunity(o.id),
       onTap: () => context.push('/opportunity/${o.id}'),
       onApply: () => startApplyFlow(context, o, onApplied: () => setState(() {})),
+      heroTag: 'opportunity-${o.id}',
     );
+  }
+
+  // One card per row below tablet width, 2 at tablet, 3 at desktop — same
+  // IntrinsicHeight/Expanded row-pairing opportunity_list_screen.dart
+  // already uses (not GridView: OpportunityRow sizes to its own content
+  // height via mainAxisSize.min, so a fixed-extent GridView would clip
+  // taller cards or leave gaps under shorter ones). Chunked per category
+  // group in _groupedOppRows below, so a partial last row only pads out
+  // within its own group, not across group boundaries.
+  List<Widget> _rowsChunked(BuildContext context, AppState appState, User? user, List<Opportunity> items, int columns) {
+    if (columns == 1) {
+      return [for (final o in items) Padding(padding: const EdgeInsets.only(bottom: AppSpacing.lg), child: _oppRow(context, appState, user, o))];
+    }
+    final rows = <Widget>[];
+    for (var i = 0; i < items.length; i += columns) {
+      final rowItems = items.skip(i).take(columns).toList();
+      rows.add(Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+        child: IntrinsicHeight(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              for (var c = 0; c < columns; c++) ...[
+                if (c > 0) const SizedBox(width: AppSpacing.lg),
+                Expanded(child: c < rowItems.length ? _oppRow(context, appState, user, rowItems[c]) : const SizedBox()),
+              ],
+            ],
+          ),
+        ),
+      ));
+    }
+    return rows;
   }
 
   // Groups the isFiltering flat list by category whenever it spans more
@@ -275,10 +483,18 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
   // one continuous run. No explicit "selected categories" list exists on
   // this filter path (unlike Courses'), so groups are ordered by first
   // appearance in _opps instead.
-  List<Widget> _groupedOppRows(BuildContext context, AppState appState, User? user, List<Opportunity> opps) {
+  List<Widget> _groupedOppRows(BuildContext context, AppState appState, User? user, List<Opportunity> unsorted) {
+    final opps = _sortOpps(unsorted, user);
+    final width = MediaQuery.sizeOf(context).width;
+    // 1 at desktop, not 3 — matches the unfiltered tabs+grid view's own
+    // fix (see _desktopTopicGrid's comment): OpportunityRow's single-line
+    // title truncates hard in a narrow column, and the filter panel here
+    // already eats real width too. A full-width row per card reads as a
+    // clean list instead.
+    final columns = width >= AppBreakpoints.tablet ? 1 : (width >= AppBreakpoints.tablet ? 2 : 1);
     final categories = {for (final o in opps) o.category}.toList();
     if (categories.length <= 1) {
-      return [for (final o in opps) Padding(padding: const EdgeInsets.only(bottom: AppSpacing.lg), child: _oppRow(context, appState, user, o))];
+      return _rowsChunked(context, appState, user, opps, columns);
     }
     final grouped = groupByCategory<Opportunity>(opps, (o) => o.category);
     return [
@@ -291,7 +507,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
           padding: const EdgeInsets.only(top: AppSpacing.lg, bottom: AppSpacing.sm),
           child: Text('${entry.key} (${entry.value.length})', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold, fontSize: 16)),
         ),
-        for (final o in entry.value) Padding(padding: const EdgeInsets.only(bottom: AppSpacing.lg), child: _oppRow(context, appState, user, o)),
+        ..._rowsChunked(context, appState, user, entry.value, columns),
       ],
     ];
   }
@@ -321,6 +537,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     // onboarded user.
     final prefs = user?.preferences;
     final isFiltering = prefs != null && (prefs.workMode != null || prefs.employmentType != null || prefs.cities.isNotEmpty);
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
     // _bookings is sorted ascending by real date/time, but nothing
     // previously excluded a session whose date had already passed — a
     // lapsed booking could sit in this "upcoming" slot indefinitely.
@@ -337,7 +554,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
     // bar + filter row stay fixed above the scroll; everything else scrolls.
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(child: SafeArea(
+      body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: SafeArea(
         top: false,
         bottom: false,
         child: Column(
@@ -345,7 +562,11 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
             HomeHeader(
               name: user?.name,
               photoUrl: user?.photoUrl,
-              subtitle: 'Find your next role',
+              // A brand-new arrival gets a one-time personalized welcome
+              // instead of the permanent generic subtitle every other
+              // visit shows — previously this app had literally no
+              // difference between a first open and a hundredth.
+              subtitle: _justOnboarded ? 'Welcome, ${_firstName(user?.name)}' : 'Find your next role',
               onAvatarTap: () => context.go('/tabs/profile'),
               onBellTap: () => context.push('/notifications'),
               unread: appState.hasUnreadNotifications(
@@ -399,7 +620,11 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
               ),
             ),
             Expanded(
-              child: _loading
+              child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _loading
                   ? ListView(
                       padding: const EdgeInsets.symmetric(vertical: AppSpacing.lg),
                       physics: const NeverScrollableScrollPhysics(),
@@ -410,7 +635,7 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                         ),
                         const SizedBox(height: AppSpacing.lg),
                         SizedBox(
-                          height: 222 + AppShadows.cardBuffer * 2,
+                          height: 290 + AppShadows.cardBuffer * 2,
                           child: ListView(
                             padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppShadows.cardBuffer, AppSpacing.lg, AppShadows.cardBuffer),
                             scrollDirection: Axis.horizontal,
@@ -472,14 +697,14 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                         children: [
                                           Text('UPCOMING SESSION', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium, letterSpacing: 0.8)),
                                           Padding(
-                                            padding: const EdgeInsets.only(top: 2),
+                                            padding: const EdgeInsets.only(top: AppSpacing.xs),
                                             child: Text(
                                               upcoming.kind == 'placement' ? (upcoming.sessionType ?? 'Placement session') : 'Counseling with ${upcoming.counselor}',
                                               style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.bold),
                                             ),
                                           ),
                                           Padding(
-                                            padding: const EdgeInsets.only(top: 2),
+                                            padding: const EdgeInsets.only(top: AppSpacing.xs),
                                             child: Text(
                                               '${_prettyDate(upcoming.date)} • ${upcoming.time} • ${upcoming.mode == 'online' ? 'Online' : 'Offline'}',
                                               style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
@@ -537,10 +762,20 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                             crossAxisAlignment: CrossAxisAlignment.start,
                                             mainAxisSize: MainAxisSize.min,
                                             children: [
-                                              Text(noOrphan('Talk to a placement expert'), style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 16, fontWeight: AppFontWeight.bold)),
+                                              Text(
+                                                noOrphan('Talk to a placement expert'),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 16, fontWeight: AppFontWeight.bold),
+                                              ),
                                               Padding(
-                                                padding: const EdgeInsets.only(top: 4),
-                                                child: Text(noOrphan('1:1 guidance to land your next role.'), style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12)),
+                                                padding: const EdgeInsets.only(top: AppSpacing.xs),
+                                                child: Text(
+                                                  noOrphan('1:1 guidance to land your next role.'),
+                                                  maxLines: 2,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12),
+                                                ),
                                               ),
                                             ],
                                           ),
@@ -571,12 +806,17 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                               // mechanic in the body — the free
                                               // test is attached to the resume
                                               // recruiters see.
-                                              Text(noOrphan('Get recruiters to notice you'), style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 16, fontWeight: AppFontWeight.bold)),
+                                              Text(
+                                                noOrphan('Get recruiters to notice you'),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 16, fontWeight: AppFontWeight.bold),
+                                              ),
                                               Padding(
-                                                padding: const EdgeInsets.only(top: 4),
+                                                padding: const EdgeInsets.only(top: AppSpacing.xs),
                                                 child: Text(
                                                   noOrphan('Free 10-min test, attached to your resume for recruiters.'),
-                                                  maxLines: 3,
+                                                  maxLines: 2,
                                                   overflow: TextOverflow.ellipsis,
                                                   style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12, height: 1.3),
                                                 ),
@@ -622,6 +862,25 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                             style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
                                           ),
                                         ),
+                                        // Sort used to only ever live in
+                                        // _desktopTopicGrid's own header,
+                                        // which this branch replaces
+                                        // entirely — so applying a facet
+                                        // filter (work mode/employment
+                                        // type/city) silently removed the
+                                        // sort control altogether. Shown
+                                        // here too now, wired to the same
+                                        // _homeSort state and (via
+                                        // _sortOpps) the same sorting
+                                        // _groupedOppRows now applies.
+                                        if (isTablet) ...[
+                                          SortDropdown(
+                                            value: _homeSort,
+                                            options: const [('match', 'Best match'), ('deadline', 'Deadline soonest')],
+                                            onChanged: (v) => setState(() => _homeSort = v),
+                                          ),
+                                          const SizedBox(width: AppSpacing.lg),
+                                        ],
                                         GestureDetector(
                                           onTap: _clearFilters,
                                           child: Text('Clear filters', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
@@ -629,6 +888,15 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                       ],
                                     ),
                                   ),
+                                  if (isTablet && !prefs.isEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.md),
+                                      child: Wrap(
+                                        spacing: AppSpacing.sm,
+                                        runSpacing: AppSpacing.sm,
+                                        children: _activeFilterChips(prefs),
+                                      ),
+                                    ),
                                   Padding(
                                     padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
                                     child: Column(
@@ -647,6 +915,13 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                                 ],
                               ),
                             )
+                          else if (isTablet)
+                            // Desktop-only: category tabs + one shared grid,
+                            // replacing the carousel-per-role view below.
+                            // Mobile/tablet never reach this branch —
+                            // _sections() (the carousel view) is completely
+                            // unchanged and still the only thing they render.
+                            _desktopTopicGrid(context, appState, user, _opps)
                           else
                             // No manual top gap here — the first carousel's
                             // own CarouselSectionHeading already supplies a
@@ -655,7 +930,10 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
                         ],
                       ),
                     ),
-            ),
+                    ),
+                  ],
+                ),
+              ),
           ],
         ),
       )),

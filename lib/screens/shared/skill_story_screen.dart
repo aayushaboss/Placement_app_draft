@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../mockData/mock_skill_stories.dart';
 import '../../models/skill_story.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
@@ -101,12 +102,13 @@ class _SkillStoryScreenState extends State<SkillStoryScreen> {
     }
 
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: story.background,
-        body: ResponsiveBody(child: Stack(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Stack(
           children: [
             // Edge tap zones sit behind all real content — taps that land on
             // an actual button (close icon, an answer option) are caught by

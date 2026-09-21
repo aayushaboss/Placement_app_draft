@@ -4,33 +4,19 @@ import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../mockData/mock_profile_options.dart';
 import '../../models/job_preferences.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
-import '../../widgets/app_chip.dart';
-import '../../widgets/autocomplete_field.dart';
-import '../../widgets/field_label.dart';
+import '../../widgets/opportunity_filter_fields.dart';
 import '../../widgets/pill_button.dart';
 import '../../widgets/responsive_body.dart';
 
-const _goalOptions = [
-  ('internship', 'Internship'),
-  ('job', 'Full-time'),
-  ('both', 'Both'),
-];
-
-// Opportunity.workMode's real values — an earlier version of this facet
-// (JobPreferences.shift) used a different, mismatched WFH/Hybrid/On-site
-// vocabulary that matched nothing on an actual Opportunity.
-const _workModeOptions = ['Remote', 'Onsite', 'Hybrid'];
-
-const _employmentTypeOptions = ['Full-time', 'Part-time'];
-
-/// Replaces the old standalone "Career preferences" screen — reachable from
-/// college Home's filter icon. Unlike the Courses tab's filter (purely
+/// Mobile host for the filter fields (see opportunity_filter_fields.dart) —
+/// a full-screen push reached from college Home's filter icon, buffered
+/// state committed only on Apply. Unlike the Courses tab's filter (purely
 /// ephemeral tab-local state), this one hydrates from and saves straight to
 /// `AppState.user` on open/apply, since preferences here are meant to be
 /// remembered, not reset every visit. Category and Job/Internship bind
@@ -38,6 +24,11 @@ const _employmentTypeOptions = ['Full-time', 'Part-time'];
 /// — the exact same lists Home's own carousels and match-scoring already
 /// read, so the filter can never disagree with the rest of the app about
 /// what a user is interested in.
+///
+/// At desktop widths, `college_feed_screen.dart` renders these same fields
+/// itself as a persistent, live-committing panel instead of pushing this
+/// screen — this screen's own rendering moved into `OpportunityFilterFields`
+/// for that reuse, but its buffered state/Apply/Reset behavior is unchanged.
 class OpportunityFilterScreen extends StatefulWidget {
   const OpportunityFilterScreen({super.key});
 
@@ -51,14 +42,7 @@ class _OpportunityFilterScreenState extends State<OpportunityFilterScreen> {
   String? _workMode;
   String? _employmentType;
   List<String> _cities = [];
-  final _cityController = TextEditingController();
   bool _loading = false;
-
-  @override
-  void dispose() {
-    _cityController.dispose();
-    super.dispose();
-  }
 
   void _hydrate() {
     final user = context.read<AppState>().user;
@@ -152,45 +136,15 @@ class _OpportunityFilterScreenState extends State<OpportunityFilterScreen> {
     context.go('/tabs');
   }
 
-  Widget _removableChip(String label, VoidCallback onRemove) {
-    return GestureDetector(
-      onTap: onRemove,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
-            const SizedBox(width: AppSpacing.sm),
-            const Icon(Ionicons.close, size: 14, color: AppColors.blue),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Same visual language as _removableChip, minus the close icon — Category
-  // is only ever edited wholesale via the picker screen (_pickRoles), not
-  // added/removed inline the way cities are, so a badge here is read-only;
-  // the whole row it sits in already opens that picker on tap.
-  Widget _roleBadge(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
-      child: Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final employmentDisabled = _goal == 'internship';
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(child: Column(
+      body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
         children: [
           Container(
             color: AppColors.blue,
@@ -208,97 +162,18 @@ class _OpportunityFilterScreenState extends State<OpportunityFilterScreen> {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.xxxl),
               children: [
-                const FieldLabel('Category', tight: true),
-                GestureDetector(
-                  onTap: _pickRoles,
-                  // No wrapping pill/background here — a single oversized
-                  // rounded shape around a whole cluster of badges read as
-                  // a giant, oddly-shaped badge of its own. Kept as plain as
-                  // "Preferred cities" below: just the badges (or the
-                  // placeholder), with a trailing chevron as the only
-                  // signal this row opens the picker.
-                  child: Row(
-                    // Top-aligned, not centered — with several badges
-                    // wrapping onto 2-3 lines, a vertically-centered chevron
-                    // drifts down next to the middle row instead of reading
-                    // as "this whole block is tappable, here's the arrow."
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: _roles.isEmpty
-                            ? Text('All roles', style: AppTextStyles.bodyLg.copyWith(fontSize: 16, color: AppColors.gray400, fontWeight: AppFontWeight.regular))
-                            : Wrap(
-                                spacing: AppSpacing.sm,
-                                runSpacing: AppSpacing.sm,
-                                children: _roles.map((r) => _roleBadge(r)).toList(),
-                              ),
-                      ),
-                      const SizedBox(width: 8),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 9),
-                        child: const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
-                      ),
-                    ],
-                  ),
-                ),
-                const FieldLabel('Internship or full-time'),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: _goalOptions
-                      .map((g) => AppChip(label: g.$2, selected: _goal == g.$1, onPressed: () => _selectGoal(g.$1)))
-                      .toList(),
-                ),
-                const FieldLabel('Work mode'),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: _workModeOptions
-                      .map((m) => AppChip(label: m, selected: _workMode == m, onPressed: () => _toggleWorkMode(m)))
-                      .toList(),
-                ),
-                const FieldLabel('Employment type'),
-                if (employmentDisabled)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: Text(
-                      'Only applies to full-time roles.',
-                      style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12),
-                    ),
-                  ),
-                Opacity(
-                  opacity: employmentDisabled ? 0.4 : 1.0,
-                  child: Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
-                    children: _employmentTypeOptions
-                        .map((t) => AppChip(
-                              label: t,
-                              selected: _employmentType == t,
-                              disabled: employmentDisabled,
-                              onPressed: () => _toggleEmploymentType(t),
-                            ))
-                        .toList(),
-                  ),
-                ),
-                const FieldLabel('Preferred cities'),
-                if (_cities.isNotEmpty)
-                  Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
-                    children: _cities.map((c) => _removableChip(c, () => _removeCity(c))).toList(),
-                  ),
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.sm),
-                  child: AutocompleteField(
-                    value: '',
-                    placeholder: 'e.g. Bengaluru',
-                    icon: Ionicons.location_outline,
-                    options: mockCities,
-                    onChanged: (_) {},
-                    onSelected: _addCity,
-                    onSubmitted: _addCity,
-                  ),
+                OpportunityFilterFields(
+                  roles: _roles,
+                  goal: _goal,
+                  workMode: _workMode,
+                  employmentType: _employmentType,
+                  cities: _cities,
+                  onPickRoles: _pickRoles,
+                  onSelectGoal: _selectGoal,
+                  onToggleWorkMode: _toggleWorkMode,
+                  onToggleEmploymentType: _toggleEmploymentType,
+                  onAddCity: _addCity,
+                  onRemoveCity: _removeCity,
                 ),
               ],
             ),
@@ -306,7 +181,10 @@ class _OpportunityFilterScreenState extends State<OpportunityFilterScreen> {
           Container(
             padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.md),
             decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-            child: Column(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
+                child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 PillButton(label: 'Apply', onPressed: _valid ? _apply : null, loading: _loading, disabled: !_valid),
@@ -320,6 +198,8 @@ class _OpportunityFilterScreenState extends State<OpportunityFilterScreen> {
                   child: Text('Reset', style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
                 ),
               ],
+            ),
+              ),
             ),
           ),
         ],

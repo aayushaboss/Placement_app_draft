@@ -72,8 +72,17 @@ class OpportunityCarouselCard extends StatelessWidget {
             // the dead space the old 250 left above Apply on shorter cards,
             // but the fix for that is a *shorter* fixed height sized to the
             // realistic content (title+tags case), not dropping the shared
-            // height altogether.
-            height: 222,
+            // height altogether. 262 (bumped from 222 for the 8pt
+            // spacing-grid pass) turned out to still be a few px short of
+            // the real worst case (2-line title + match/deadline tags) —
+            // confirmed live: the button silently overflowed past the
+            // card's bottom edge for that combination, which is exactly
+            // what made "Applied" (no tags row, fits easily) and "Apply"
+            // (tags row present, was overflowing) cards line up their
+            // buttons at visibly different heights in the same carousel
+            // row. Bumped again to 290, with real headroom this time
+            // instead of a razor-thin margin.
+            height: 290,
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
               color: AppColors.white,
@@ -104,7 +113,7 @@ class OpportunityCarouselCard extends StatelessWidget {
                             style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 14, height: 1.2),
                           ),
                           Padding(
-                            padding: const EdgeInsets.only(top: 2),
+                            padding: const EdgeInsets.only(top: AppSpacing.xs),
                             child: Text(
                               company,
                               maxLines: 1,
@@ -145,8 +154,8 @@ class OpportunityCarouselCard extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.sm),
                     child: Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.xs,
                       children: [
                         if (matchLabel != null)
                           Tooltip(

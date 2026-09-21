@@ -23,6 +23,7 @@ import 'screens/college/resume_builder_quiz_screen.dart';
 import 'screens/college/resume_screen.dart';
 import 'screens/onboarding/landing_screen.dart';
 import 'screens/onboarding/micro_profile_screen.dart';
+import 'screens/onboarding/onboarding_complete_screen.dart';
 import 'screens/school/aptitude_intro_screen.dart';
 import 'screens/school/aptitude_screen.dart';
 import 'screens/school/course_category_picker_screen.dart';
@@ -148,6 +149,7 @@ GoRouter buildRouter(AppState appState, GlobalKey<ScaffoldMessengerState> scaffo
       GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/onboarding', builder: (context, state) => const LandingScreen()),
       GoRoute(path: '/onboarding/profile', builder: (context, state) => const MicroProfileScreen()),
+      GoRoute(path: '/onboarding/complete', builder: (context, state) => const OnboardingCompleteScreen()),
       GoRoute(
         path: '/auth/login',
         builder: (context, state) => LoginScreen(
@@ -272,9 +274,8 @@ GoRouter buildRouter(AppState appState, GlobalKey<ScaffoldMessengerState> scaffo
       GoRoute(path: '/story/:id', builder: (context, state) => SkillStoryScreen(id: state.pathParameters['id']!)),
       // Dev-only living style guide (Round V) — gated behind kDebugMode so
       // this route (and StyleGuideScreen itself, once tree-shaken) is
-      // entirely absent from `flutter build web --release`. No nav-bar
-      // link anywhere; reachable only by typing the URL in a local debug
-      // build.
+      // entirely absent from a release build. No nav-bar link anywhere;
+      // reachable only by typing the URL in a local debug build.
       if (kDebugMode) GoRoute(path: '/dev/style-guide', builder: (context, state) => const StyleGuideScreen()),
       StatefulShellRoute.indexedStack(
         builder: (context, state, shell) => TabsScaffold(shell: shell),

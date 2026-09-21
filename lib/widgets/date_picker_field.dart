@@ -47,7 +47,7 @@ class DatePickerField extends StatelessWidget {
             children: [
               if (icon != null) ...[
                 Icon(icon, size: 18, color: AppColors.gray500),
-                const SizedBox(width: 8),
+                const SizedBox(width: AppSpacing.sm),
               ],
               Expanded(
                 child: Text(

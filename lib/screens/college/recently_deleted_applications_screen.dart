@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:provider/provider.dart';
 
-import '../../mockData/mock_applications.dart';
+import '../../data/repositories.dart';
 import '../../models/application.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -36,11 +37,15 @@ class _RecentlyDeletedApplicationsScreenState extends State<RecentlyDeletedAppli
     _load();
   }
 
-  void _load() => setState(() => _apps = listRecentlyDeleted());
+  Future<void> _load() async {
+    final apps = await context.read<Repositories>().applications.listRecentlyDeleted();
+    if (mounted) setState(() => _apps = apps);
+  }
 
-  void _restore(Application a) {
-    restoreApplication(a.id);
-    _load();
+  Future<void> _restore(Application a) async {
+    await context.read<Repositories>().applications.restoreApplication(a.id);
+    await _load();
+    if (!mounted) return;
     // Kept-alive tabs (Home's Applied badges, the Applications tab) re-read
     // from listApplications() on a dataVersion bump — without this a
     // restored application's job stays showing "Apply" on a backgrounded
@@ -75,8 +80,9 @@ class _RecentlyDeletedApplicationsScreenState extends State<RecentlyDeletedAppli
       ),
     );
     if (confirmed == true && mounted) {
-      permanentlyDelete(a.id);
-      _load();
+      await context.read<Repositories>().applications.permanentlyDelete(a.id);
+      await _load();
+      if (!mounted) return;
       context.read<AppState>().bumpDataVersion();
     }
   }
@@ -84,14 +90,15 @@ class _RecentlyDeletedApplicationsScreenState extends State<RecentlyDeletedAppli
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(child: Column(
+      body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(AppSpacing.lg, topInset + AppSpacing.sm, AppSpacing.lg, 0),
+            padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.sm, AppSpacing.xl, 0),
             child: const BackChevron(color: AppColors.ink, fallbackRoute: '/tabs/profile'),
           ),
           Padding(
@@ -178,7 +185,7 @@ class _DeletedApplicationCard extends StatelessWidget {
                   children: [
                     Text(a.opportunity.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.semibold)),
                     Padding(
-                      padding: const EdgeInsets.only(top: 1),
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
                       child: Text(a.opportunity.company, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                     ),
                   ],

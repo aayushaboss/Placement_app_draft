@@ -36,6 +36,7 @@ class _SavedScreenState extends State<SavedScreen> {
     final user = appState.user;
     final items = mockOpportunities.where((o) => appState.isOpportunitySaved(o.id)).toList();
     final topInset = MediaQuery.of(context).padding.top;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
     // Same flat-list-of-uniform-cards shape as Applications — reuse its
     // exact 2-column-at-tablet-width treatment rather than inventing a new
     // reflow rule.
@@ -43,11 +44,11 @@ class _SavedScreenState extends State<SavedScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(maxWidth: 720, child: Column(
+      body: ResponsiveBody(maxWidth: isTablet ? 1200 : 720, child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(AppSpacing.lg, topInset + AppSpacing.sm, AppSpacing.lg, 0),
+            padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.sm, AppSpacing.xl, 0),
             child: BackChevron(color: AppColors.ink, fallbackRoute: '/tabs/profile'),
           ),
           Padding(

@@ -3,6 +3,7 @@ import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../mockData/mock_courses.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
@@ -67,10 +68,11 @@ class _CourseFilterScreenState extends State<CourseFilterScreen> {
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final categoryLabel = _categories.isEmpty ? 'All categories' : _categories.join(', ');
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(child: Column(
+      body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
         children: [
           Container(
             color: AppColors.blue,
@@ -106,7 +108,7 @@ class _CourseFilterScreenState extends State<CourseFilterScreen> {
                     child: Row(
                       children: [
                         const Icon(Ionicons.book_outline, size: 18, color: AppColors.gray500),
-                        const SizedBox(width: 8),
+                        const SizedBox(width: AppSpacing.sm),
                         Expanded(
                           child: Text(
                             categoryLabel,
@@ -136,12 +138,17 @@ class _CourseFilterScreenState extends State<CourseFilterScreen> {
           Container(
             padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.md),
             decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-            child: Row(
-              children: [
-                Expanded(child: PillButton(label: 'Reset', variant: PillVariant.secondary, onPressed: _reset)),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(flex: 2, child: PillButton(label: 'Apply', onPressed: _apply)),
-              ],
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
+                child: Row(
+                  children: [
+                    Expanded(child: PillButton(label: 'Reset', variant: PillVariant.secondary, onPressed: _reset)),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(flex: 2, child: PillButton(label: 'Apply', onPressed: _apply)),
+                  ],
+                ),
+              ),
             ),
           ),
         ],

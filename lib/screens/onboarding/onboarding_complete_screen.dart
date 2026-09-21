@@ -2,30 +2,34 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
-import '../../../mockData/career_dna/career_dna_level_meta.dart';
-import '../../../theme/breakpoints.dart';
-import '../../../theme/colors.dart';
-import '../../../theme/shadows.dart';
-import '../../../theme/spacing.dart';
-import '../../../theme/text_styles.dart';
-import '../../../utils/no_orphan.dart';
-import '../../../widgets/pill_button.dart';
-import '../../../widgets/responsive_body.dart';
+import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
+import '../../theme/colors.dart';
+import '../../theme/shadows.dart';
+import '../../theme/spacing.dart';
+import '../../theme/text_styles.dart';
+import '../../utils/no_orphan.dart';
+import '../../widgets/pill_button.dart';
+import '../../widgets/responsive_body.dart';
 
-/// The "you reached a success state" micro-interaction after finishing a
-/// level — reuses booking_confirmed_screen.dart's exact elastic-scale
-/// checkmark mechanism, staged into two beats: the checkmark lands first,
-/// then the title + teaser fade/slide in ~150ms later.
-class CareerDnaSuccessScreen extends StatefulWidget {
-  final int level;
-  const CareerDnaSuccessScreen({super.key, required this.level});
+/// The one acknowledgment that onboarding actually finished — reached
+/// right after the last required step (Goals for college/UG/PG/working,
+/// Micro Profile itself for school) sets `onboardingComplete: true`, and
+/// before landing on Home. Previously that transition was a bare
+/// `context.go('/tabs')` with zero feedback — completing a single Career
+/// DNA quiz *level* got a full celebration (career_dna_success_screen.dart)
+/// while finishing the entire signup flow got nothing. Reuses that exact
+/// elastic-scale checkmark mechanism rather than inventing a new one.
+class OnboardingCompleteScreen extends StatefulWidget {
+  const OnboardingCompleteScreen({super.key});
 
   @override
-  State<CareerDnaSuccessScreen> createState() => _CareerDnaSuccessScreenState();
+  State<OnboardingCompleteScreen> createState() => _OnboardingCompleteScreenState();
 }
 
-class _CareerDnaSuccessScreenState extends State<CareerDnaSuccessScreen> with SingleTickerProviderStateMixin {
+class _OnboardingCompleteScreenState extends State<OnboardingCompleteScreen> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _checkScale;
   late final Animation<double> _contentOpacity;
@@ -49,15 +53,13 @@ class _CareerDnaSuccessScreenState extends State<CareerDnaSuccessScreen> with Si
     super.dispose();
   }
 
-  CareerDnaLevelMeta get _meta => careerDnaLevelMeta.firstWhere((m) => m.level == widget.level);
-
   @override
   Widget build(BuildContext context) {
-    final meta = _meta;
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
-    final isLastLevel = widget.level == 5;
     final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
+    final name = context.watch<AppState>().user?.name?.trim();
+    final firstName = (name != null && name.isNotEmpty) ? name.split(' ').first : null;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -77,11 +79,11 @@ class _CareerDnaSuccessScreenState extends State<CareerDnaSuccessScreen> with Si
                         ScaleTransition(
                           scale: _checkScale,
                           child: Container(
-                            width: isLastLevel ? 130 : 110,
-                            height: isLastLevel ? 130 : 110,
+                            width: 110,
+                            height: 110,
                             alignment: Alignment.center,
                             decoration: const BoxDecoration(color: AppColors.yellow, shape: BoxShape.circle, boxShadow: AppShadows.yellow),
-                            child: Icon(isLastLevel ? Ionicons.trophy : Ionicons.checkmark, size: isLastLevel ? 62 : 56, color: AppColors.blue),
+                            child: const Icon(Ionicons.checkmark, size: 56, color: AppColors.blue),
                           ),
                         ),
                         FadeTransition(
@@ -93,16 +95,15 @@ class _CareerDnaSuccessScreenState extends State<CareerDnaSuccessScreen> with Si
                                 Padding(
                                   padding: const EdgeInsets.only(top: AppSpacing.xl),
                                   child: Text(
-                                    'Level ${meta.level} complete!',
+                                    firstName != null ? "You're all set, $firstName!" : "You're all set!",
+                                    textAlign: TextAlign.center,
                                     style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 28, fontWeight: AppFontWeight.semibold),
                                   ),
                                 ),
                                 Padding(
                                   padding: const EdgeInsets.only(top: AppSpacing.sm),
                                   child: Text(
-                                    noOrphan(isLastLevel
-                                        ? "You've finished the whole Career Quiz journey."
-                                        : 'Nicely done — your ${meta.title} results are ready.'),
+                                    noOrphan("Your profile is ready — let's find your next opportunity."),
                                     textAlign: TextAlign.center,
                                     style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 16),
                                   ),
@@ -121,25 +122,12 @@ class _CareerDnaSuccessScreenState extends State<CareerDnaSuccessScreen> with Si
                 child: Center(
                   child: ConstrainedBox(
                     constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
-                    child: Column(
-                      children: [
-                        PillButton(
-                          label: 'See your report',
-                          onPressed: () {
-                            // Level 5's result is a cross-test synthesis, not a
-                            // per-level report — it has its own dedicated
-                            // final-report screen instead of the generic
-                            // /level/:n/report route the other 4 levels use.
-                            context.go(isLastLevel ? '/college/career-dna/final-report' : '/college/career-dna/level/${widget.level}/report');
-                          },
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        PillButton(
-                          label: isLastLevel ? 'Back to Career Quiz' : 'Back to levels',
-                          variant: PillVariant.outlineWhite,
-                          onPressed: () => context.go('/tabs/career-dna'),
-                        ),
-                      ],
+                    child: PillButton(
+                      label: "Let's go",
+                      onPressed: () {
+                        context.read<AppState>().markJustOnboarded();
+                        context.go('/tabs');
+                      },
                     ),
                   ),
                 ),

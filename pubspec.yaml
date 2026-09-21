@@ -19,6 +19,12 @@ dependencies:
   # Navigation — path-based routing, closest match to expo-router
   go_router: ^15.1.2
 
+  # HTTP client for the Http*Repository seam (lib/data/) — not exercised
+  # yet (DataConfig.mode defaults to mock), but the interceptor/timeout/
+  # error-mapping plumbing in lib/data/api_client.dart needs a real client
+  # underneath it.
+  dio: ^5.7.0
+
   # Icons — mirrors @expo/vector-icons sets actually used: Feather, FontAwesome/5/6, Ionicons, MaterialIcons
   flutter_vector_icons: ^2.0.0
 
@@ -31,15 +37,20 @@ dependencies:
   intl: ^0.20.2
 
   # File/photo picking (expo-document-picker / expo-image-picker equivalents)
-  file_picker: ^8.1.4
+  # Bumped from ^8.1.4 — the old version's Android module hardcoded
+  # compileSdk 34, which broke the release build once
+  # flutter_plugin_android_lifecycle (bundled with this Flutter SDK)
+  # started requiring compileSdk 36+. Only call site is
+  # resume_screen.dart's FilePicker.platform.pickFiles(...), a stable
+  # core API unaffected by the version jump.
+  file_picker: ^13.1.0
   image_picker: ^1.1.2
 
   # "Add to Calendar" — opens Google Calendar with the booking prefilled
   url_launcher: ^6.3.1
 
-  # Resume PDF export — builds the document client-side and hands it to
-  # the platform's native save/share/print sheet (a real browser download
-  # on web).
+  # Resume PDF export — builds the document on-device and hands it to the
+  # platform's native save/share/print sheet.
   pdf: ^3.11.3
   printing: ^5.14.2
 

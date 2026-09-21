@@ -24,7 +24,11 @@ const _maxRecentSearches = 5;
 /// cleanly into a Row/Expanded on the feed without an unbounded-height
 /// layout.
 class HomeSearchBar extends StatefulWidget {
-  const HomeSearchBar({super.key});
+  // 40 for TopNavBar (matches the bell's own 40px circle instead of
+  // towering over every other nav element at the field's original
+  // Home-feed height) — Home's own usage keeps the original 54.
+  final double height;
+  const HomeSearchBar({super.key, this.height = 54});
 
   @override
   State<HomeSearchBar> createState() => _HomeSearchBarState();
@@ -225,8 +229,14 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
       link: _link,
       child: Container(
         key: _fieldKey,
-        height: 46,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        // At the default 54, matches PillInput's own single-line pill
+        // exactly (54 tall, AppSpacing.xl horizontal padding) — this widget
+        // can't just BE a PillInput (it owns its own overlay/dropdown,
+        // unlike PillInput's plain onChanged), but it's the same "search
+        // field" role as Courses' PillInput-based search box, so the two
+        // should read as identically sized, not a few px apart.
+        height: widget.height,
+        padding: EdgeInsets.symmetric(horizontal: widget.height < 54 ? AppSpacing.md : AppSpacing.xl),
         decoration: BoxDecoration(
           color: AppColors.offWhite,
           borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -234,7 +244,7 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
         ),
         child: Row(
           children: [
-            const Icon(Ionicons.search_outline, size: 18, color: AppColors.gray500),
+            Icon(Ionicons.search_outline, size: widget.height < 54 ? 15 : 18, color: AppColors.gray500),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: TextField(
@@ -244,12 +254,12 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
                 onSubmitted: _submit,
                 autofillHints: const [],
                 cursorColor: AppColors.blue,
-                style: AppTextStyles.body.copyWith(fontSize: 14, color: AppColors.ink),
+                style: AppTextStyles.body.copyWith(fontSize: widget.height < 54 ? 13 : 14, color: AppColors.ink),
                 decoration: InputDecoration(
                   isCollapsed: true,
                   border: InputBorder.none,
-                  hintText: 'Search jobs, companies, roles',
-                  hintStyle: AppTextStyles.body.copyWith(fontSize: 14, color: AppColors.gray400),
+                  hintText: widget.height < 54 ? 'Search jobs, roles...' : 'Search jobs, companies, roles',
+                  hintStyle: AppTextStyles.body.copyWith(fontSize: widget.height < 54 ? 13 : 14, color: AppColors.gray400),
                 ),
               ),
             ),

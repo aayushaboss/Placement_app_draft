@@ -4,12 +4,16 @@ import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../mockData/mock_notifications.dart';
+import '../../data/repositories.dart';
+import '../../models/notification_item.dart';
 import '../../models/user.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
+import '../../widgets/async_value_view.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/responsive_body.dart';
 
 // Note: substituted flash_outline for "sparkles" as in value_slides_screen.dart
@@ -30,38 +34,23 @@ class NotificationsScreen extends StatefulWidget {
 }
 
 class _NotificationsScreenState extends State<NotificationsScreen> {
-  @override
-  void initState() {
-    super.initState();
-    // Opening this screen is enough to mark everything currently listed as
-    // read — same "seeing it is enough" convention as markStoryViewed.
-    // Scheduled post-frame since it reads the segment-specific list, which
-    // itself depends on AppState (available via context only after the
-    // first build).
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final isSchool = context.read<AppState>().user?.segment == Segment.school;
-      final notifications = isSchool ? mockSchoolNotifications : mockNotifications;
-      context.read<AppState>().markNotificationsRead(notifications.map((n) => n.id).toList());
-    });
-  }
+  // Guards the "mark everything read" call below so it only fires once per
+  // screen visit — AsyncValueView's builder re-runs on every rebuild once
+  // the list has loaded, not just the first time.
+  bool _markedRead = false;
 
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final isSchool = appState.user?.segment == Segment.school;
-    final notifications = isSchool ? mockSchoolNotifications : mockNotifications;
     final topInset = MediaQuery.of(context).padding.top;
-    final groups = <String>[];
-    for (final n in notifications) {
-      if (!groups.contains(n.group)) groups.add(n.group);
-    }
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Column(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
           children: [
             Padding(
               padding: EdgeInsets.only(
@@ -95,7 +84,35 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
               ),
             ),
             Expanded(
-              child: ListView(
+              child: AsyncValueView<List<NotificationItem>>(
+                loader: () => context.read<Repositories>().notifications.listNotifications(isSchool: isSchool),
+                isEmpty: (notifications) => notifications.isEmpty,
+                emptyBuilder: (context) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    child: EmptyState(
+                      icon: Ionicons.notifications_off_outline,
+                      title: 'No notifications yet',
+                      subtitle: "We'll let you know when there's something new.",
+                    ),
+                  ),
+                ),
+                builder: (context, notifications) {
+                  if (!_markedRead) {
+                    _markedRead = true;
+                    // Opening this screen is enough to mark everything
+                    // currently listed as read — same "seeing it is enough"
+                    // convention as markStoryViewed.
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (!mounted) return;
+                      context.read<AppState>().markNotificationsRead(notifications.map((n) => n.id).toList());
+                    });
+                  }
+                  final groups = <String>[];
+                  for (final n in notifications) {
+                    if (!groups.contains(n.group)) groups.add(n.group);
+                  }
+                  return ListView(
                 padding: const EdgeInsets.all(AppSpacing.xl),
                 children: groups.map((g) {
                   final items = notifications
@@ -164,7 +181,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                                                       ),
                                                 )
                                               else
-                                                const SizedBox(width: 8),
+                                                const SizedBox(width: AppSpacing.sm),
                                               const SizedBox(
                                                 width: AppSpacing.md,
                                               ),
@@ -250,6 +267,8 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                     ),
                   );
                 }).toList(),
+                  );
+                },
               ),
             ),
           ],

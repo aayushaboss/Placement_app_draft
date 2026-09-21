@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 
+import '../theme/breakpoints.dart';
 import '../theme/colors.dart';
 import '../theme/spacing.dart';
 import '../theme/text_styles.dart';
@@ -30,10 +31,14 @@ class HomeHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
+    // Desktop sits directly under TopNavBar's own 64px bar with no notch
+    // inset to lean on (topInset is 0 on web) — without this the greeting
+    // row butts straight up against the nav bar's bottom border.
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
     return Container(
       color: AppColors.white,
       padding: EdgeInsets.only(
-        top: topInset + AppSpacing.xs,
+        top: topInset + AppSpacing.md + (isTablet ? AppSpacing.xl : 0),
         left: AppSpacing.xl,
         right: AppSpacing.xl,
         // xl (20), not the old sm (6) — this header sits directly above an
@@ -114,37 +119,37 @@ class HomeHeader extends StatelessWidget {
           // Bell only — search and filter moved onto the feed itself as a
           // pinned bar row below this header (see college_feed_screen.dart).
           Semantics(
-            button: true,
-            label: 'Notifications',
-            child: GestureDetector(
-              onTap: onBellTap,
-              child: Container(
-                width: 40,
-                height: 40,
-                decoration: const BoxDecoration(color: AppColors.offWhite, shape: BoxShape.circle),
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    const Center(child: Icon(Ionicons.notifications_outline, size: 22, color: AppColors.ink)),
-                    if (unread)
-                      Positioned(
-                        top: 9,
-                        right: 10,
-                        child: Container(
-                          width: 9,
-                          height: 9,
-                          decoration: BoxDecoration(
-                            color: AppColors.error,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.offWhite, width: 1.5),
+              button: true,
+              label: 'Notifications',
+              child: GestureDetector(
+                onTap: onBellTap,
+                child: Container(
+                  width: 40,
+                  height: 40,
+                  decoration: const BoxDecoration(color: AppColors.offWhite, shape: BoxShape.circle),
+                  child: Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      const Center(child: Icon(Ionicons.notifications_outline, size: 22, color: AppColors.ink)),
+                      if (unread)
+                        Positioned(
+                          top: 9,
+                          right: 10,
+                          child: Container(
+                            width: 9,
+                            height: 9,
+                            decoration: BoxDecoration(
+                              color: AppColors.error,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: AppColors.offWhite, width: 1.5),
+                            ),
                           ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
         ],
       ),
     );

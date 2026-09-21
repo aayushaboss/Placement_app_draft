@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme/colors.dart';
+import '../theme/spacing.dart';
 import '../theme/text_styles.dart';
 
 /// Stand-in destination for routes whose real screen hasn't been converted
@@ -19,7 +20,7 @@ class PlaceholderScreen extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text('Coming soon', style: AppTextStyles.h2),
-            const SizedBox(height: 8),
+            const SizedBox(height: AppSpacing.sm),
             Text(routeName, style: AppTextStyles.body.copyWith(color: AppColors.gray500)),
           ],
         ),

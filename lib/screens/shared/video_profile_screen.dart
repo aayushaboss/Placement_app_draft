@@ -70,10 +70,9 @@ class _VideoProfileSheetState extends State<_VideoProfileSheet> {
     } catch (e) {
       // The null-return above already covers the real "user cancelled"
       // case per image_picker's own contract, so this catch is only ever
-      // reached for a genuine failure — permission denied, an unsupported
-      // source (e.g. no camera on a desktop browser), a plugin error.
-      // Previously swallowed with zero feedback on this screen's one and
-      // only function.
+      // reached for a genuine failure — permission denied, no camera
+      // available, a plugin error. Previously swallowed with zero feedback
+      // on this screen's one and only function.
       debugPrint('VideoProfileSheet: pickVideo failed — $e');
       if (!mounted) return;
       ScaffoldMessenger.of(context)
@@ -379,7 +378,7 @@ class _VideoAttachedCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(fileName, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.semibold)),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppSpacing.xs),
                 GestureDetector(
                   onTap: onChange,
                   child: Text('Change', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),

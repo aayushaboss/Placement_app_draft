@@ -16,6 +16,7 @@ import '../../utils/group_by_category.dart';
 import '../../utils/recent_course_searches_prefs_key.dart';
 import '../../utils/scroll_to_top_registry.dart';
 import '../../widgets/auto_carousel.dart';
+import '../../widgets/category_tab_bar.dart';
 import '../../widgets/content_card.dart';
 import '../../widgets/course_carousel_section.dart';
 import '../../widgets/empty_state.dart';
@@ -73,6 +74,9 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
 
   CourseFilterSelection _filter = const CourseFilterSelection();
   List<String> _recentSearches = [];
+  // Desktop-only tabs+grid state (see _desktopCourseTabsGrid) — mobile/
+  // tablet never read this, so it can't affect the carousel-stack view.
+  String? _selectedCourseTab;
 
   Future<void> _openFilter() async {
     final result = await context.push<CourseFilterSelection>('/school/course-filter', extra: _filter);
@@ -143,9 +147,11 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
   // scrollable list, so they scroll away with everything else." No new
   // scroll-direction-tracking code needed — scrolling back up naturally
   // brings them back the same way it brings back any earlier list content.
-  List<Widget> _headerItems(double topInset, bool isFiltering, bool isSchool) => [
+  List<Widget> _headerItems(double topInset, bool isFiltering, bool isSchool, bool isTablet) => [
         Padding(
-          padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.sm, AppSpacing.xl, 0),
+          // isTablet adds AppSpacing.xl on top — sits directly under
+          // TopNavBar's 64px bar with nothing else providing clearance.
+          padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.sm + (isTablet ? AppSpacing.xl : 0), AppSpacing.xl, 0),
           child: Text('Courses', textAlign: TextAlign.left, style: AppTextStyles.h1.copyWith(color: AppColors.ink)),
         ),
         Padding(
@@ -288,7 +294,7 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (var i = 0; i < columns; i++) ...[
-                  if (i > 0) const SizedBox(width: AppSpacing.lg),
+                  if (i > 0) const SizedBox(width: AppSpacing.md),
                   Expanded(child: row * columns + i < items.length ? _resultCard(items[row * columns + i]) : const SizedBox()),
                 ],
               ],
@@ -325,6 +331,43 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
     return _cardsFor(results, columns);
   }
 
+  // Desktop-only replacement for the carousel-per-category stack below —
+  // same real category list + real per-category counts (filterCourses is
+  // the exact function each carousel already used), just tabs + one shared
+  // grid instead of separate horizontal lanes. Mobile/tablet never call
+  // this — the carousel stack is completely unchanged for them.
+  Widget _desktopCourseTabsGrid(BuildContext context, List<Course> recommended) {
+    final topics = <(String key, String label, List<Course> items)>[
+      if (recommended.isNotEmpty) ('recommended', 'Recommended for you', recommended),
+      for (final category in _categories) (category, category, filterCourses(category)),
+    ].where((t) => t.$3.isNotEmpty).toList();
+    if (topics.isEmpty) return const SizedBox.shrink();
+    final selectedKey = topics.any((t) => t.$1 == _selectedCourseTab) ? _selectedCourseTab! : topics.first.$1;
+    final selected = topics.firstWhere((t) => t.$1 == selectedKey);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, 0),
+          child: CategoryTabBar(
+            tabs: [for (final t in topics) CategoryTab(key: t.$1, label: t.$2, count: t.$3.length)],
+            selected: selectedKey,
+            onSelected: (key) => setState(() => _selectedCourseTab = key),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.lg),
+          // 2 columns — matches Applications' own card grid, per direct
+          // feedback that its layout should be the reference for this one
+          // too, now that ContentCard's title truncates at 1 line the same
+          // way _ApplicationCard's does instead of wrapping awkwardly.
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: _cardsFor(selected.$3, 2)),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
@@ -348,7 +391,11 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
     final results = hasQuery
         ? filterCoursesAdvanced(categories: _filter.categories, durationBuckets: _filter.durationBuckets, query: isSearching ? query : null)
         : const <Course>[];
-    final columns = MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet ? 2 : 1;
+    final width = MediaQuery.sizeOf(context).width;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
+    // 2 at desktop — matches Applications' own card grid (see
+    // _desktopCourseTabsGrid's identical comment above).
+    final columns = width >= AppBreakpoints.tablet ? 2 : (width >= AppBreakpoints.tablet ? 2 : 1);
 
     String emptyMessage() {
       if (isSearching && isFiltering) return 'No courses match "$query" with these filters.';
@@ -363,7 +410,7 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
     late final List<Widget> bodyItems;
     if (hasQuery) {
       bodyItems = [
-        ..._headerItems(topInset, isFiltering, isSchool),
+        ..._headerItems(topInset, isFiltering, isSchool, isTablet),
         Padding(
           padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.sm),
           child: Row(
@@ -402,12 +449,7 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
           ..._resultWidgets(results, columns),
       ];
     } else {
-      final carousels = [
-        if (recommended.isNotEmpty) CourseCarouselSection(title: 'Recommended for you', courses: recommended),
-        for (final category in _categories) CourseCarouselSection(title: category, courses: filterCourses(category)),
-      ];
-      bodyItems = [
-        ..._headerItems(topInset, isFiltering, isSchool),
+      final recentSearchWidgets = [
         // Recent searches — same "quick re-run a past search" convenience
         // the opportunity Search screen already offers, only shown once
         // there's actually something to show and before any query/filter
@@ -435,16 +477,35 @@ class _CoursesExploreScreenState extends State<CoursesExploreScreen> {
             ),
           ),
         ],
-        // No manual inter-carousel gap needed — CarouselSectionHeading
-        // already supplies a divider + AppSpacing.xl clearance above each
-        // one, including the first.
-        ...carousels,
       ];
+      if (isTablet) {
+        bodyItems = [
+          ..._headerItems(topInset, isFiltering, isSchool, isTablet),
+          ...recentSearchWidgets,
+          // Desktop-only: category tabs + one shared grid, replacing the
+          // carousel-per-category stack below. Mobile/tablet never reach
+          // this branch.
+          _desktopCourseTabsGrid(context, recommended),
+        ];
+      } else {
+        final carousels = [
+          if (recommended.isNotEmpty) CourseCarouselSection(title: 'Recommended for you', courses: recommended),
+          for (final category in _categories) CourseCarouselSection(title: category, courses: filterCourses(category)),
+        ];
+        bodyItems = [
+          ..._headerItems(topInset, isFiltering, isSchool, isTablet),
+          ...recentSearchWidgets,
+          // No manual inter-carousel gap needed — CarouselSectionHeading
+          // already supplies a divider + AppSpacing.xl clearance above each
+          // one, including the first.
+          ...carousels,
+        ];
+      }
     }
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(maxWidth: hasQuery ? 720 : AppBreakpoints.maxContentWidth, child: ListView(
+      body: ResponsiveBody(maxWidth: isTablet ? 1224 : (hasQuery ? 720 : AppBreakpoints.maxContentWidth), child: ListView(
         controller: _scrollController,
         padding: const EdgeInsets.only(bottom: AppSpacing.xxxl),
         children: bodyItems,
@@ -513,7 +574,7 @@ class _CredibilityCard extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.medium)),
-                const SizedBox(height: 2),
+                const SizedBox(height: AppSpacing.xs),
                 Text(
                   caption,
                   maxLines: 2,

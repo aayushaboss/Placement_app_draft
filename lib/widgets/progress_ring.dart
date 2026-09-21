@@ -24,25 +24,35 @@ class ProgressRing extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: size,
-      height: size,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          SizedBox(
-            width: size,
-            height: size,
-            child: CircularProgressIndicator(
-              value: percent / 100,
-              strokeWidth: 4,
-              backgroundColor: background,
-              valueColor: AlwaysStoppedAnimation(valueColor),
-              strokeCap: StrokeCap.round,
+    // Was a static CircularProgressIndicator that snapped straight to
+    // `value` — the same kind of ring in the Career DNA quiz
+    // (career_dna_quiz_screen.dart) already animates via
+    // TweenAnimationBuilder; this brings that same treatment here instead
+    // of only existing in one place.
+    return TweenAnimationBuilder<double>(
+      tween: Tween(end: percent / 100),
+      duration: const Duration(milliseconds: 600),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, _) => SizedBox(
+        width: size,
+        height: size,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            SizedBox(
+              width: size,
+              height: size,
+              child: CircularProgressIndicator(
+                value: value,
+                strokeWidth: 4,
+                backgroundColor: background,
+                valueColor: AlwaysStoppedAnimation(valueColor),
+                strokeCap: StrokeCap.round,
+              ),
             ),
-          ),
-          Text('$percent%', style: AppTextStyles.caption.copyWith(color: textColor, fontSize: 12, fontWeight: AppFontWeight.bold)),
-        ],
+            Text('${(value * 100).round()}%', style: AppTextStyles.caption.copyWith(color: textColor, fontSize: 12, fontWeight: AppFontWeight.bold)),
+          ],
+        ),
       ),
     );
   }

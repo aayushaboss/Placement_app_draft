@@ -1,6 +1,3 @@
-import 'dart:html' as html;
-
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
@@ -11,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/profile_readiness.dart';
 import '../../models/user.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -79,6 +77,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   // had zero prior exposure to any user before Round U re-enabled it), not
   // a general tour system.
   bool _supportHintSeen = true;
+  // Desktop-only — collapsed by default so Basic details' card height
+  // (name/city/college/goal/role tags, easily the longest content of the
+  // 4 paired cards) matches its row partner instead of visibly dwarfing it.
+  // Mobile/tablet never paginate cards into rows, so this is never read
+  // there and the content always shows in full, same as before this round.
+  bool _basicDetailsExpanded = false;
 
   @override
   void initState() {
@@ -274,22 +278,102 @@ class _ProfileScreenState extends State<ProfileScreen> {
     // same profileChecklist the Home feed's completion dial and _BoostTip
     // both read, so this screen can't silently disagree with them.
     final checklist = {for (final i in user?.profileChecklist ?? const []) i.id: i.done};
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(
-        child: ListView(
-          controller: _scrollController,
-          padding: EdgeInsets.zero,
-          children: [
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),
-              decoration: const BoxDecoration(
-                color: AppColors.blue,
-                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
-              ),
-              child: Column(
+      // A single ListView, not a fixed header + separately-scrolling
+      // Expanded below it — a pinned header ate into how much of the page
+      // showed per fold, especially with TopNavBar also taking space above
+      // it at desktop. The header is still deliberately NOT wrapped in
+      // ResponsiveBody at the Container level — its background is a true
+      // full-bleed banner (see ResponsiveBody's own doc comment, and
+      // landing_screen.dart's identical pattern) — but its own text/avatar
+      // content now gets the SAME ResponsiveBody(maxWidth) + padding as the
+      // section cards below, so it aligns with them instead of hugging the
+      // true screen edge while the cards sit inset in a narrower column.
+      body: ListView(
+        controller: _scrollController,
+        padding: EdgeInsets.zero,
+        children: [
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: AppColors.blue,
+              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
+            ),
+            child: ResponsiveBody(
+              maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),
+                // Desktop: a compact horizontal strip (avatar beside the
+                // text block), matching how thin Career Quiz's own header
+                // reads — the original vertical, centered stack (avatar
+                // above name above email above badge above progress ring)
+                // was sized for a phone screen and read as a wall of blue
+                // taking up most of the first fold on a wide window.
+                // Mobile/tablet keep that original stacked layout unchanged.
+                child: isTablet
+                    ? Row(
+                        children: [
+                          Container(
+                            width: 56,
+                            height: 56,
+                            alignment: Alignment.center,
+                            decoration: const BoxDecoration(color: AppColors.yellow, shape: BoxShape.circle),
+                            child: user?.photoUrl != null
+                                ? ClipOval(child: Image.network(user!.photoUrl!, width: 56, height: 56, fit: BoxFit.cover))
+                                : Text(
+                                    initialsFor(user?.name),
+                                    style: AppTextStyles.h2.copyWith(color: AppColors.blue, fontSize: 20, fontWeight: AppFontWeight.semibold),
+                                  ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  user?.name ?? 'Student',
+                                  style: AppTextStyles.h2.copyWith(color: AppColors.white, fontSize: 19, fontWeight: AppFontWeight.bold),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 2),
+                                  child: Text(user?.identifier ?? '', style: AppTextStyles.body.copyWith(color: AppColors.whiteA70, fontSize: 13)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: AppSpacing.md),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
+                            decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.pill)),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Ionicons.ribbon, size: 13, color: AppColors.blue),
+                                const SizedBox(width: AppSpacing.xs),
+                                Text(
+                                  _segmentLabels[user?.segment] ?? 'Student',
+                                  style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (!isSchool) ...[
+                            const SizedBox(width: AppSpacing.md),
+                            ProgressRing(
+                              percent: user?.profileProgressPercent ?? 0,
+                              size: 36,
+                              background: AppColors.whiteA20,
+                              valueColor: AppColors.yellow,
+                              textColor: AppColors.white,
+                            ),
+                          ],
+                        ],
+                      )
+                    : Column(
                 children: [
                   Container(
                     width: 84,
@@ -311,7 +395,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.only(top: AppSpacing.xs),
                     child: Text(user?.identifier ?? '', style: AppTextStyles.body.copyWith(color: AppColors.whiteA70, fontSize: 14)),
                   ),
                   Container(
@@ -322,7 +406,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const Icon(Ionicons.ribbon, size: 13, color: AppColors.blue),
-                        const SizedBox(width: 5),
+                        const SizedBox(width: AppSpacing.xs),
                         Text(
                           _segmentLabels[user?.segment] ?? 'Student',
                           style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
@@ -358,12 +442,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                 ],
               ),
+              ),
             ),
-            Padding(
+          ),
+          ResponsiveBody(
+            // 1224, matching every other desktop tab (Home/Applications/
+            // Courses) — a screen-specific width here made the horizontal
+            // gutter next to the sidebar visibly inconsistent between tabs.
+            maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+            child: Padding(
               padding: const EdgeInsets.all(AppSpacing.xl),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
+              child: Builder(builder: (context) {
+                // Extracted to a list so desktop can lay these 4 out as a
+                // 2-column block grid (standard "Card/Block Layout" web
+                // pattern) instead of one long single-file column floating
+                // in the wide leftover space next to the sidebar — mobile/
+                // tablet keep the exact original flat, stacked order.
+                final sectionCards = <Widget>[
                   if (!isSchool)
                     _SectionCard(
                       title: 'Resume',
@@ -393,41 +488,67 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     icon: Ionicons.person_outline,
                     done: checklist['basic'],
                     onTap: () => _editBasics(context),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        ..._basicDetailLines(user, isSchool).asMap().entries.map(
-                          (e) => Padding(
-                            padding: const EdgeInsets.only(bottom: 2),
-                            child: Text(
-                              noOrphan(e.value),
-                              // Medium, not semibold — the card title above
-                              // (now bold) is the heading; the name is this
-                              // card's content and shouldn't compete with
-                              // it at nearly the same weight.
-                              style: e.key == 0
-                                  ? AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium)
-                                  : AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12),
-                            ),
-                          ),
-                        ),
-                        if (!isSchool) ...[
-                          Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.sm),
-                            child: Text(_goalLabel(user?.goal), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12)),
-                          ),
-                          if (user?.roles?.isNotEmpty ?? false)
-                            Padding(
-                              padding: const EdgeInsets.only(top: AppSpacing.sm),
-                              child: Wrap(
-                                spacing: AppSpacing.sm,
-                                runSpacing: AppSpacing.sm,
-                                children: user!.roles!.map((r) => AppTag(label: r)).toList(),
+                    // Collapsed only at desktop, and only when not expanded —
+                    // mobile/tablet always render the full version below,
+                    // same as before this round. Collapsed: name + one
+                    // combined line (city/college merged into one, instead
+                    // of Basic details' original 3 separate lines) + up to 3
+                    // role tags — this card was by far the tallest of the 4
+                    // paired ones (name/city/college/goal/role tags all on
+                    // their own lines), visibly dwarfing Resume/Photo/Video
+                    // next to it in the same row.
+                    child: (isTablet && !_basicDetailsExpanded)
+                        ? _BasicDetailsCollapsed(
+                            user: user,
+                            isSchool: isSchool,
+                            onViewMore: () => setState(() => _basicDetailsExpanded = true),
+                          )
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              ..._basicDetailLines(user, isSchool).asMap().entries.map(
+                                (e) => Padding(
+                                  padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+                                  child: Text(
+                                    noOrphan(e.value),
+                                    // Medium, not semibold — the card title above
+                                    // (now bold) is the heading; the name is this
+                                    // card's content and shouldn't compete with
+                                    // it at nearly the same weight.
+                                    style: e.key == 0
+                                        ? AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium)
+                                        : AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12),
+                                  ),
+                                ),
                               ),
-                            ),
-                        ],
-                      ],
-                    ),
+                              if (!isSchool) ...[
+                                Padding(
+                                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                                  child: Text(_goalLabel(user?.goal), style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12)),
+                                ),
+                                if (user?.roles?.isNotEmpty ?? false)
+                                  Padding(
+                                    padding: const EdgeInsets.only(top: AppSpacing.sm),
+                                    child: Wrap(
+                                      spacing: AppSpacing.sm,
+                                      runSpacing: AppSpacing.sm,
+                                      children: user!.roles!.map((r) => AppTag(label: r)).toList(),
+                                    ),
+                                  ),
+                              ],
+                              if (isTablet)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                                  child: GestureDetector(
+                                    onTap: () => setState(() => _basicDetailsExpanded = false),
+                                    child: Text(
+                                      'View less',
+                                      style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.semibold),
+                                    ),
+                                  ),
+                                ),
+                            ],
+                          ),
                   ),
                   // College-only, same reasoning as Video profile below —
                   // school's Profile tab only ever shows Basic details.
@@ -468,6 +589,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12),
                             ),
                     ),
+                ];
+
+                return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (isTablet) ..._pairedRows(sectionCards) else ...sectionCards,
                   // The old standalone "Career preferences" card is gone —
                   // that concept now lives inline on college Home's filter
                   // icon instead (see college_feed_screen.dart /
@@ -479,7 +606,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     clipBehavior: Clip.antiAlias,
                     child: Column(
                       children: [
-                        const _NotificationToggleRow(),
                         ...rows.asMap().entries.map((entry) {
                           final i = entry.key;
                           final r = entry.value;
@@ -583,13 +709,46 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: Text('Aerostar Edge • v1.0.0', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                   ),
                 ],
-              ),
+                );
+              }),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
+}
+
+/// Lays [cards] out 2-per-row (Expanded, top-aligned so mismatched card
+/// heights don't force a shorter card to stretch) — the standard "Card/
+/// Block Layout" web pattern, used only at desktop widths where there's
+/// real room for two columns; mobile/tablet keep the original single
+/// stacked column.
+List<Widget> _pairedRows(List<Widget> cards) {
+  final rows = <Widget>[];
+  for (var i = 0; i < cards.length; i += 2) {
+    final right = i + 1 < cards.length ? cards[i + 1] : null;
+    // IntrinsicHeight + stretch, not top-aligned Expanded — Resume's short
+    // one-line body next to Basic details' much longer one (name/city/
+    // college/goal/role tags) left a tall gap under the short card before
+    // the next row started, breaking the "tidy grid" look entirely. Same
+    // equal-height-row mechanism already used everywhere else this round
+    // (opportunity_list_screen.dart, applications_tracker_screen.dart,
+    // college_feed_screen.dart's _rowsChunked) — every card's own
+    // Container has no explicit height, so it simply fills whatever tight
+    // height the row's tallest card computes to.
+    rows.add(IntrinsicHeight(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(child: cards[i]),
+          const SizedBox(width: AppSpacing.lg),
+          Expanded(child: right ?? const SizedBox()),
+        ],
+      ),
+    ));
+  }
+  return rows;
 }
 
 String _skillsSummary(List<String> skills) {
@@ -624,6 +783,49 @@ List<String> _basicDetailLines(User? user, bool isSchool) {
     lines.add(collegeLine.isEmpty ? 'College details not set' : collegeLine);
   }
   return lines;
+}
+
+/// Collapsed rendering of the Basic details card — desktop only (see its
+/// one call site in profile_screen's build). Just the name, capped so this
+/// card's height stops dwarfing its Resume/Photo/Video row partner; "View
+/// more" reveals the original full content (name, combined city/college
+/// line, and role tags).
+class _BasicDetailsCollapsed extends StatelessWidget {
+  final User? user;
+  final bool isSchool;
+  final VoidCallback onViewMore;
+  const _BasicDetailsCollapsed({required this.user, required this.isSchool, required this.onViewMore});
+
+  @override
+  Widget build(BuildContext context) {
+    // Name + "View more" only — the combined city/college line and role
+    // tags moved behind the link entirely (still shown once expanded, see
+    // the non-collapsed branch below in build()). The previous collapsed
+    // state (name + combined line + up to 3 tags) still rendered 4 stacked
+    // elements against its 3 siblings' 1 line each — visibly taller than
+    // Resume/Profile photo/Video profile in the same paired row.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          noOrphan(user?.name?.trim().isNotEmpty == true ? user!.name! : 'Name not set'),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(top: AppSpacing.sm),
+          child: GestureDetector(
+            onTap: onViewMore,
+            child: Text(
+              'View more',
+              style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.semibold),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _SectionCard extends StatelessWidget {
@@ -676,100 +878,3 @@ class _SectionCard extends StatelessWidget {
   }
 }
 
-/// Lets someone who dismissed the Home FOMO prompt (or just never saw it)
-/// turn browser notifications on later — the one other place that action
-/// lives, so it isn't gone for good after "Not now".
-class _NotificationToggleRow extends StatefulWidget {
-  const _NotificationToggleRow();
-
-  @override
-  State<_NotificationToggleRow> createState() => _NotificationToggleRowState();
-}
-
-class _NotificationToggleRowState extends State<_NotificationToggleRow> {
-  bool _enabled = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _enabled = _permissionGranted();
-  }
-
-  bool _permissionGranted() {
-    if (!kIsWeb) return false;
-    try {
-      return html.Notification.permission == 'granted';
-    } catch (_) {
-      // Notification API not exposed at all in this context (e.g. a
-      // sandboxed preview iframe) — treat as unsupported, not "on".
-      return false;
-    }
-  }
-
-  // Once granted, the switch can't actually turn permission back off — the
-  // browser doesn't let JS revoke it, only the user can from site
-  // settings. Showing the switch as still-interactive (able to animate to
-  // "off" on tap, then snap back once _enabled is recomputed from the
-  // unchanged real permission) misrepresented what tapping it did. It's
-  // rendered as effectively read-only in that state instead — see build().
-  void _explainCannotDisable() {
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Turn off notifications from your browser settings.')));
-  }
-
-  Future<void> _toggle(bool value) async {
-    if (!kIsWeb) return;
-    String result = 'default';
-    try {
-      result = await html.Notification.requestPermission();
-    } catch (_) {
-      // Notification API unavailable in this context — nothing to request.
-    }
-    if (!mounted) return;
-    setState(() => _enabled = _permissionGranted());
-    if (result == 'denied' && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Notifications are blocked for this site — allow them from your browser's site settings.")));
-    } else if (result != 'granted' && mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("Couldn't turn on notifications here — try from your device's browser settings.")));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: AppColors.border, width: 1)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(color: AppColors.blueA10, shape: BoxShape.circle),
-            child: const Icon(Ionicons.notifications_outline, size: 20, color: AppColors.blue),
-          ),
-          const SizedBox(width: AppSpacing.md),
-          Expanded(
-            child: Text(
-              'Push notifications',
-              style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium),
-            ),
-          ),
-          // onChanged: null when already granted — a disabled Switch can't
-          // animate toward a value that's just going to bounce back, and
-          // ignores taps outright instead of looking briefly interactive.
-          // The GestureDetector still catches that tap to explain why.
-          GestureDetector(
-            onTap: _enabled ? _explainCannotDisable : null,
-            child: Switch(value: _enabled, onChanged: _enabled ? null : _toggle, activeThumbColor: AppColors.blue),
-          ),
-        ],
-      ),
-    );
-  }
-}

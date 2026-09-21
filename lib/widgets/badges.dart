@@ -56,7 +56,7 @@ class IconBadgeRow extends StatelessWidget {
                 ),
                 if (subtitle != null)
                   Padding(
-                    padding: const EdgeInsets.only(top: 1),
+                    padding: const EdgeInsets.only(top: AppSpacing.xs),
                     child: Text(
                       subtitle!,
                       maxLines: 1,
@@ -99,7 +99,7 @@ class StatItem extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.only(top: 2),
+          padding: const EdgeInsets.only(top: AppSpacing.xs),
           child: Text(
             label,
             style: AppTextStyles.caption.copyWith(
@@ -151,7 +151,7 @@ class StatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (bg, fg) = _statusColors[status] ?? _statusColors['Applied']!;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(999),
@@ -210,7 +210,7 @@ class AppTag extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(icon, size: 12, color: color),
-                const SizedBox(width: 4),
+                const SizedBox(width: AppSpacing.xs),
                 text,
               ],
             ),

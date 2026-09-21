@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../nav.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
@@ -142,12 +143,13 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
     // Same identifier already used to send the code — an email sign-in
     // should never be told to "verify your number".
     final isEmail = widget.identifier.contains('@');
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.blue,
-        body: ResponsiveBody(child: Stack(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Stack(
           children: [
             Positioned(
               left: AppSpacing.lg,
@@ -155,7 +157,7 @@ class _OtpScreenState extends State<OtpScreen> with SingleTickerProviderStateMix
               child: const BackChevron(fallbackRoute: '/auth/login'),
             ),
             Padding(
-              padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + 72, AppSpacing.xl, 0),
+              padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.xxxl + AppSpacing.sm, AppSpacing.xl, 0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [

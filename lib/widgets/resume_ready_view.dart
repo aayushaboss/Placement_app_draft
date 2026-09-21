@@ -114,7 +114,7 @@ class _ResumeReadyViewState extends State<ResumeReadyView> {
                           children: [
                             Text(fileName, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium)),
                             Padding(
-                              padding: const EdgeInsets.only(top: 2),
+                              padding: const EdgeInsets.only(top: AppSpacing.xs),
                               child: Text('PDF · ready to download', style: AppTextStyles.caption.copyWith(color: AppColors.gray500)),
                             ),
                           ],

@@ -11,6 +11,7 @@ import '../../models/parsed_resume.dart';
 import '../../models/profile_readiness.dart';
 import '../../services/apply_flow.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -106,29 +107,31 @@ class _ResumeScreenState extends State<ResumeScreen> {
     HapticFeedback.selectionClick();
     setState(() => _error = null);
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.custom,
-        allowedExtensions: const ['pdf'],
-        withData: true,
-      );
-      if (result == null || result.files.isEmpty) return;
-      final file = result.files.first;
+      // file_picker 13.x: FilePicker.pickFiles is a direct static method
+      // now (no more .platform), returns an empty list rather than a
+      // nullable FilePickerResult on cancel, and PlatformFile.bytes/.size
+      // became async readAsBytes()/length() — the old synchronous
+      // fields are gone.
+      final files = await FilePicker.pickFiles(type: FileType.custom, allowedExtensions: const ['pdf']);
+      if (files.isEmpty) return;
+      final file = files.first;
       final name = file.name.toLowerCase();
       if (!name.endsWith('.pdf')) {
         setState(() => _error = 'Please upload a PDF file.');
         return;
       }
-      if (file.size > _maxPdfBytes) {
+      final bytes = await file.readAsBytes();
+      if (bytes.length > _maxPdfBytes) {
         setState(() => _error = 'That PDF is over 10MB — try a smaller file.');
         return;
       }
-      if (!_looksLikePdf(file.bytes)) {
+      if (!_looksLikePdf(bytes)) {
         setState(() => _error = "That doesn't look like a valid PDF file.");
         return;
       }
       setState(() {
         _pdfName = file.name;
-        _pdfBytes = file.size;
+        _pdfBytes = bytes.length;
         _error = null;
       });
       // Card is the upload CTA — parse as soon as a PDF is chosen.
@@ -365,6 +368,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
 
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return PopScope(
       // Without this, the system/browser back gesture pops the whole route
@@ -378,70 +382,115 @@ class _ResumeScreenState extends State<ResumeScreen> {
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Column(
+        body: Column(
           children: [
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
-              decoration: const BoxDecoration(
-                color: AppColors.blue,
-                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // A single ListView, not a fixed header + separately-scrolling
+            // Expanded below it — a pinned header here left too little of
+            // the fold visible, especially with TopNavBar also taking space
+            // above it at desktop. The header is still deliberately NOT
+            // wrapped in ResponsiveBody at the Container level — its
+            // background is a true full-bleed banner — but its own text
+            // gets the same ResponsiveBody(800) + padding as the form
+            // below, so it aligns with it instead of hugging the true edge.
+            // The Save/Skip footer stays a fixed sibling below this
+            // ListView (a pinned bottom action bar is the expected pattern,
+            // unlike a pinned header eating into the fold).
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
                 children: [
-                  BackChevron(onPressed: _back),
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.md),
-                    child: Text(
-                      _postOnboarding
-                          ? (_stage == _Stage.input ? 'ALMOST READY TO APPLY' : 'LOOKS GOOD?')
-                          : (_stage == _Stage.input ? 'STEP 3 OF 3' : 'LOOKS GOOD?'),
-                      style: AppTextStyles.caption.copyWith(color: AppColors.yellow, fontSize: 12, fontWeight: AppFontWeight.medium, letterSpacing: 1.2),
+                  Container(
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: AppColors.blue,
+                      borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
+                    ),
+                    child: ResponsiveBody(
+                      maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+                      child: Padding(
+                        padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            BackChevron(onPressed: _back),
+                            Padding(
+                              padding: const EdgeInsets.only(top: AppSpacing.md),
+                              child: Text(
+                                _postOnboarding
+                                    ? (_stage == _Stage.input ? 'ALMOST READY TO APPLY' : 'LOOKS GOOD?')
+                                    : (_stage == _Stage.input ? 'STEP 3 OF 3' : 'LOOKS GOOD?'),
+                                style: AppTextStyles.caption.copyWith(color: AppColors.yellow, fontSize: 12, fontWeight: AppFontWeight.medium, letterSpacing: 1.2),
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.only(top: AppSpacing.sm),
+                              child: Text(
+                                _stage == _Stage.input ? 'Build your profile' : 'Review your profile',
+                                style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 28, fontWeight: AppFontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.sm),
-                    child: Text(
-                      _stage == _Stage.input ? 'Build your profile' : 'Review your profile',
-                      style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 28, fontWeight: AppFontWeight.bold),
+                  ResponsiveBody(
+                    maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
+                      child: Column(
+                        children: _stage == _Stage.input ? _buildInput() : _buildReview(),
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
-            Expanded(
-              child: _stage == _Stage.input ? _buildInput() : _buildReview(),
-            ),
             // Both resume paths are now full-width tappable cards in the body
             // itself, so the input stage only needs a footer at all when
             // there's a skip option to offer.
             if (_stage == _Stage.review)
-              Container(
-                padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.md),
-                decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-                child: PillButton(
-                  label: _postOnboarding ? 'Save resume' : 'Save & Continue',
-                  onPressed: _save,
-                  loading: _loading,
+              ResponsiveBody(
+                maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+                child: Container(
+                  padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.md),
+                  decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
+                      child: PillButton(
+                        label: _postOnboarding ? 'Save resume' : 'Save & Continue',
+                        onPressed: _save,
+                        loading: _loading,
+                      ),
+                    ),
+                  ),
                 ),
               )
             else if (!_postOnboarding)
-              Container(
-                padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.md),
-                decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-                child: PillButton(
-                  label: 'Skip for now',
-                  variant: PillVariant.ghost,
-                  onPressed: _parsing ? null : _skipForNow,
-                  loading: _loading,
-                  disabled: _parsing,
+              ResponsiveBody(
+                maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+                child: Container(
+                  padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.md),
+                  decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
+                      child: PillButton(
+                        label: 'Skip for now',
+                        variant: PillVariant.ghost,
+                        onPressed: _parsing ? null : _skipForNow,
+                        loading: _loading,
+                        disabled: _parsing,
+                      ),
+                    ),
+                  ),
                 ),
               )
             else
               SizedBox(height: bottomInset + AppSpacing.md),
           ],
-        )),
+        ),
       ),
       ),
     );
@@ -461,6 +510,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
     final resume = user?.resume;
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
     // Mirrors the 7 quiz steps in resume_builder_quiz_screen.dart exactly —
     // 'Fresher' is the sentinel that screen itself writes to
     // experienceLevel when the user explicitly answers "no experience"
@@ -487,40 +537,61 @@ class _ResumeScreenState extends State<ResumeScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(child: Column(
+      // A single ListView, not a fixed header + separately-scrolling
+      // Expanded below it — a pinned header here left too little of the
+      // fold visible, especially with TopNavBar also taking space above it
+      // at desktop. The header is still deliberately NOT wrapped in
+      // ResponsiveBody at the Container level — its background is a true
+      // full-bleed banner — but its own text gets the same
+      // ResponsiveBody(800) + padding as the content below it, so it
+      // aligns with it instead of hugging the true edge. The Upload-new-PDF
+      // footer stays a fixed sibling below the ListView (a pinned bottom
+      // action bar is the expected pattern, unlike a pinned header).
+      body: Column(
         children: [
-          Container(
-            width: double.infinity,
-            padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
-            decoration: const BoxDecoration(
-              color: AppColors.blue,
-              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const BackChevron(fallbackRoute: '/tabs/profile'),
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.md),
-                  child: Text('Resume', style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 28, fontWeight: AppFontWeight.bold)),
-                ),
-              ],
-            ),
-          ),
           Expanded(
-            child: resume == null
-                ? Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl).copyWith(top: AppSpacing.xxxl),
-                    child: EmptyState(
-                      icon: Ionicons.document_text_outline,
-                      title: 'No resume saved yet',
-                      subtitle: 'Build one from scratch or upload an existing PDF.',
-                      buttonLabel: 'Build my resume',
-                      onButtonTap: () => context.push('/college/resume/build'),
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                Container(
+                  width: double.infinity,
+                  decoration: const BoxDecoration(
+                    color: AppColors.blue,
+                    borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
+                  ),
+                  child: ResponsiveBody(
+                    maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const BackChevron(fallbackRoute: '/tabs/profile'),
+                          Padding(
+                            padding: const EdgeInsets.only(top: AppSpacing.md),
+                            child: Text('Resume', style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 28, fontWeight: AppFontWeight.bold)),
+                          ),
+                        ],
+                      ),
                     ),
-                  )
-                : ListView(
-                    padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
+                  ),
+                ),
+                ResponsiveBody(
+                  maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+                  child: resume == null
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl).copyWith(top: AppSpacing.xxxl),
+                          child: EmptyState(
+                            icon: Ionicons.document_text_outline,
+                            title: 'No resume saved yet',
+                            subtitle: 'Build one from scratch or upload an existing PDF.',
+                            buttonLabel: 'Build my resume',
+                            onButtonTap: () => context.push('/college/resume/build'),
+                          ),
+                        )
+                      : Padding(
+                          padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
+                          child: Column(
                     children: [
                       Text('Complete your resume', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium)),
                       Padding(
@@ -581,36 +652,48 @@ class _ResumeScreenState extends State<ResumeScreen> {
                       if (resume.portfolioLink?.trim().isNotEmpty ?? false)
                         _SummarySection(label: 'Portfolio', child: Text(resume.portfolioLink!, style: AppTextStyles.body.copyWith(color: AppColors.blue, fontSize: 14, fontWeight: AppFontWeight.medium))),
                     ],
-                  ),
-          ),
-          Container(
-            padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.md),
-            decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-            child: Column(
-              children: [
-                // A direct, unconfirmed second option — re-uploading a PDF
-                // is its own obviously-intentional action, not a multi-step
-                // edit that benefits from an "are you sure" gate.
-                PillButton(label: 'Upload a new PDF', variant: PillVariant.ghost, onPressed: () => setState(() => _showSummary = false)),
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.md),
-                  child: GestureDetector(
-                    onTap: _confirmEdit,
-                    child: Text(
-                      'Start over from the beginning',
-                      style: AppTextStyles.label.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
-                    ),
-                  ),
+                          ),
+                        ),
                 ),
               ],
             ),
           ),
+          ResponsiveBody(
+            maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+            child: Container(
+            padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.md),
+            decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
+            child: Center(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
+                child: Column(
+                  children: [
+                    // A direct, unconfirmed second option — re-uploading a PDF
+                    // is its own obviously-intentional action, not a multi-step
+                    // edit that benefits from an "are you sure" gate.
+                    PillButton(label: 'Upload a new PDF', variant: PillVariant.ghost, onPressed: () => setState(() => _showSummary = false)),
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.md),
+                      child: GestureDetector(
+                        onTap: _confirmEdit,
+                        child: Text(
+                          'Start over from the beginning',
+                          style: AppTextStyles.label.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          ),
         ],
-      )),
+      ),
     );
   }
 
-  Widget _buildInput() {
+  List<Widget> _buildInput() {
     final hasPdf = _pdfName != null;
     final sizeLabel = _prettySize(_pdfBytes);
 
@@ -621,9 +704,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
     final pendingId = context.watch<AppState>().pendingApplyOpportunityId;
     final pendingOpportunity = pendingId != null && pendingId != widget.applyForOpportunityId ? getOpportunityById(pendingId) : null;
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
-      children: [
+    return [
         if (pendingOpportunity != null) ...[
           GestureDetector(
             onTap: () {
@@ -843,7 +924,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
                       children: [
                         Text(noOrphan("Don't have a resume? Build it here"), style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 16)),
                         Padding(
-                          padding: const EdgeInsets.only(top: 2),
+                          padding: const EdgeInsets.only(top: AppSpacing.xs),
                           child: Text('A few quick questions — about a minute', style: AppTextStyles.caption.copyWith(color: AppColors.gray500)),
                         ),
                       ],
@@ -855,14 +936,11 @@ class _ResumeScreenState extends State<ResumeScreen> {
             ),
           ),
         ],
-      ],
-    );
+      ];
   }
 
-  Widget _buildReview() {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
-      children: [
+  List<Widget> _buildReview() {
+    return [
         Text('Full name', style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium)),
         const SizedBox(height: AppSpacing.sm),
         PillInput(
@@ -887,7 +965,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
                 .map((s) => GestureDetector(
                       onTap: () => setState(() => _skills = _skills.where((x) => x != s).toList()),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                         decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
@@ -942,7 +1020,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
                   children: [
                     Text(e.degree.isEmpty ? 'Degree' : e.degree, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
                     Padding(
-                      padding: const EdgeInsets.only(top: 2),
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
                       child: Text(
                         [e.institution, e.duration].where((s) => s.isNotEmpty).join(' • '),
                         style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
@@ -967,7 +1045,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
                     Text(p.title.isEmpty ? 'Project' : p.title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
                     if (p.description.isNotEmpty)
                       Padding(
-                        padding: const EdgeInsets.only(top: 2),
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
                         child: ExpandableText(
                           text: p.description,
                           maxLines: 3,
@@ -978,8 +1056,7 @@ class _ResumeScreenState extends State<ResumeScreen> {
                 ),
               )),
         ],
-      ],
-    );
+      ];
   }
 }
 
@@ -1082,7 +1159,7 @@ class _SummaryCard extends StatelessWidget {
           Text(title.isEmpty ? 'Untitled' : title, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
           if (subtitle.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 2),
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
               child: Text(subtitle, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
             ),
         ],
@@ -1098,7 +1175,7 @@ class _ReadOnlyChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
       decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
       child: Text(label, style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
     );

@@ -16,8 +16,8 @@ import '../../widgets/skeleton_loader.dart';
 /// can check them against each other in one place (e.g. the restored bold/
 /// semibold weight distinction from Round V item 1). Reachable only by
 /// typing `/dev/style-guide` in a local debug build — gated behind
-/// `kDebugMode` in router.dart so this whole screen compiles out of
-/// `flutter build web --release` entirely; no nav-bar link anywhere.
+/// `kDebugMode` in router.dart so this whole screen compiles out of a
+/// release build entirely; no nav-bar link anywhere.
 class StyleGuideScreen extends StatelessWidget {
   const StyleGuideScreen({super.key});
 

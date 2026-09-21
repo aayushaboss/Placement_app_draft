@@ -8,6 +8,7 @@ import '../../../models/career_dna.dart';
 import '../../../models/user.dart';
 import '../../../services/career_dna_report_pdf.dart';
 import '../../../state/app_state.dart';
+import '../../../theme/breakpoints.dart';
 import '../../../theme/colors.dart';
 import '../../../theme/shadows.dart';
 import '../../../theme/spacing.dart';
@@ -38,10 +39,12 @@ class CareerDnaFinalReportScreen extends StatelessWidget {
     final user = context.watch<AppState>().user;
     final profile = user?.careerDnaOrEmpty ?? const CareerDnaProfile();
     final topInset = MediaQuery.of(context).padding.top;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return Scaffold(
       backgroundColor: AppColors.white,
       body: ResponsiveBody(
+        maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
         child: ListView(
           padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.sm, AppSpacing.xl, AppSpacing.xxxl),
           children: [
@@ -150,6 +153,7 @@ class _SynthesisContentState extends State<_SynthesisContent> {
   Widget build(BuildContext context) {
     final result = widget.result;
     final user = context.watch<AppState>().user;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -176,12 +180,18 @@ class _SynthesisContentState extends State<_SynthesisContent> {
         ),
         Padding(
           padding: const EdgeInsets.only(top: AppSpacing.lg),
-          child: PillButton(
-            label: 'Download Combined PDF',
-            variant: PillVariant.secondary,
-            icon: Ionicons.download_outline,
-            loading: _downloading,
-            onPressed: user == null ? null : () => _downloadCombined(user),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
+              child: PillButton(
+                label: 'Download Combined PDF',
+                variant: PillVariant.secondary,
+                icon: Ionicons.download_outline,
+                loading: _downloading,
+                onPressed: user == null ? null : () => _downloadCombined(user),
+              ),
+            ),
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
@@ -239,11 +249,17 @@ class _SynthesisContentState extends State<_SynthesisContent> {
           ),
         ),
         const SizedBox(height: AppSpacing.xl),
-        PillButton(
-          label: 'Retake Level 5',
-          variant: PillVariant.secondary,
-          icon: Ionicons.refresh_outline,
-          onPressed: () => context.push('/college/career-dna/level/5/intro'),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
+            child: PillButton(
+              label: 'Retake Level 5',
+              variant: PillVariant.secondary,
+              icon: Ionicons.refresh_outline,
+              onPressed: () => context.push('/college/career-dna/level/5/intro'),
+            ),
+          ),
         ),
         Padding(
           padding: const EdgeInsets.only(top: AppSpacing.sm),

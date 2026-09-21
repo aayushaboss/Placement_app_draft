@@ -1,46 +1,57 @@
 import 'dart:convert';
-import 'dart:html' as html show window;
 
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../mockData/mock_applications.dart' show demoShowcaseUserId, setApplicationsUser;
+import '../data/repositories/auth_repository.dart';
+import '../data/repositories/mock_auth_repository.dart';
+import '../mockData/mock_applications.dart' show setApplicationsUser;
 import '../models/user.dart';
-import '../utils/fomo_prefs_key.dart';
 
 /// Mirrors frontend/src/context/AuthContext.tsx.
 /// Provider + shared_preferences so segment/user/onboarding progress
 /// survive an app restart, not just in-app navigation.
+///
+/// Owns the current session only (token + cached profile) — every identity
+/// operation that would actually hit a server (OTP, Google sign-in, profile
+/// updates) is delegated to [_authRepository]; see AuthRepository/
+/// MockAuthRepository in lib/data/repositories/.
 class AppState extends ChangeNotifier {
   static const _tokenKey = 'aerostar_access_token';
   static const _demoUserKey = 'aerostar_demo_user';
-  static const _demoUsersKey = 'aerostar_demo_users';
   static const _savedOpportunitiesKey = 'saved_opportunities';
   static const _viewedStoriesKey = 'viewed_skill_stories';
   static const _readNotificationsKey = 'read_notifications';
 
+  final AuthRepository _authRepository;
+  AppState({AuthRepository? authRepository}) : _authRepository = authRepository ?? MockAuthRepository();
+
   /// DEV-ONLY toggle: while true, every fresh app load starts signed out so
-  /// onboarding can be retested end-to-end on every refresh. The
-  /// `_demoUsersKey` map (used by the "I already have an account"
-  /// returning-user path) is left intact either way, so that path still
-  /// works when explicitly testing it via login. Flip to false to restore
-  /// normal session persistence across app restarts.
+  /// onboarding can be retested end-to-end on every refresh. MockAuthRepository's
+  /// accounts map (used by the "I already have an account" returning-user
+  /// path) is left intact either way, so that path still works when
+  /// explicitly testing it via login. Flip to false to restore normal
+  /// session persistence across app restarts.
   static const _devAlwaysStartSignedOut = false;
-
-  /// Prototype stand-in for a real SMS/email-delivered code — fixed so
-  /// testers have something predictable to type, rather than every code
-  /// silently succeeding regardless of what's entered.
-  static const demoOtpCode = '123456';
-  static const _otpValidity = Duration(minutes: 5);
-
-  String? _pendingOtpCode;
-  DateTime? _otpSentAt;
 
   User? _user;
   bool _loading = true;
   List<String> _savedOpportunityIds = [];
   List<String> _viewedStoryIds = [];
   List<String> _readNotificationIds = [];
+
+  // Ephemeral, in-memory only (not persisted) — set right as
+  // onboarding_complete_screen.dart hands off to Home, consumed exactly
+  // once by whichever Home screen builds first, so the very first Home
+  // arrival can read differently from every visit after it without
+  // needing a real "first login ever" concept on the User model.
+  bool _justOnboarded = false;
+  void markJustOnboarded() => _justOnboarded = true;
+  bool consumeJustOnboarded() {
+    final was = _justOnboarded;
+    _justOnboarded = false;
+    return was;
+  }
 
   User? get user => _user;
   bool get loading => _loading;
@@ -66,19 +77,14 @@ class AppState extends ChangeNotifier {
       _setUser(null);
       _loading = false;
       notifyListeners();
-      _listenForCrossTabChanges();
       return;
     }
-    // TODO: replace with real API call
     final identifier = token.startsWith('demo:') ? token.substring(5) : 'guest';
-    // Unlike verifyOtp's own _getSavedUser lookup (which must stay
-    // strictly plain-keyed — see _accountMapKey), this recovery fallback
-    // only runs when the primary session cache (_demoUserKey) is already
-    // gone, and at that point there's no way to know which sign-in method
-    // originally created the account for this token — checking the
-    // Google-namespaced key too here is what keeps a lost Google session
-    // recoverable, without reopening the OTP-side collision.
-    final saved = await _loadSessionUser(prefs) ?? await _getSavedUser(prefs, identifier) ?? await _getSavedUser(prefs, 'google:$identifier');
+    // This recovery fallback only runs when the primary session cache
+    // (_demoUserKey) is already gone — see AuthRepository.findAccountByIdentifier's
+    // own doc comment for why this is mock-shaped rather than how a real
+    // backend would resolve it.
+    final saved = await _loadSessionUser(prefs) ?? await _authRepository.findAccountByIdentifier(identifier);
     if (saved == null) {
       // A token with no recoverable profile anywhere = a stale/tampered
       // token. Clear it and start signed out rather than fabricating a
@@ -91,21 +97,6 @@ class AppState extends ChangeNotifier {
     }
     _loading = false;
     notifyListeners();
-    _listenForCrossTabChanges();
-  }
-
-  /// Two tabs on the same account both writing to shared_preferences (which
-  /// is just localStorage on web) would otherwise race silently — the
-  /// second tab's save clobbers the first's with neither tab's in-memory
-  /// state aware anything changed. The browser's `storage` event only
-  /// fires in *other* tabs than the one that made the write, so this is
-  /// exactly the signal needed to pick up a change made elsewhere.
-  void _listenForCrossTabChanges() {
-    html.window.onStorage.listen((event) {
-      if (event.key == _demoUserKey || event.key == _tokenKey) {
-        refresh();
-      }
-    });
   }
 
   /// Bumped whenever mock data mutates outside of AppState's own fields
@@ -190,88 +181,12 @@ class AppState extends ChangeNotifier {
     setApplicationsUser(u?.id);
   }
 
-  User _makeNewUser(String identifier) => User(
-        id: 'demo-$identifier',
-        identifier: identifier,
-        signInMethod: 'otp',
-        // A real email sign-in still hands back nothing but the address
-        // itself — no verified name the way Google's OAuth would — but the
-        // local-part is a reasonable, genuinely-real guess worth prefilling
-        // (still fully editable) rather than leaving the field blank for
-        // no reason. Null for a bare phone number: there's nothing in a
-        // phone number to guess a name from.
-        name: _deriveNameFromEmail(identifier),
-        city: null,
-        // Phone sign-up's identifier already *is* the phone number — auto-
-        // filled here so that path is never asked again on the onboarding
-        // profile screen (see MicroProfileScreen's `_needsPhone`, which
-        // gates the question on this same `identifier.contains('@')`
-        // check). Null for email/Google sign-ups, which have no phone to
-        // auto-fill — that's exactly what the onboarding question is for.
-        phone: identifier.contains('@') ? null : identifier,
-        segment: null,
-        onboardingComplete: false,
-      );
-
-  /// `aayusha.pagare@gmail.com` → `'Aayusha Pagare'`. Returns null for a
-  /// non-email identifier (bare phone number) or an email with nothing
-  /// usable before the @.
-  String? _deriveNameFromEmail(String identifier) {
-    final at = identifier.indexOf('@');
-    if (at <= 0) return null;
-    final localPart = identifier.substring(0, at);
-    final words = localPart
-        .split(RegExp(r'[._-]+'))
-        .where((w) => w.isNotEmpty)
-        .map((w) => w[0].toUpperCase() + w.substring(1).toLowerCase());
-    final name = words.join(' ');
-    return name.isEmpty ? null : name;
-  }
-
-  Future<Map<String, dynamic>> _loadUsersMap(SharedPreferences prefs) async {
-    final raw = prefs.getString(_demoUsersKey);
-    if (raw == null || raw.isEmpty) return {};
-    try {
-      return jsonDecode(raw) as Map<String, dynamic>;
-    } catch (e) {
-      debugPrint('AppState: corrupted $_demoUsersKey, starting from an empty map — $e');
-      return {};
-    }
-  }
-
-  Future<void> _saveUsersMap(SharedPreferences prefs, Map<String, dynamic> map) async {
-    await prefs.setString(_demoUsersKey, jsonEncode(map));
-  }
-
-  // Strictly a single, exact key — no namespace-crossing here, so that a
-  // *new*-signup lookup (see verifyOtp's non-returning branch, which never
-  // calls this at all) can never accidentally "become" the fixed Google
-  // demo account. verifyOtp's "returning" login path and bootstrap()'s own
-  // recovery fallback both call this twice, once per namespace, since both
-  // of those are cases where the caller already knows the user is
-  // asserting ownership of a specific identifier, not signing up fresh.
-  Future<User?> _getSavedUser(SharedPreferences prefs, String identifier) async {
-    final map = await _loadUsersMap(prefs);
-    final raw = map[identifier];
-    if (raw == null) return null;
-    return User.fromJson(raw as Map<String, dynamic>);
-  }
-
-  // Google-created accounts are namespaced in the shared demo-users map so
-  // typing that exact fixed demo email into the OTP phone/email flow can
-  // never coincidentally load the Google-created record — the two sign-in
-  // methods share no real verification in this prototype, so without this
-  // the identifier alone would be enough to "become" that other account.
-  // OTP-created accounts keep their plain identifier as the key, matching
-  // what _getSavedUser (called only from the OTP flow) already looks up.
-  String _accountMapKey(User user) => user.signInMethod == 'google' ? 'google:${user.identifier}' : user.identifier;
-
-  Future<void> _persistUser(User user) async {
+  /// Caches the current session's profile locally only — the "accounts
+  /// directory" itself (what makes a profile resumable across sign-outs) is
+  /// AuthRepository's concern now, see MockAuthRepository.
+  Future<void> _persistSessionUser(User user) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_demoUserKey, jsonEncode(user.toJson()));
-    final map = await _loadUsersMap(prefs);
-    map[_accountMapKey(user)] = user.toJson();
-    await _saveUsersMap(prefs, map);
   }
 
   Future<User?> _loadSessionUser(SharedPreferences prefs) async {
@@ -285,58 +200,16 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  Future<void> requestOtp(String identifier) async {
-    // TODO: replace with real API call — the code would be generated
-    // server-side and delivered by SMS/email instead of fixed here.
-    await Future.delayed(const Duration(milliseconds: 400));
-    _pendingOtpCode = demoOtpCode;
-    _otpSentAt = DateTime.now();
-  }
+  Future<void> requestOtp(String identifier) => _authRepository.requestOtp(identifier);
 
   /// returning=true → existing-account login; skip onboarding if no saved profile yet (prototype).
   Future<User> verifyOtp(String identifier, String code, {bool returning = false}) async {
-    // TODO: replace with real API call
-    await Future.delayed(const Duration(milliseconds: 400));
-
-    final sentAt = _otpSentAt;
-    if (sentAt == null || DateTime.now().difference(sentAt) > _otpValidity) {
-      throw Exception('otp_expired');
-    }
-    if (code != _pendingOtpCode) {
-      throw Exception('otp_invalid');
-    }
-    _pendingOtpCode = null;
-    _otpSentAt = null;
-
+    // Throws (otp_expired / otp_invalid) before anything below runs — see
+    // AuthRepository.verifyOtp / MockAuthRepository.
+    final next = await _authRepository.verifyOtp(identifier, code, returning: returning);
     final prefs = await SharedPreferences.getInstance();
-    User next;
-    if (returning) {
-      // Checks both the plain identifier key and the Google-namespaced one
-      // (mirroring bootstrap()'s own recovery fallback) — unlike
-      // _getSavedUser's own doc comment, which warns against this for a
-      // *new*-signup lookup, "I already have an account" is the one place
-      // it's actually correct: the user is explicitly asserting ownership
-      // of this identifier, so an account they created via Google using
-      // this same email should be found when they log back in with it
-      // through the phone/email OTP path instead — not silently treated as
-      // a brand-new signup and sent through onboarding again.
-      final saved = await _getSavedUser(prefs, identifier) ?? await _getSavedUser(prefs, 'google:$identifier');
-      // Whether complete or still mid-onboarding, a genuinely saved
-      // profile for this identifier is resumed as-is. Only when nothing
-      // is saved at all do we fall through to a new signup — this used to
-      // silently substitute a hardcoded fixture profile instead (a
-      // different name/city/college, already marked onboarded), dropping
-      // anyone here — a genuinely new user who mis-tapped "I already have
-      // an account," or anyone testing this path — straight into someone
-      // else's fake completed profile with onboarding skipped entirely.
-      next = saved ?? _makeNewUser(identifier);
-    } else {
-      // New signup: always start fresh onboarding — do not reuse a previous completed profile.
-      next = _makeNewUser(identifier);
-    }
-
     await prefs.setString(_tokenKey, 'demo:$identifier');
-    await _persistUser(next);
+    await _persistSessionUser(next);
     _setUser(next);
     notifyListeners();
     return next;
@@ -353,29 +226,16 @@ class AppState extends ChangeNotifier {
   /// account instead, but per direct, explicit instruction every tap of
   /// "Continue with Google" must go through the full onboarding flow.
   Future<User> mockGoogleSignIn() async {
-    // TODO: replace with real Google OAuth
-    await Future.delayed(const Duration(milliseconds: 500));
-    const identifier = 'aayusha.pagare@gmail.com';
+    final next = await _authRepository.googleSignIn();
     final prefs = await SharedPreferences.getInstance();
-    final next = User(
-      // Stable id (not a per-login timestamp) so this account's
-      // applications survive a re-login, and so it can own the seed
-      // "showcase" applications — see demoShowcaseUserId.
-      id: demoShowcaseUserId,
-      identifier: identifier,
-      signInMethod: 'google',
-      name: 'Aayusha Pagare',
-      onboardingComplete: false,
-    );
-    await prefs.setString(_tokenKey, 'demo:$identifier');
-    await _persistUser(next);
+    await prefs.setString(_tokenKey, 'demo:${next.identifier}');
+    await _persistSessionUser(next);
     _setUser(next);
     notifyListeners();
     return next;
   }
 
   Future<User> updateProfile(User Function(User current) patch) async {
-    // TODO: replace with real API call
     final current = _user;
     if (current == null) {
       // Every real caller runs with a signed-in user (onboarding, profile
@@ -384,9 +244,9 @@ class AppState extends ChangeNotifier {
       // state; fail loudly instead.
       throw StateError('updateProfile called with no signed-in user');
     }
-    final updated = patch(current);
+    final updated = await _authRepository.updateProfile(current, patch);
     _setUser(updated);
-    await _persistUser(updated);
+    await _persistSessionUser(updated);
     notifyListeners();
     return updated;
   }
@@ -412,16 +272,11 @@ class AppState extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    // Keep profile in _demoUsersKey so the same phone/email can log back in
-    // without re-doing onboarding.
+    // Keep the profile in MockAuthRepository's accounts map so the same
+    // phone/email can log back in without re-doing onboarding.
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await prefs.remove(_demoUserKey);
-    // The FOMO nudge's "already seen" flag is device-global, not per-user —
-    // without clearing it here, dismissing it once during an earlier
-    // session/account permanently hides it for every subsequent sign-in on
-    // this browser, including a fresh account going through onboarding.
-    await prefs.remove(fomoDismissedPrefsKey);
     // Per-account state that would otherwise leak into whoever signs in
     // next on this browser: saved jobs, read-notification state, viewed
     // stories, and the in-memory "you were applying to X" reminder.

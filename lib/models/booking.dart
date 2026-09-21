@@ -124,4 +124,44 @@ class Booking {
       deletedAt: deletedAt,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'userId': userId,
+        'kind': kind,
+        'mode': mode,
+        'sessionType': sessionType,
+        'date': date,
+        'time': time,
+        'name': name,
+        'phone': phone,
+        'email': email,
+        'counselor': counselor,
+        'status': status,
+        'createdAt': createdAt,
+        'venueName': venueName,
+        'venueAddress': venueAddress,
+        'venueCity': venueCity,
+        'deletedAt': deletedAt,
+      };
+
+  factory Booking.fromJson(Map<String, dynamic> json) => Booking(
+        id: json['id'] as String,
+        userId: json['userId'] as String,
+        kind: json['kind'] as String,
+        mode: json['mode'] as String,
+        sessionType: json['sessionType'] as String?,
+        date: json['date'] as String,
+        time: json['time'] as String,
+        name: json['name'] as String,
+        phone: json['phone'] as String?,
+        email: json['email'] as String?,
+        counselor: json['counselor'] as String,
+        status: json['status'] as String,
+        createdAt: json['createdAt'] as String,
+        venueName: json['venueName'] as String?,
+        venueAddress: json['venueAddress'] as String?,
+        venueCity: json['venueCity'] as String?,
+        deletedAt: json['deletedAt'] as String?,
+      );
 }

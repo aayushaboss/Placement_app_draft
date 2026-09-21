@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 
 import '../../nav.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
@@ -53,7 +54,7 @@ class _LandingScreenState extends State<LandingScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: const Text("Couldn't sign in with Google"),
+          content: const Text("That didn't go through — let's try again."),
           action: SnackBarAction(label: 'Retry', textColor: AppColors.yellow, onPressed: _continueWithGoogle),
           duration: const Duration(seconds: 4),
           // See sessions_screen.dart's own note on `persist`.
@@ -84,6 +85,7 @@ class _LandingScreenState extends State<LandingScreen> {
   Widget build(BuildContext context) {
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final screenHeight = MediaQuery.of(context).size.height;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
@@ -124,7 +126,7 @@ class _LandingScreenState extends State<LandingScreen> {
               ),
             ),
             Expanded(
-              child: ResponsiveBody(child: Container(
+              child: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
                 color: AppColors.blue,
@@ -161,7 +163,7 @@ class _LandingScreenState extends State<LandingScreen> {
                       // white badge behind it keeps the mark legible.
                       iconWidget: Container(
                         decoration: const BoxDecoration(color: AppColors.white, shape: BoxShape.circle),
-                        padding: const EdgeInsets.all(1),
+                        padding: const EdgeInsets.all(AppSpacing.xs),
                         child: SvgPicture.asset('assets/icons/google.svg'),
                       ),
                       loading: _googleLoading,

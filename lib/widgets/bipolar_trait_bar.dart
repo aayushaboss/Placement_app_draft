@@ -51,13 +51,13 @@ class BipolarTraitBar extends StatelessWidget {
                   ),
                 ),
                 if (leftDominant) ...[
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                   Text('${dominantPercent.round()}%', style: AppTextStyles.body.copyWith(color: accentColor, fontSize: 13, fontWeight: AppFontWeight.semibold)),
                 ],
                 const Spacer(),
                 if (!leftDominant) ...[
                   Text('${dominantPercent.round()}%', style: AppTextStyles.body.copyWith(color: accentColor, fontSize: 13, fontWeight: AppFontWeight.semibold)),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: AppSpacing.xs),
                 ],
                 Text(
                   rightLabel,

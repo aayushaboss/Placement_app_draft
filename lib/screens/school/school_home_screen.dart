@@ -12,6 +12,7 @@ import '../../models/article.dart';
 import '../../models/booking.dart';
 import '../../models/course.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -21,12 +22,17 @@ import '../../utils/scroll_to_top_registry.dart';
 import '../../widgets/app_chip.dart';
 import '../../widgets/badges.dart';
 import '../../widgets/course_carousel_section.dart';
-import '../../widgets/fomo_notification_card.dart';
 import '../../widgets/home_header.dart';
 import '../../widgets/pill_button.dart';
+import '../../widgets/responsive_body.dart';
 
 const _weekdayShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const _monthShort = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+String _firstName(String? fullName) {
+  final trimmed = fullName?.trim() ?? '';
+  return trimmed.isEmpty ? 'there' : trimmed.split(' ').first;
+}
 
 /// Mirrors frontend/src/screens/SchoolHome.tsx (SchoolHome).
 /// Standalone for now — will be embedded under the bottom tab bar in Step 4.
@@ -43,10 +49,14 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
   List<Booking> _bookings = [];
   final _scrollController = ScrollController();
   int _lastSeenDataVersion = -1;
+  // Consumed once, here, not read fresh in build() — see
+  // college_feed_screen.dart's identical field for why.
+  bool _justOnboarded = false;
 
   @override
   void initState() {
     super.initState();
+    _justOnboarded = context.read<AppState>().consumeJustOnboarded();
     // Branch index 0 (Home) — see router.dart's StatefulShellRoute.
     ScrollToTopRegistry.register(0, () {
       if (_scrollController.hasClients) {
@@ -54,9 +64,6 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
       }
     });
     _load();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) maybeShowFomoSheet(context, isSchool: true);
-    });
   }
 
   @override
@@ -89,6 +96,83 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
     }
   }
 
+  // Extracted from the old inline .map() builder so desktop can lay these
+  // out as a grid (see _gridRows) without duplicating the card markup.
+  Widget _articleCard(BuildContext context, Article a) {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.sm),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.sm),
+        onTap: () {
+          HapticFeedback.selectionClick();
+          ScaffoldMessenger.of(context)
+            ..hideCurrentSnackBar()
+            ..showSnackBar(const SnackBar(content: Text('Full article — coming soon.')));
+        },
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.sm),
+          // Concentric with the inner ClipRRect: outerRadius = innerRadius (AppRadius.md) + the padding between them.
+          decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.sm), boxShadow: AppShadows.soft),
+          child: Row(
+            children: [
+              // Tinted icon, not a stock photo — same no-real-image rule as
+              // every card in the app (see CompanyMark).
+              Container(
+                width: 84,
+                height: 84,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.md)),
+                child: const Icon(Ionicons.document_text_outline, size: 32, color: AppColors.blue),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppTag(label: a.tag),
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: Text(a.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.bold)),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: Text(a.readTime, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Top-aligned N-column grid (no IntrinsicHeight stretching — these cards
+  // are near-uniform height already) — same shape as profile_screen.dart's
+  // _pairedRows, generalized to any column count.
+  List<Widget> _gridRows(List<Widget> cards, int columns) {
+    final rows = <Widget>[];
+    for (var i = 0; i < cards.length; i += columns) {
+      final rowItems = cards.skip(i).take(columns).toList();
+      rows.add(Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            for (var c = 0; c < columns; c++) ...[
+              if (c > 0) const SizedBox(width: AppSpacing.md),
+              Expanded(child: c < rowItems.length ? rowItems[c] : const SizedBox()),
+            ],
+          ],
+        ),
+      ));
+    }
+    return rows;
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
@@ -116,10 +200,14 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
         if (mounted) _load();
       });
     }
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: SafeArea(
+      // Bug fix, not just desktop polish — this screen had NO ResponsiveBody
+      // at all before, so content stretched fully unbounded past 520px at
+      // any width >=600, tablet included.
+      body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: SafeArea(
         top: false,
         bottom: false,
         child: Column(
@@ -127,7 +215,9 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
             HomeHeader(
               name: user?.name,
               photoUrl: user?.photoUrl,
-              subtitle: 'Your career journey',
+              // See college_feed_screen.dart's identical branch — a
+              // brand-new arrival gets a one-time personalized welcome.
+              subtitle: _justOnboarded ? 'Welcome, ${_firstName(user?.name)}' : 'Your career journey',
               onAvatarTap: () => context.go('/tabs/profile'),
               onBellTap: () => context.push('/notifications'),
               unread: appState.hasUnreadNotifications(
@@ -170,14 +260,14 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
                                   children: [
                                     Text('UPCOMING SESSION', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium, letterSpacing: 0.8)),
                                     Padding(
-                                      padding: const EdgeInsets.only(top: 2),
+                                      padding: const EdgeInsets.only(top: AppSpacing.xs),
                                       child: Text(
                                         upcoming.kind == 'placement' ? (upcoming.sessionType ?? 'Placement session') : 'Counseling with ${upcoming.counselor}',
                                         style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.bold),
                                       ),
                                     ),
                                     Padding(
-                                      padding: const EdgeInsets.only(top: 2),
+                                      padding: const EdgeInsets.only(top: AppSpacing.xs),
                                       child: Text(
                                         '${_prettyDate(upcoming.date)} • ${upcoming.time} • ${upcoming.mode == 'online' ? 'Online' : 'Offline'}',
                                         style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
@@ -206,7 +296,7 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
                                   children: [
                                     Text('Book free counseling', style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.bold)),
                                     Padding(
-                                      padding: const EdgeInsets.only(top: 4),
+                                      padding: const EdgeInsets.only(top: AppSpacing.xs),
                                       child: Text(noOrphan('Talk 1:1 with an expert about your path.'), style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12)),
                                     ),
                                   ],
@@ -323,74 +413,16 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
                     ),
                     Padding(
                       padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, 0),
+                      // Desktop: a real 3-column grid (top-aligned, same
+                      // "Card/Block Layout" pairing as profile_screen.dart's
+                      // _pairedRows — these cards are near-uniform height so
+                      // no IntrinsicHeight stretching is needed). Mobile/
+                      // tablet: the original single stacked column,
+                      // unchanged.
                       child: Column(
-                        children: _articles
-                            .map((a) => Padding(
-                                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                                  // Was a bare Container with no tap handler
-                                  // at all — visually identical to every
-                                  // other tappable card in the app (white
-                                  // fill, shadow, tag+title+meta), so it
-                                  // read as content you could open, but
-                                  // tapping did nothing. No article-detail
-                                  // screen/route exists yet in this app to
-                                  // wire a real destination to, so this at
-                                  // least gives real feedback instead of a
-                                  // silent no-op — same "Coming soon"
-                                  // convention support_screen.dart already
-                                  // uses for its own not-yet-built actions.
-                                  child: Material(
-                                    color: AppColors.white,
-                                    borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.sm),
-                                    child: InkWell(
-                                      borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.sm),
-                                      onTap: () {
-                                        HapticFeedback.selectionClick();
-                                        ScaffoldMessenger.of(context)
-                                          ..hideCurrentSnackBar()
-                                          ..showSnackBar(const SnackBar(content: Text('Full article — coming soon.')));
-                                      },
-                                      child: Container(
-                                    padding: const EdgeInsets.all(AppSpacing.sm),
-                                    // Concentric with the inner ClipRRect: outerRadius = innerRadius (AppRadius.md) + the padding between them.
-                                    decoration: BoxDecoration(color: AppColors.white, borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.sm), boxShadow: AppShadows.soft),
-                                    child: Row(
-                                      children: [
-                                        // Tinted icon, not a stock photo — same
-                                        // no-real-image rule as every card in
-                                        // the app (see CompanyMark).
-                                        Container(
-                                          width: 84,
-                                          height: 84,
-                                          alignment: Alignment.center,
-                                          decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.md)),
-                                          child: const Icon(Ionicons.document_text_outline, size: 32, color: AppColors.blue),
-                                        ),
-                                        const SizedBox(width: AppSpacing.md),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              AppTag(label: a.tag),
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 4),
-                                                child: Text(a.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.bold)),
-                                              ),
-                                              Padding(
-                                                padding: const EdgeInsets.only(top: 4),
-                                                child: Text(a.readTime, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                    ),
-                                  ),
-                                ))
-                            .toList(),
+                        children: isTablet
+                            ? _gridRows([for (final a in _articles) _articleCard(context, a)], 3)
+                            : [for (final a in _articles) Padding(padding: const EdgeInsets.only(bottom: AppSpacing.md), child: _articleCard(context, a))],
                       ),
                     ),
                   ],
@@ -399,7 +431,7 @@ class _SchoolHomeScreenState extends State<SchoolHomeScreen> {
             ),
           ],
         ),
-      ),
+      )),
     );
   }
 }

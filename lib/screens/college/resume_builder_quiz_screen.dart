@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:io' show File;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
@@ -16,6 +15,7 @@ import '../../models/parsed_resume.dart';
 import '../../models/user.dart';
 import '../../services/apply_flow.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
@@ -1274,6 +1274,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
     if (_phase == _Phase.ready) return ResumeReadyView(user: _user, onDone: _done);
 
     final topInset = MediaQuery.of(context).padding.top;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return PopScope(
       // The system/browser back gesture would otherwise pop this whole
@@ -1288,7 +1289,7 @@ class _ResumeBuilderQuizScreenState extends State<ResumeBuilderQuizScreen> {
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Column(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
@@ -1572,7 +1573,12 @@ class _IntroStep extends StatelessWidget {
         Container(
           padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
           decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-          child: PillButton(label: 'Continue', onPressed: onContinue),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: AppBreakpoints.of(context) == AppBreakpoint.tablet ? 400 : double.infinity),
+              child: PillButton(label: 'Continue', onPressed: onContinue),
+            ),
+          ),
         ),
       ],
     );
@@ -1959,7 +1965,7 @@ class _EducationStep extends StatelessWidget {
                   .toList(),
             ),
             Padding(
-              padding: const EdgeInsets.only(top: 4),
+              padding: const EdgeInsets.only(top: AppSpacing.xs),
               child: Text(
                 'Pick whichever your institution uses',
                 style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12),
@@ -2049,7 +2055,7 @@ class _EducationStep extends StatelessWidget {
                         .toList(),
                   ),
                   Padding(
-                    padding: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.only(top: AppSpacing.xs),
                     child: Text(
                       'Pick whichever your institution uses',
                       style: AppTextStyles.caption.copyWith(color: AppColors.gray400, fontSize: 12),
@@ -2120,7 +2126,7 @@ class _EducationStep extends StatelessWidget {
                                 children: [
                                   Text(e.degree, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
                                   Padding(
-                                    padding: const EdgeInsets.only(top: 2),
+                                    padding: const EdgeInsets.only(top: AppSpacing.xs),
                                     child: Text(
                                       [e.institution, e.duration, if (e.gpa != null && e.gpa!.isNotEmpty) e.gpa!].where((s) => s.isNotEmpty).join(' • '),
                                       style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
@@ -2145,10 +2151,15 @@ class _EducationStep extends StatelessWidget {
         Container(
           padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
           decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-          child: PillButton(
-            label: entries.isEmpty ? 'Skip for now' : 'Continue',
-            variant: entries.isEmpty ? PillVariant.ghost : PillVariant.primary,
-            onPressed: onContinue,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: AppBreakpoints.of(context) == AppBreakpoint.tablet ? 400 : double.infinity),
+              child: PillButton(
+                label: entries.isEmpty ? 'Skip for now' : 'Continue',
+                variant: entries.isEmpty ? PillVariant.ghost : PillVariant.primary,
+                onPressed: onContinue,
+              ),
+            ),
           ),
         ),
       ],
@@ -2433,7 +2444,7 @@ class _ExperienceStep extends StatelessWidget {
                                       ),
                                       if (w.duration.isNotEmpty)
                                         Padding(
-                                          padding: const EdgeInsets.only(top: 2),
+                                          padding: const EdgeInsets.only(top: AppSpacing.xs),
                                           child: Text(w.duration, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                                         ),
                                     ],
@@ -2441,7 +2452,7 @@ class _ExperienceStep extends StatelessWidget {
                                 ),
                                 if (w.description.isNotEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.only(top: 4),
+                                    padding: const EdgeInsets.only(top: AppSpacing.xs),
                                     child: ExpandableText(
                                       text: w.description,
                                       maxLines: 3,
@@ -2466,14 +2477,19 @@ class _ExperienceStep extends StatelessWidget {
         Container(
           padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
           decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-          child: PillButton(
-            // "Yes, I do" + zero entries used to still read "Skip for
-            // now" — the wording never checked the actual yes/no answer,
-            // only the entry count.
-            label: hasExperience == true && entries.isEmpty ? 'Add at least one' : (entries.isEmpty ? 'Skip for now' : 'Continue'),
-            variant: entries.isEmpty && hasExperience != true ? PillVariant.ghost : PillVariant.primary,
-            disabled: hasExperience == true && entries.isEmpty,
-            onPressed: onContinue,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: AppBreakpoints.of(context) == AppBreakpoint.tablet ? 400 : double.infinity),
+              child: PillButton(
+                // "Yes, I do" + zero entries used to still read "Skip for
+                // now" — the wording never checked the actual yes/no answer,
+                // only the entry count.
+                label: hasExperience == true && entries.isEmpty ? 'Add at least one' : (entries.isEmpty ? 'Skip for now' : 'Continue'),
+                variant: entries.isEmpty && hasExperience != true ? PillVariant.ghost : PillVariant.primary,
+                disabled: hasExperience == true && entries.isEmpty,
+                onPressed: onContinue,
+              ),
+            ),
           ),
         ),
       ],
@@ -2540,19 +2556,13 @@ class _CertificationsStep extends StatelessWidget {
 
   Widget _imagePreview() {
     if (imageFile != null) {
-      return kIsWeb
-          ? Image.network(imageFile!.path, width: 48, height: 48, fit: BoxFit.cover)
-          : Image.file(File(imageFile!.path), width: 48, height: 48, fit: BoxFit.cover);
+      return Image.file(File(imageFile!.path), width: 48, height: 48, fit: BoxFit.cover);
     }
     // imageFile is null whenever a pre-existing entry's image is being
     // shown without having been re-picked this session (e.g. re-opening
     // an entry to edit it — _editCertification sets imageFile back to
-    // null and only imagePath survives) — that path is a local filesystem
-    // path on non-web, not a URL, so Image.network here always rendered
-    // a broken image outside the browser.
-    return kIsWeb
-        ? Image.network(imagePath!, width: 48, height: 48, fit: BoxFit.cover)
-        : Image.file(File(imagePath!), width: 48, height: 48, fit: BoxFit.cover);
+    // null and only imagePath survives).
+    return Image.file(File(imagePath!), width: 48, height: 48, fit: BoxFit.cover);
   }
 
   Widget _imagePickerRow(bool hasImage) {
@@ -2566,7 +2576,7 @@ class _CertificationsStep extends StatelessWidget {
           child: GestureDetector(
             onTap: onPickImage,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg, vertical: AppSpacing.md),
               decoration: BoxDecoration(
                 color: AppColors.offWhite,
                 borderRadius: BorderRadius.circular(AppRadius.lg),
@@ -2768,7 +2778,7 @@ class _CertificationsStep extends StatelessWidget {
                                       Text(c.name, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
                                       if (c.duration.isNotEmpty)
                                         Padding(
-                                          padding: const EdgeInsets.only(top: 2),
+                                          padding: const EdgeInsets.only(top: AppSpacing.xs),
                                           child: Text(c.duration, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                                         ),
                                     ],
@@ -2776,7 +2786,7 @@ class _CertificationsStep extends StatelessWidget {
                                 ),
                                 if ((c.link ?? '').isNotEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.only(top: 4),
+                                    padding: const EdgeInsets.only(top: AppSpacing.xs),
                                     child: Text('View certificate', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
                                   ),
                               ],
@@ -2797,12 +2807,17 @@ class _CertificationsStep extends StatelessWidget {
         Container(
           padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
           decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-          child: PillButton(
-            // See _ExperienceStep's own footer — same fix.
-            label: hasCertifications == true && entries.isEmpty ? 'Add at least one' : (entries.isEmpty ? 'Skip for now' : 'Continue'),
-            variant: entries.isEmpty && hasCertifications != true ? PillVariant.ghost : PillVariant.primary,
-            disabled: hasCertifications == true && entries.isEmpty,
-            onPressed: onContinue,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: AppBreakpoints.of(context) == AppBreakpoint.tablet ? 400 : double.infinity),
+              child: PillButton(
+                // See _ExperienceStep's own footer — same fix.
+                label: hasCertifications == true && entries.isEmpty ? 'Add at least one' : (entries.isEmpty ? 'Skip for now' : 'Continue'),
+                variant: entries.isEmpty && hasCertifications != true ? PillVariant.ghost : PillVariant.primary,
+                disabled: hasCertifications == true && entries.isEmpty,
+                onPressed: onContinue,
+              ),
+            ),
           ),
         ),
       ],
@@ -2909,16 +2924,21 @@ class _SkillsStep extends StatelessWidget {
         Container(
           padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
           decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: Text(error!, style: AppTextStyles.caption.copyWith(fontSize: 12, color: AppColors.error)),
-                ),
-              PillButton(label: 'Continue', onPressed: onContinue),
-            ],
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: AppBreakpoints.of(context) == AppBreakpoint.tablet ? 400 : double.infinity),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: Text(error!, style: AppTextStyles.caption.copyWith(fontSize: 12, color: AppColors.error)),
+                    ),
+                  PillButton(label: 'Continue', onPressed: onContinue),
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -2940,7 +2960,7 @@ class _SuggestionChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         decoration: BoxDecoration(
           color: AppColors.offWhite,
           borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -2971,7 +2991,7 @@ class _RemovableChip extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
         decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -3068,16 +3088,21 @@ class _LanguageStep extends StatelessWidget {
         Container(
           padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
           decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: Text(error!, style: AppTextStyles.caption.copyWith(fontSize: 12, color: AppColors.error)),
-                ),
-              PillButton(label: 'Continue', onPressed: onContinue),
-            ],
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: AppBreakpoints.of(context) == AppBreakpoint.tablet ? 400 : double.infinity),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: Text(error!, style: AppTextStyles.caption.copyWith(fontSize: 12, color: AppColors.error)),
+                    ),
+                  PillButton(label: 'Continue', onPressed: onContinue),
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -3161,7 +3186,7 @@ class _SummaryStep extends StatelessWidget {
                   child: GestureDetector(
                     onTap: onUseSuggestion,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.sm),
                       decoration: BoxDecoration(
                         color: AppColors.blueA10,
                         borderRadius: BorderRadius.circular(AppRadius.pill),
@@ -3199,16 +3224,21 @@ class _SummaryStep extends StatelessWidget {
         Container(
           padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, AppSpacing.lg),
           decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (error != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                  child: Text(error!, style: AppTextStyles.caption.copyWith(fontSize: 12, color: AppColors.error)),
-                ),
-              PillButton(label: 'Build my resume', onPressed: onContinue),
-            ],
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: AppBreakpoints.of(context) == AppBreakpoint.tablet ? 400 : double.infinity),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (error != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: Text(error!, style: AppTextStyles.caption.copyWith(fontSize: 12, color: AppColors.error)),
+                    ),
+                  PillButton(label: 'Build my resume', onPressed: onContinue),
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -3222,11 +3252,12 @@ class _BuildingView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.blue,
-        body: ResponsiveBody(child: Center(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Center(
           child: Padding(
             padding: const EdgeInsets.all(AppSpacing.xl),
             child: Column(

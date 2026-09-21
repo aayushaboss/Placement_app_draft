@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../mockData/mock_bookings.dart';
 import '../../models/booking.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -181,6 +182,7 @@ class _BookingScreenState extends State<BookingScreen> {
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
     final user = context.watch<AppState>().user;
     final offlineVenue = _mode == 'offline' ? mockOfflineVenues[widget.kind] : null;
     final userCity = user?.city?.trim() ?? '';
@@ -190,7 +192,7 @@ class _BookingScreenState extends State<BookingScreen> {
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Column(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
           children: [
             Container(
               color: AppColors.blue,
@@ -299,7 +301,7 @@ class _BookingScreenState extends State<BookingScreen> {
                               children: [
                                 Text(offlineVenue.name, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.semibold)),
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 2),
+                                  padding: const EdgeInsets.only(top: AppSpacing.xs),
                                   child: Text(offlineVenue.address, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                                 ),
                               ],
@@ -334,7 +336,7 @@ class _BookingScreenState extends State<BookingScreen> {
                               ],
                             ),
                             Padding(
-                              padding: const EdgeInsets.only(top: AppSpacing.sm, left: 26),
+                              padding: const EdgeInsets.only(top: AppSpacing.sm, left: AppSpacing.lg),
                               child: GestureDetector(
                                 onTap: () => setState(() => _mode = 'online'),
                                 child: Text(
@@ -445,11 +447,16 @@ class _BookingScreenState extends State<BookingScreen> {
             Container(
               padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.md),
               decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-              child: PillButton(
-                label: widget.isEdit ? 'Update Booking' : 'Confirm Booking',
-                onPressed: _confirm,
-                loading: _loading,
-                disabled: !_valid,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
+                  child: PillButton(
+                    label: widget.isEdit ? 'Update Booking' : 'Confirm Booking',
+                    onPressed: _confirm,
+                    loading: _loading,
+                    disabled: !_valid,
+                  ),
+                ),
               ),
             ),
           ],

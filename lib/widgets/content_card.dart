@@ -16,7 +16,7 @@ import 'pill_button.dart';
 /// title, icon+text meta row, "View X →" link footer) — this is the same
 /// card family as the job cards and CourseCarouselSection's course cards,
 /// not a different design system with a photo bolted on.
-class ContentCard extends StatelessWidget {
+class ContentCard extends StatefulWidget {
   final IconData? icon;
   final String? tag;
   final String title;
@@ -57,24 +57,45 @@ class ContentCard extends StatelessWidget {
     this.deadlineUrgent = false,
   });
 
+  @override
+  State<ContentCard> createState() => _ContentCardState();
+}
+
+class _ContentCardState extends State<ContentCard> {
   static const _metaIcons = [Ionicons.time_outline, Ionicons.albums_outline, Ionicons.ribbon_outline];
+
+
+  // A card is the single most-tapped surface in the app and previously
+  // got only InkWell's stock ripple, no custom feedback — PillButton
+  // already has a proven scale-down-on-press pattern; this reuses it via
+  // InkWell's own onHighlightChanged rather than layering a second,
+  // competing gesture detector over the tap surface.
+  bool _pressed = false;
 
   @override
   Widget build(BuildContext context) {
-    final chips = meta.where((m) => m.trim().isNotEmpty).toList();
-    final deadlineColor = deadlineUrgent ? AppColors.error : AppColors.gray500;
+    final chips = widget.meta.where((m) => m.trim().isNotEmpty).toList();
+    final deadlineColor = widget.deadlineUrgent ? AppColors.error : AppColors.gray500;
 
     return Semantics(
-      button: onTap != null,
-      label: subtitle == null || subtitle!.isEmpty ? title : '$title, $subtitle',
-      child: Container(
-        decoration: BoxDecoration(borderRadius: BorderRadius.circular(AppRadius.lg), color: AppColors.white, boxShadow: AppShadows.card),
+      button: widget.onTap != null,
+      label: widget.subtitle == null || widget.subtitle!.isEmpty ? widget.title : '${widget.title}, ${widget.subtitle}',
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Container(
+        // Concentric with the icon mark's own AppRadius.md corner sitting
+        // AppSpacing.lg inside it — matches _ApplicationCard's identical
+        // rounding, per direct feedback that Courses' cards should read as
+        // the same card family as Applications', not a flatter cousin.
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg), color: AppColors.white, boxShadow: AppShadows.card),
         clipBehavior: Clip.antiAlias,
         child: Material(
           color: AppColors.white,
           child: InkWell(
-            key: testKey,
-            onTap: onTap,
+            key: widget.testKey,
+            onTap: widget.onTap,
+            onHighlightChanged: (v) => setState(() => _pressed = v),
             // Visible on keyboard focus — see opportunity_row.dart's own note.
             focusColor: AppColors.blueA10,
             child: Padding(
@@ -94,7 +115,7 @@ class ContentCard extends StatelessWidget {
                         // a course reads distinct from a (blue-marked) job
                         // card wherever it shows up.
                         decoration: BoxDecoration(color: AppColors.violetA15, borderRadius: BorderRadius.circular(AppRadius.md)),
-                        child: Icon(icon ?? Ionicons.book_outline, size: 22, color: AppColors.violet),
+                        child: Icon(widget.icon ?? Ionicons.book_outline, size: 22, color: AppColors.violet),
                       ),
                       const SizedBox(width: AppSpacing.md),
                       Expanded(
@@ -105,16 +126,16 @@ class ContentCard extends StatelessWidget {
                             Row(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (tag != null && tag!.isNotEmpty) AppTag(label: tag!, color: AppColors.blue, bg: AppColors.blueA10),
+                                if (widget.tag != null && widget.tag!.isNotEmpty) AppTag(label: widget.tag!, color: AppColors.blue, bg: AppColors.blueA10),
                                 const Spacer(),
-                                if (onToggleSave != null)
+                                if (widget.onToggleSave != null)
                                   GestureDetector(
                                     behavior: HitTestBehavior.opaque,
-                                    onTap: onToggleSave,
+                                    onTap: widget.onToggleSave,
                                     child: Icon(
-                                      saved ? Ionicons.bookmark : Ionicons.bookmark_outline,
+                                      widget.saved ? Ionicons.bookmark : Ionicons.bookmark_outline,
                                       size: 18,
-                                      color: saved ? AppColors.blue : AppColors.gray400,
+                                      color: widget.saved ? AppColors.blue : AppColors.gray400,
                                     ),
                                   ),
                               ],
@@ -122,7 +143,7 @@ class ContentCard extends StatelessWidget {
                             Padding(
                               padding: const EdgeInsets.only(top: AppSpacing.sm),
                               child: Text(
-                                title,
+                                widget.title,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 // 14px/semibold — matches Internshala's
@@ -130,11 +151,11 @@ class ContentCard extends StatelessWidget {
                                 style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 14),
                               ),
                             ),
-                            if (subtitle != null && subtitle!.isNotEmpty)
+                            if (widget.subtitle != null && widget.subtitle!.isNotEmpty)
                               Padding(
-                                padding: const EdgeInsets.only(top: 2),
+                                padding: const EdgeInsets.only(top: AppSpacing.xs),
                                 child: Text(
-                                  subtitle!,
+                                  widget.subtitle!,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
@@ -150,53 +171,55 @@ class ContentCard extends StatelessWidget {
                       padding: const EdgeInsets.only(top: AppSpacing.sm),
                       child: Wrap(
                         spacing: AppSpacing.md,
-                        runSpacing: 4,
+                        runSpacing: AppSpacing.xs,
                         children: [
                           for (var i = 0; i < chips.length; i++)
                             _MetaItem(icon: i < _metaIcons.length ? _metaIcons[i] : Ionicons.ellipse_outline, label: chips[i]),
                         ],
                       ),
                     ),
-                  if (matchLabel != null || deadlineLabel != null)
+                  if (widget.matchLabel != null || widget.deadlineLabel != null)
                     Padding(
                       padding: const EdgeInsets.only(top: AppSpacing.sm),
                       child: Wrap(
                         spacing: AppSpacing.md,
-                        runSpacing: 2,
+                        runSpacing: AppSpacing.xs,
                         children: [
-                          if (matchLabel != null)
+                          if (widget.matchLabel != null)
                             Tooltip(
                               message: matchExplanation,
                               // tap, not the default long-press — see the
                               // same fix on OpportunityCarouselCard.
                               triggerMode: TooltipTriggerMode.tap,
-                              child: _MetaItem(icon: Ionicons.star, label: matchLabel!, color: AppColors.blue),
+                              child: _MetaItem(icon: Ionicons.star, label: widget.matchLabel!, color: AppColors.blue),
                             ),
-                          if (deadlineLabel != null) _MetaItem(icon: Ionicons.time_outline, label: deadlineLabel!, color: deadlineColor),
+                          if (widget.deadlineLabel != null) _MetaItem(icon: Ionicons.time_outline, label: widget.deadlineLabel!, color: deadlineColor),
                         ],
                       ),
                     ),
                   Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.lg),
-                    child: Row(
-                      children: [
+                    padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                    child: Divider(height: 1, color: AppColors.border),
+                  ),
+                  Row(
+                    children: [
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onTap: onTap,
+                          onTap: widget.onTap,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Text(
-                                linkLabel,
+                                widget.linkLabel,
                                 style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
                               ),
-                              const SizedBox(width: 2),
+                              const SizedBox(width: AppSpacing.xs),
                               const Icon(Ionicons.arrow_forward, size: 13, color: AppColors.blue),
                             ],
                           ),
                         ),
                         const Spacer(),
-                        if (applied)
+                        if (widget.applied)
                           const PillButton(
                             label: 'Applied',
                             icon: Ionicons.checkmark_circle,
@@ -208,12 +231,12 @@ class ContentCard extends StatelessWidget {
                           ),
                       ],
                     ),
-                  ),
                 ],
               ),
             ),
           ),
         ),
+      ),
       ),
     );
   }

@@ -20,4 +20,24 @@ class NotificationItem {
     required this.unread,
     this.route,
   });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'group': group,
+        'title': title,
+        'body': body,
+        'type': type,
+        'unread': unread,
+        'route': route,
+      };
+
+  factory NotificationItem.fromJson(Map<String, dynamic> json) => NotificationItem(
+        id: json['id'] as String,
+        group: json['group'] as String,
+        title: json['title'] as String,
+        body: json['body'] as String,
+        type: json['type'] as String,
+        unread: json['unread'] as bool,
+        route: json['route'] as String?,
+      );
 }

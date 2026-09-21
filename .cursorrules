@@ -14,9 +14,7 @@ Hard rules:
 2. Font is Poppins only, everywhere — every `TextStyle` must use
    `AppTextStyles` or explicitly set `fontFamily: kFontFamily`.
 3. Icons are `Ionicons` from `flutter_vector_icons` only — never Flutter's
-   built-in `Icons.*` (Material) or `CupertinoIcons`. If a web build fails
-   on icon tree-shaking, fix it with the `--no-tree-shake-icons` build
-   flag, not by switching icon families.
+   built-in `Icons.*` (Material) or `CupertinoIcons`.
 4. Colors only from `AppColors` (a few one-off translucent `Color(0x...)`
    overlays exist as exact rgba translations from the RN source — those
    are fine to replicate, not to invent new ones from).

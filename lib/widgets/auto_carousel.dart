@@ -139,7 +139,7 @@ class _AutoCarouselState extends State<AutoCarousel> {
             children: List.generate(
               _count,
               (i) => Container(
-                margin: const EdgeInsets.symmetric(horizontal: 3),
+                margin: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                 width: 6,
                 height: 6,
                 decoration: BoxDecoration(color: i == _page ? AppColors.blue : AppColors.gray200, shape: BoxShape.circle),

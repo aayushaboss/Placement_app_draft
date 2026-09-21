@@ -145,8 +145,12 @@ class _PillButtonState extends State<PillButton> {
           child: Container(
             // 44, not the old 46 — Naukri's primary buttons measured 38px;
             // splitting the difference keeps a comfortable tap target while
-            // trimming the visible bulk.
-            height: widget.compact ? 32 : AppSpacing.xxxl + AppSpacing.xs,
+            // trimming the visible bulk. A fixed constant, not built from
+            // AppSpacing tokens — 44 isn't itself on the 8pt grid, and
+            // this used to be written as `AppSpacing.xxxl + AppSpacing.xs`
+            // (correct back when xxxl was 40), which silently became 68
+            // once the spacing grid was rebased to xxxl=64.
+            height: widget.compact ? 32 : 44,
             width: widget.full ? double.infinity : null,
             padding: EdgeInsets.symmetric(horizontal: widget.compact ? AppSpacing.md : AppSpacing.xl),
             alignment: Alignment.center,

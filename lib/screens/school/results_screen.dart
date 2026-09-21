@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../mockData/mock_aptitude.dart';
 import '../../models/aptitude.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -78,10 +79,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
   @override
   Widget build(BuildContext context) {
     final results = _results;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
     if (results == null) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: SafeArea(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: const SafeArea(
           child: Padding(
             padding: EdgeInsets.all(AppSpacing.xl),
             child: Column(
@@ -106,11 +108,11 @@ class _ResultsScreenState extends State<ResultsScreen> {
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Stack(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Stack(
           children: [
             ListView(
               controller: _scrollController,
-              padding: EdgeInsets.only(bottom: 140 + bottomInset),
+              padding: EdgeInsets.only(bottom: AppSpacing.xxxl + AppSpacing.xxl + AppSpacing.lg + AppSpacing.xs + bottomInset),
               children: [
                 Container(
                   padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.xxl, AppSpacing.xl, AppSpacing.xxl),

@@ -12,6 +12,7 @@ import '../../models/opportunity_match.dart';
 import '../../models/user.dart';
 import '../../services/apply_flow.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -46,6 +47,7 @@ class ApplicationDetailScreen extends StatelessWidget {
     final app = getApplicationById(id);
     final topInset = MediaQuery.of(context).padding.top;
     final user = context.watch<AppState>().user;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     if (app == null) {
       return const NotFoundView(
@@ -72,7 +74,7 @@ class ApplicationDetailScreen extends StatelessWidget {
       },
       child: Scaffold(
       backgroundColor: AppColors.offWhite,
-      body: ResponsiveBody(child: Column(
+      body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
         children: [
           Container(
             color: AppColors.white,
@@ -138,7 +140,7 @@ class ApplicationDetailScreen extends StatelessWidget {
                               children: [
                                 Text(entry.key, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium)),
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 2),
+                                  padding: const EdgeInsets.only(top: AppSpacing.xs),
                                   child: Text(entry.value, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14)),
                                 ),
                               ],
@@ -147,7 +149,7 @@ class ApplicationDetailScreen extends StatelessWidget {
                         if (app.note?.trim().isNotEmpty ?? false) ...[
                           Text('Note to recruiter', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium)),
                           Padding(
-                            padding: const EdgeInsets.only(top: 2),
+                            padding: const EdgeInsets.only(top: AppSpacing.xs),
                             child: Text(app.note!.trim(), style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14)),
                           ),
                         ],
@@ -301,7 +303,7 @@ class _Timeline extends StatelessWidget {
                         ),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(top: 2),
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
                         child: Text(
                           isPending ? "We'll notify you here the moment there's news." : '${event!.title} • ${relativeTimeLabel(event.at)}',
                           style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
@@ -611,8 +613,11 @@ class _InsightsSection extends StatelessWidget {
         // sized for — so this carousel needs only soft's own small
         // clearance (blurRadius ∓ offsetY = 3 / 7) instead of the shared
         // 16px buffer, or it'd be over-padded for a shadow it no longer draws.
+        // Bumped 168->192 for the 8pt spacing-grid pass — InsightDonutCard's
+        // own internal AppSpacing paddings grew enough that 168 left almost
+        // no slack for its 3-line legend/description case.
         SizedBox(
-          height: 168 + _softBufferTop + _softBufferBottom,
+          height: 192 + _softBufferTop + _softBufferBottom,
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(0, _softBufferTop, 0, _softBufferBottom),
             scrollDirection: Axis.horizontal,

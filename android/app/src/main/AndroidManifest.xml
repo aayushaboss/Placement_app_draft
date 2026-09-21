@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Network images (CachedNetworkImage — company logos, course thumbnails,
+         etc. from real https:// URLs in mockData/) and url_launcher (Google
+         Calendar, support links) both need this. Not auto-included in a
+         release build unless declared here explicitly. -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <application
         android:label="aerostar_edge"
         android:name="${applicationName}"

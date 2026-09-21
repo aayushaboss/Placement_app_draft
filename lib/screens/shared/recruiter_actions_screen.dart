@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../mockData/mock_profile_activity.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -33,10 +34,11 @@ class RecruiterActionsScreen extends StatelessWidget {
     final user = context.watch<AppState>().user;
     final actions = recruiterActionsFor(user);
     final topInset = MediaQuery.of(context).padding.top;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(child: Column(
+      body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
         children: [
           Container(
             color: AppColors.blue,
@@ -102,7 +104,7 @@ class RecruiterActionsScreen extends StatelessWidget {
                               children: [
                                 Text(a.company, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.medium)),
                                 Padding(
-                                  padding: const EdgeInsets.only(top: 2),
+                                  padding: const EdgeInsets.only(top: AppSpacing.xs),
                                   child: Text(a.action, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                                 ),
                               ],

@@ -6,7 +6,14 @@ plugins {
 
 android {
     namespace = "com.aerostaredge.aerostar_edge"
-    compileSdk = flutter.compileSdkVersion
+    // Flutter's own default (flutter.compileSdkVersion) lagged behind what
+    // flutter_plugin_android_lifecycle (bundled with this Flutter SDK)
+    // now requires — file_picker's own build failed checking AAR metadata
+    // against it. Overriding to 36 explicitly (Build-Tools 36.0.0 already
+    // installed) per the error's own recommended fix; this only changes
+    // which APIs are available to compile against, not runtime behavior
+    // (that's targetSdk, left at Flutter's own tested default below).
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

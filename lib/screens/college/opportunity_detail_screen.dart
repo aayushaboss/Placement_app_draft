@@ -4,14 +4,14 @@ import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../mockData/mock_applications.dart';
+import '../../data/repositories.dart';
 import '../../mockData/mock_courses.dart';
-import '../../mockData/mock_opportunities.dart';
 import '../../models/course.dart';
 import '../../models/opportunity.dart';
 import '../../models/opportunity_match.dart';
 import '../../services/apply_flow.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -39,20 +39,32 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
   Opportunity? _opportunity;
   List<Course> _prepCourses = const [];
   List<Opportunity> _similarOpportunities = const [];
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    // TODO: replace with real API call
-    final opp = getOpportunityById(widget.id);
-    if (opp != null) {
-      _opportunity = opp;
-      _prepCourses = prepCoursesFor(opp.prepCourses);
-      _similarOpportunities = mockOpportunities.where((o) => o.id != opp.id && o.category == opp.category).take(5).toList();
-    }
+    _load();
   }
 
-  bool get _applied => _opportunity != null && isOpportunityApplied(_opportunity!.id);
+  Future<void> _load() async {
+    final repo = context.read<Repositories>().opportunities;
+    final opp = repo.getOpportunityById(widget.id);
+    if (opp == null) {
+      if (mounted) setState(() => _loading = false);
+      return;
+    }
+    final sameCategory = await repo.listOpportunities(categories: [opp.category]);
+    if (!mounted) return;
+    setState(() {
+      _opportunity = opp;
+      _prepCourses = prepCoursesFor(opp.prepCourses);
+      _similarOpportunities = sameCategory.where((o) => o.id != opp.id).take(5).toList();
+      _loading = false;
+    });
+  }
+
+  bool get _applied => _opportunity != null && context.read<Repositories>().applications.isOpportunityApplied(_opportunity!.id);
 
   void _apply() {
     final o = _opportunity;
@@ -63,12 +75,12 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final o = _opportunity;
+    if (_loading) {
+      return const Scaffold(backgroundColor: AppColors.white, body: Center(child: CircularProgressIndicator(color: AppColors.blue)));
+    }
     if (o == null) {
-      // getOpportunityById is a synchronous mock-data lookup (see
-      // initState) — null here means the id genuinely doesn't match
-      // anything, not "still loading," so this was previously a spinner
-      // that never resolved on a stale/invalid link instead of a real
-      // not-found state, unlike every sibling detail screen.
+      // null after loading means the id genuinely doesn't match anything —
+      // a stale/invalid link — not "still loading."
       return const NotFoundView(
         title: 'Opportunity not found',
         message: "This opportunity may have been removed, or the link you followed is out of date.",
@@ -78,21 +90,22 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
     final appState = context.watch<AppState>();
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Stack(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Stack(
           children: [
             ListView(
-              padding: EdgeInsets.only(bottom: 120 + bottomInset),
+              padding: EdgeInsets.only(bottom: AppSpacing.xxxl + AppSpacing.xxl + AppSpacing.sm + bottomInset),
               children: [
                 // Naukri-style plain header — no hero photo. A small company
                 // logo, title, and company name up top, everything else in
                 // flat text rows instead of overlaid on an image.
                 Padding(
-                  padding: EdgeInsets.fromLTRB(AppSpacing.lg, topInset + AppSpacing.sm, AppSpacing.lg, 0),
+                  padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.sm, AppSpacing.xl, 0),
                   child: Row(
                     children: [
                       BackChevron(color: AppColors.ink, fallbackRoute: '/tabs'),
@@ -138,9 +151,22 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                           children: [
                             // 18px/600 — matches Internshala's measured
                             // detail-page hero title exactly.
-                            Text(o.title, style: AppTextStyles.h2.copyWith(color: AppColors.ink)),
+                            //
+                            // Hero tag must exactly match OpportunityRow's
+                            // own 'opportunity-${o.id}' tag (see
+                            // college_feed_screen.dart's _oppRow) — this is
+                            // the only surface that currently pushes here
+                            // with that tag set, so no collision risk from
+                            // other entry points that don't set it.
+                            Hero(
+                              tag: 'opportunity-${o.id}',
+                              child: Material(
+                                color: Colors.transparent,
+                                child: Text(o.title, style: AppTextStyles.h2.copyWith(color: AppColors.ink)),
+                              ),
+                            ),
                             Padding(
-                              padding: const EdgeInsets.only(top: 2),
+                              padding: const EdgeInsets.only(top: AppSpacing.xs),
                               child: Text(o.company, style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 16, fontWeight: AppFontWeight.medium)),
                             ),
                           ],
@@ -247,9 +273,11 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
                         // A horizontal ListView clips to its exact SizedBox
                         // height, cutting AppShadows.card's blur off flat —
                         // see AppShadows.cardBuffer for the clearance this
-                        // avoids.
+                        // avoids. Bumped 176->216 for the 8pt spacing-grid
+                        // pass — OpportunityRow's own internal AppSpacing
+                        // paddings grew enough that 176 no longer fits it.
                         SizedBox(
-                          height: 176 + AppShadows.cardBuffer * 2,
+                          height: 216 + AppShadows.cardBuffer * 2,
                           child: ListView.separated(
                             padding: const EdgeInsets.symmetric(vertical: AppShadows.cardBuffer),
                             scrollDirection: Axis.horizontal,
@@ -306,11 +334,20 @@ class _OpportunityDetailScreenState extends State<OpportunityDetailScreen> {
               child: Container(
                 padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.md),
                 decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-                child: PillButton(
-                  label: _applied ? 'Applied' : 'Apply Now',
-                  icon: _applied ? Ionicons.checkmark_circle : null,
-                  onPressed: _apply,
-                  disabled: _applied,
+                // The bar itself spans the full (already 1224-capped) width
+                // to read as a real footer, but the button inside is capped
+                // — full: true (PillButton's own default) stretching to a
+                // near-1200px CTA reads as a mammoth, not a call to action.
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
+                    child: PillButton(
+                      label: _applied ? 'Applied' : 'Apply Now',
+                      icon: _applied ? Ionicons.checkmark_circle : null,
+                      onPressed: _apply,
+                      disabled: _applied,
+                    ),
+                  ),
                 ),
               ),
             ),

@@ -56,4 +56,49 @@ class Opportunity {
     this.screeningQuestions = const [],
     this.screeningQuestionOptions = const [],
   });
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'company': company,
+        'type': type,
+        'location': location,
+        'workMode': workMode,
+        'stipend': stipend,
+        'duration': duration,
+        'category': category,
+        'employmentType': employmentType,
+        'image': image,
+        'about': about,
+        'requirements': requirements,
+        'prepCourses': prepCourses,
+        'deadline': deadline,
+        'applicantCount': applicantCount,
+        'screeningQuestions': screeningQuestions,
+        'screeningQuestionOptions': screeningQuestionOptions,
+      };
+
+  factory Opportunity.fromJson(Map<String, dynamic> json) => Opportunity(
+        id: json['id'] as String,
+        title: json['title'] as String,
+        company: json['company'] as String,
+        type: json['type'] as String,
+        location: json['location'] as String,
+        workMode: json['workMode'] as String,
+        stipend: json['stipend'] as String,
+        duration: json['duration'] as String,
+        category: json['category'] as String,
+        employmentType: json['employmentType'] as String?,
+        image: json['image'] as String,
+        about: json['about'] as String,
+        requirements: (json['requirements'] as List).cast<String>(),
+        prepCourses: (json['prepCourses'] as List).cast<String>(),
+        deadline: json['deadline'] as String,
+        applicantCount: json['applicantCount'] as int? ?? 0,
+        screeningQuestions: (json['screeningQuestions'] as List?)?.cast<String>() ?? const [],
+        screeningQuestionOptions: (json['screeningQuestionOptions'] as List?)
+                ?.map((o) => (o as List).cast<String>())
+                .toList() ??
+            const [],
+      );
 }

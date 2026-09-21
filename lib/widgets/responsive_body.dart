@@ -16,14 +16,22 @@ import '../theme/breakpoints.dart';
 class ResponsiveBody extends StatelessWidget {
   final Widget child;
   final double maxWidth;
+  // Center everywhere by default, matching every other capped screen in
+  // the app. centerLeft is for the rare screen whose content reads as a
+  // single linear column (career_dna_landing_screen.dart) rather than an
+  // independent page of listings — at a narrow maxWidth relative to a very
+  // wide viewport, centering that kind of column left it visibly floating
+  // in empty space instead of reading as the page's actual content.
+  final Alignment alignment;
 
-  const ResponsiveBody({super.key, required this.child, this.maxWidth = AppBreakpoints.maxContentWidth});
+  const ResponsiveBody({super.key, required this.child, this.maxWidth = AppBreakpoints.maxContentWidth, this.alignment = Alignment.center});
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
     if (width < AppBreakpoints.tablet) return child;
-    return Center(
+    return Align(
+      alignment: alignment,
       child: ConstrainedBox(
         constraints: BoxConstraints(maxWidth: maxWidth),
         child: child,

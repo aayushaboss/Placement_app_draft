@@ -59,12 +59,17 @@ class Wordmark extends StatelessWidget {
   final Color color;
   final Color accent;
   final double size;
+  // Off for TopNavBar — at that small a size the "EDGE" badge read as just
+  // an empty-looking blue bar, not legible text, so it's dropped there
+  // entirely rather than kept illegible. Splash's own larger usage keeps it.
+  final bool showEdgeBadge;
 
   const Wordmark({
     super.key,
     this.color = AppColors.white,
     this.accent = AppColors.yellow,
     this.size = 22,
+    this.showEdgeBadge = true,
   });
 
   @override
@@ -82,21 +87,23 @@ class Wordmark extends StatelessWidget {
             color: color,
           ),
         ),
-        const SizedBox(width: 8),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(AppRadius.sm)),
-          child: Text(
-            'EDGE',
-            style: TextStyle(
-              fontFamily: kFontFamily,
-              fontWeight: AppFontWeight.semibold,
-              letterSpacing: 1,
-              fontSize: size * 0.5,
-              color: AppColors.blue,
+        if (showEdgeBadge) ...[
+          const SizedBox(width: AppSpacing.sm),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
+            decoration: BoxDecoration(color: accent, borderRadius: BorderRadius.circular(AppRadius.sm)),
+            child: Text(
+              'EDGE',
+              style: TextStyle(
+                fontFamily: kFontFamily,
+                fontWeight: AppFontWeight.semibold,
+                letterSpacing: 1,
+                fontSize: size * 0.5,
+                color: AppColors.blue,
+              ),
             ),
           ),
-        ),
+        ],
       ],
     );
   }

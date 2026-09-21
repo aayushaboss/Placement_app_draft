@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../mockData/mock_courses.dart';
 import '../../models/course.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
@@ -56,18 +57,19 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
 
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Stack(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Stack(
           children: [
             ListView(
-              padding: EdgeInsets.only(bottom: 120 + bottomInset),
+              padding: EdgeInsets.only(bottom: AppSpacing.xxxl + AppSpacing.xxl + AppSpacing.sm + bottomInset),
               children: [
                 Padding(
-                  padding: EdgeInsets.fromLTRB(AppSpacing.lg, topInset + AppSpacing.sm, AppSpacing.lg, 0),
+                  padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.sm, AppSpacing.xl, 0),
                   child: BackChevron(color: AppColors.ink, fallbackRoute: '/tabs'),
                 ),
                 Padding(
@@ -85,7 +87,7 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
                             // detail-page hero title exactly.
                             Text(c.title, style: AppTextStyles.h2.copyWith(color: AppColors.ink)),
                             Padding(
-                              padding: const EdgeInsets.only(top: 2),
+                              padding: const EdgeInsets.only(top: AppSpacing.xs),
                               child: Text(c.category, style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 16, fontWeight: AppFontWeight.medium)),
                             ),
                           ],
@@ -169,10 +171,15 @@ class _CourseDetailScreenState extends State<CourseDetailScreen> {
               child: Container(
                 padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.md),
                 decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-                child: PillButton(
-                  label: 'Talk to a counselor',
-                  icon: Ionicons.chatbubbles_outline,
-                  onPressed: () => context.push('/booking?kind=counseling'),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
+                    child: PillButton(
+                      label: 'Talk to a counselor',
+                      icon: Ionicons.chatbubbles_outline,
+                      onPressed: () => context.push('/booking?kind=counseling'),
+                    ),
+                  ),
                 ),
               ),
             ),

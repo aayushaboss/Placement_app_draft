@@ -7,6 +7,7 @@ import '../../mockData/mock_bookings.dart';
 import '../../models/booking.dart';
 import '../../models/user.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -185,6 +186,159 @@ class _SessionsScreenState extends State<SessionsScreen> {
     }
   }
 
+  // Extracted from the old inline .map() builder so desktop can pair these
+  // 2-per-row (see _pairedBookingRows) without duplicating the card markup.
+  Widget _bookingCard(Booking b) {
+    DateTime? d;
+    try {
+      d = DateTime.parse(b.date);
+    } catch (_) {}
+    return Container(
+      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      padding: const EdgeInsets.all(AppSpacing.lg),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: AppShadows.card,
+      ),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 54,
+                height: 54,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.md)),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(d != null ? '${d.day}' : '-', style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 20, fontWeight: AppFontWeight.medium)),
+                    Text(d != null ? _monthShort[d.month - 1] : '', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 12, fontWeight: AppFontWeight.medium)),
+                  ],
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      b.kind == 'placement' ? (b.sessionType ?? 'Placement session') : 'Counseling session',
+                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: Text('${_prettyDate(b.date)} • ${b.time}', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.sm),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(b.mode == 'online' ? Ionicons.videocam_outline : Ionicons.location_outline, size: 12, color: AppColors.blue),
+                          const SizedBox(width: AppSpacing.xs),
+                          Text('${b.mode == 'online' ? 'Online' : 'Offline'} • ${b.counselor}', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
+                        ],
+                      ),
+                    ),
+                    if (b.mode == 'offline' && (b.venueAddress?.trim().isNotEmpty ?? false))
+                      Padding(
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
+                        child: Text(
+                          b.venueAddress!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              // Previously a hardcoded "confirmed" icon regardless of the
+              // booking's own status field, which is never actually read —
+              // every booking always looked the same even though the model
+              // supports other states.
+              Icon(
+                b.status == 'Confirmed' ? Ionicons.checkmark_circle : Ionicons.time_outline,
+                size: 18,
+                color: b.status == 'Confirmed' ? AppColors.success : AppColors.warning,
+              ),
+            ],
+          ),
+          Container(
+            margin: const EdgeInsets.only(top: AppSpacing.md),
+            padding: const EdgeInsets.only(top: AppSpacing.md),
+            decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.border, width: 1))),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _reschedule(b),
+                    child: Container(
+                      height: 40,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Ionicons.calendar_outline, size: 15, color: AppColors.blue),
+                          const SizedBox(width: AppSpacing.sm),
+                          Text('Reschedule', style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => _askCancel(b),
+                    child: Container(
+                      height: 40,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(AppRadius.pill), border: Border.all(color: AppColors.error, width: 1.5)),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Ionicons.close_circle_outline, size: 15, color: AppColors.error),
+                          const SizedBox(width: AppSpacing.sm),
+                          Text('Cancel', style: AppTextStyles.label.copyWith(color: AppColors.error, fontSize: 12, fontWeight: AppFontWeight.medium)),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // 2-column desktop tier — same top-aligned Expanded pairing used
+  // elsewhere this round (profile_screen.dart's _pairedRows,
+  // school_home_screen.dart's _gridRows), sized for this screen's own
+  // card shape.
+  List<Widget> _pairedBookingRows(List<Booking> bookings) {
+    final rows = <Widget>[];
+    for (var i = 0; i < bookings.length; i += 2) {
+      final second = i + 1 < bookings.length ? bookings[i + 1] : null;
+      rows.add(Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: _bookingCard(bookings[i])),
+          const SizedBox(width: AppSpacing.lg),
+          Expanded(child: second != null ? _bookingCard(second) : const SizedBox()),
+        ],
+      ));
+    }
+    return rows;
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
@@ -201,14 +355,20 @@ class _SessionsScreenState extends State<SessionsScreen> {
       });
     }
     final topInset = MediaQuery.of(context).padding.top;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(child: Column(
+      // 1200, matching every other desktop tab — a narrower cap here made
+      // the horizontal gutter next to the sidebar visibly inconsistent
+      // between tabs.
+      body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.sm, AppSpacing.xl, AppSpacing.md),
+            // isTablet adds AppSpacing.xl on top — sits directly under
+            // TopNavBar's 64px bar with nothing else providing clearance.
+            padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.sm + (isTablet ? AppSpacing.xl : 0), AppSpacing.xl, AppSpacing.md),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -266,139 +426,8 @@ class _SessionsScreenState extends State<SessionsScreen> {
                     )
                   : ListView(
                       controller: _scrollController,
-                      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, 100),
-                      children: _bookings.map((b) {
-                        DateTime? d;
-                        try {
-                          d = DateTime.parse(b.date);
-                        } catch (_) {}
-                        return Container(
-                          margin: const EdgeInsets.only(bottom: AppSpacing.md),
-                          padding: const EdgeInsets.all(AppSpacing.lg),
-                          decoration: BoxDecoration(
-                            color: AppColors.white,
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                            boxShadow: AppShadows.card,
-                          ),
-                          child: Column(
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 54,
-                                    height: 54,
-                                    alignment: Alignment.center,
-                                    decoration: BoxDecoration(color: AppColors.blue, borderRadius: BorderRadius.circular(AppRadius.md)),
-                                    child: Column(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(d != null ? '${d.day}' : '-', style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 20, fontWeight: AppFontWeight.medium)),
-                                        Text(d != null ? _monthShort[d.month - 1] : '', style: AppTextStyles.label.copyWith(color: AppColors.yellow, fontSize: 12, fontWeight: AppFontWeight.medium)),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(width: AppSpacing.md),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Text(
-                                          b.kind == 'placement' ? (b.sessionType ?? 'Placement session') : 'Counseling session',
-                                          style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: 2),
-                                          child: Text('${_prettyDate(b.date)} • ${b.time}', style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.only(top: AppSpacing.sm),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(b.mode == 'online' ? Ionicons.videocam_outline : Ionicons.location_outline, size: 12, color: AppColors.blue),
-                                              const SizedBox(width: 4),
-                                              Text('${b.mode == 'online' ? 'Online' : 'Offline'} • ${b.counselor}', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
-                                            ],
-                                          ),
-                                        ),
-                                        if (b.mode == 'offline' && (b.venueAddress?.trim().isNotEmpty ?? false))
-                                          Padding(
-                                            padding: const EdgeInsets.only(top: 2),
-                                            child: Text(
-                                              b.venueAddress!,
-                                              maxLines: 1,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12),
-                                            ),
-                                          ),
-                                      ],
-                                    ),
-                                  ),
-                                  // Previously a hardcoded "confirmed" icon
-                                  // regardless of the booking's own status
-                                  // field, which is never actually read —
-                                  // every booking always looked the same
-                                  // even though the model supports other
-                                  // states.
-                                  Icon(
-                                    b.status == 'Confirmed' ? Ionicons.checkmark_circle : Ionicons.time_outline,
-                                    size: 18,
-                                    color: b.status == 'Confirmed' ? AppColors.success : AppColors.warning,
-                                  ),
-                                ],
-                              ),
-                              Container(
-                                margin: const EdgeInsets.only(top: AppSpacing.md),
-                                padding: const EdgeInsets.only(top: AppSpacing.md),
-                                decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.border, width: 1))),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: GestureDetector(
-                                        onTap: () => _reschedule(b),
-                                        child: Container(
-                                          height: 40,
-                                          alignment: Alignment.center,
-                                          decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.pill)),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Ionicons.calendar_outline, size: 15, color: AppColors.blue),
-                                              const SizedBox(width: AppSpacing.sm),
-                                              Text('Reschedule', style: AppTextStyles.label.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium)),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: AppSpacing.sm),
-                                    Expanded(
-                                      child: GestureDetector(
-                                        onTap: () => _askCancel(b),
-                                        child: Container(
-                                          height: 40,
-                                          alignment: Alignment.center,
-                                          decoration: BoxDecoration(borderRadius: BorderRadius.circular(AppRadius.pill), border: Border.all(color: AppColors.error, width: 1.5)),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(Ionicons.close_circle_outline, size: 15, color: AppColors.error),
-                                              const SizedBox(width: AppSpacing.sm),
-                                              Text('Cancel', style: AppTextStyles.label.copyWith(color: AppColors.error, fontSize: 12, fontWeight: AppFontWeight.medium)),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.xxxl + AppSpacing.xl),
+                      children: isTablet ? _pairedBookingRows(_bookings) : [for (final b in _bookings) _bookingCard(b)],
                     ),
             ),
           ),

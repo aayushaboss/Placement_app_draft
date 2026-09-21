@@ -1,7 +1,3 @@
-import 'dart:convert';
-import 'dart:html' as html;
-
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -12,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../mockData/mock_bookings.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -98,36 +95,6 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
     return '${u.year}${p2(u.month)}${p2(u.day)}T${p2(u.hour)}${p2(u.minute)}${p2(u.second)}Z';
   }
 
-  void _downloadIcs() {
-    final start = parseBookingDateTime(widget.date, widget.time);
-    if (start == null) return;
-    final end = start.add(_eventDuration);
-    final ics = [
-      'BEGIN:VCALENDAR',
-      'VERSION:2.0',
-      'PRODID:-//Aerostar Edge//Booking//EN',
-      'BEGIN:VEVENT',
-      'UID:booking-${start.millisecondsSinceEpoch}@aerostaredge',
-      'DTSTAMP:${_icsDateTimeUtc(DateTime.now())}',
-      'DTSTART:${_icsDateTimeUtc(start)}',
-      'DTEND:${_icsDateTimeUtc(end)}',
-      'SUMMARY:$_eventTitle',
-      'LOCATION:$_eventLocation',
-      'DESCRIPTION:Aerostar Edge session with ${widget.counselor}',
-      'END:VEVENT',
-      'END:VCALENDAR',
-    ].join('\r\n');
-    // dart:html — this app is web-only today (see other files already
-    // gated the same way), and Blob+anchor is the standard way to trigger
-    // a browser download of generated (not server-hosted) file content.
-    final blob = html.Blob([utf8.encode(ics)], 'text/calendar');
-    final url = html.Url.createObjectUrlFromBlob(blob);
-    html.AnchorElement(href: url)
-      ..setAttribute('download', 'aerostar-session.ics')
-      ..click();
-    html.Url.revokeObjectUrl(url);
-  }
-
   Future<void> _openGoogleCalendar() async {
     final start = parseBookingDateTime(widget.date, widget.time);
     if (start == null) return;
@@ -145,7 +112,6 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
   }
 
   void _showCalendarSheet() {
-    final isIOS = !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.white,
@@ -168,6 +134,14 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
                 padding: const EdgeInsets.only(top: AppSpacing.lg, bottom: AppSpacing.sm),
                 child: Text('Add to Calendar', style: AppTextStyles.h3.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.bold)),
               ),
+              // Apple Calendar / "Download .ics file" options used to live
+              // here too, both handing a generated .ics off to a browser
+              // download (dart:html) with no native equivalent. Native
+              // file-sharing packages tried as a replacement (share_plus)
+              // hit their own broken Android build — not worth blocking
+              // the whole app on a secondary feature for. Google Calendar
+              // needs no such thing (it's just a URL), so it's the one
+              // option left.
               _CalendarOptionTile(
                 iconWidget: SvgPicture.asset('assets/icons/google.svg', width: 19, height: 19),
                 // Google's own brand blue, not an app design-system color —
@@ -178,28 +152,6 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
                 onTap: () {
                   Navigator.of(sheetContext).pop();
                   _openGoogleCalendar();
-                },
-              ),
-              if (isIOS)
-                _CalendarOptionTile(
-                  icon: Ionicons.logo_apple,
-                  iconColor: AppColors.ink,
-                  label: 'Apple Calendar',
-                  // No web URL scheme for Apple Calendar — it opens .ics
-                  // files natively, so this is the same real action as
-                  // "Download .ics file" below, not a separate stub.
-                  onTap: () {
-                    Navigator.of(sheetContext).pop();
-                    _downloadIcs();
-                  },
-                ),
-              _CalendarOptionTile(
-                icon: Ionicons.download_outline,
-                iconColor: AppColors.blue,
-                label: 'Download .ics file',
-                onTap: () {
-                  Navigator.of(sheetContext).pop();
-                  _downloadIcs();
                 },
               ),
             ],
@@ -223,12 +175,13 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final isPlacement = widget.kind == 'placement';
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.blue,
-        body: ResponsiveBody(child: Padding(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Padding(
           padding: EdgeInsets.only(top: topInset),
           child: Column(
             children: [
@@ -313,7 +266,7 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
                                       if (widget.venueName.isNotEmpty)
                                         Text(widget.venueName, textAlign: TextAlign.left, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.semibold)),
                                       Padding(
-                                        padding: const EdgeInsets.only(top: 2),
+                                        padding: const EdgeInsets.only(top: AppSpacing.xs),
                                         child: Text(widget.venueAddress, textAlign: TextAlign.left, style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 12, height: 1.4)),
                                       ),
                                     ],
@@ -329,12 +282,17 @@ class _BookingConfirmedScreenState extends State<BookingConfirmedScreen> with Si
               ),
               Padding(
                 padding: EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, bottomInset + AppSpacing.lg),
-                child: Column(
-                  children: [
-                    PillButton(label: 'Add to Calendar', variant: PillVariant.outlineWhite, icon: Ionicons.calendar_outline, onPressed: _showCalendarSheet),
-                    const SizedBox(height: AppSpacing.md),
-                    PillButton(label: 'Done', onPressed: _done),
-                  ],
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
+                    child: Column(
+                      children: [
+                        PillButton(label: 'Add to Calendar', variant: PillVariant.outlineWhite, icon: Ionicons.calendar_outline, onPressed: _showCalendarSheet),
+                        const SizedBox(height: AppSpacing.md),
+                        PillButton(label: 'Done', onPressed: _done),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -380,16 +338,17 @@ class _Row extends StatelessWidget {
 }
 
 class _CalendarOptionTile extends StatelessWidget {
-  final IconData? icon;
   final Color iconColor;
   final String label;
   final VoidCallback onTap;
 
-  /// Overrides [icon] — for the Google Calendar row, which needs the real
-  /// multi-color "G" logo instead of a single-color IconData glyph.
-  final Widget? iconWidget;
+  // Google Calendar is the only option left (see _showCalendarSheet's own
+  // note) — needs its real multi-color "G" logo, not a single-color
+  // IconData glyph, so this widget stays iconWidget-only rather than also
+  // carrying an unused IconData fallback for a hypothetical second row.
+  final Widget iconWidget;
 
-  const _CalendarOptionTile({this.icon, required this.iconColor, required this.label, required this.onTap, this.iconWidget});
+  const _CalendarOptionTile({required this.iconColor, required this.label, required this.onTap, required this.iconWidget});
 
   @override
   Widget build(BuildContext context) {
@@ -405,7 +364,7 @@ class _CalendarOptionTile extends StatelessWidget {
               height: 38,
               alignment: Alignment.center,
               decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.1), shape: BoxShape.circle),
-              child: iconWidget ?? Icon(icon, size: 19, color: iconColor),
+              child: iconWidget,
             ),
             const SizedBox(width: AppSpacing.md),
             Expanded(

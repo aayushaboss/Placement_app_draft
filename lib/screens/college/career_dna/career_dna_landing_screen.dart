@@ -8,6 +8,7 @@ import '../../../mockData/career_dna/career_dna_level_meta.dart';
 import '../../../models/career_dna.dart';
 import '../../../models/user.dart';
 import '../../../state/app_state.dart';
+import '../../../theme/breakpoints.dart';
 import '../../../theme/colors.dart';
 import '../../../theme/shadows.dart';
 import '../../../theme/spacing.dart';
@@ -115,65 +116,85 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
     // work on next). Mirrors Duolingo's own "just the current unit" header,
     // rather than repeating every level's full title on screen at once.
     final currentMeta = allComplete ? null : careerDnaLevelMeta.firstWhere((m) => !_isLevelComplete(profile, m.level));
+    // A modest widen only, not the 1200/900 other tabs got — this screen's
+    // content is one linear zigzag path (see _pathXAlign above), not
+    // independent listings, so there's nothing to tab or grid here; this
+    // just stops it sitting razor-thin in a sea of white space at desktop.
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(
-        child: Column(
-          children: [
-            // The blue header is a fixed sibling above the scroll area (not
-            // the first item inside the ListView) so it stays pinned while
-            // the level path scrolls under it — per direct feedback that it
-            // "will be sticky scroll types". Its rounded bottom corners +
-            // card shadow keep it reading as a distinct banner over the
-            // scrolling content beneath.
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
-              decoration: const BoxDecoration(
-                color: AppColors.blue,
-                borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
-                boxShadow: AppShadows.card,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // The heading always reads "Career Quiz", regardless of
-                  // which level is current — per direct feedback that
-                  // swapping the heading itself to the current level's own
-                  // title read as confusing copy. The line beneath names
-                  // the current level instead. (No separate eyebrow label
-                  // above this any more — it used to duplicate the same
-                  // "Career Quiz" text twice in a row.)
-                  Text('Career Quiz', style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 26, fontWeight: AppFontWeight.semibold)),
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.xs),
-                    child: Text(
-                      noOrphan(currentMeta != null ? 'Level ${currentMeta.level} · ${currentMeta.title}' : 'All 5 levels complete!'),
-                      style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 14),
+      // A single ListView, not a fixed header + separately-scrolling
+      // Expanded below it — per direct feedback reversing an earlier
+      // "keep the header pinned" decision, which left too little room for
+      // the path once TopNavBar also started taking space above it at
+      // desktop. The header is still deliberately NOT wrapped in
+      // ResponsiveBody (same full-bleed pattern as profile_screen.dart's
+      // header) so it spans true full width regardless of window size; the
+      // path content right below it gets its own ResponsiveBody cap
+      // instead, same as before.
+      body: ListView(
+        controller: _scrollController,
+        padding: EdgeInsets.zero,
+        children: [
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: AppColors.blue,
+              borderRadius: BorderRadius.only(bottomLeft: Radius.circular(24), bottomRight: Radius.circular(24)),
+            ),
+            // Only the background bleeds full-bleed — the text inside stays
+            // aligned to the exact same horizontal padding as the content
+            // below it (same ResponsiveBody maxWidth), so it doesn't read
+            // as pinned to the true screen edge while everything else sits
+            // inset in a narrower centered column.
+            child: ResponsiveBody(
+              maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // The heading always reads "Career Quiz", regardless of
+                    // which level is current — per direct feedback that
+                    // swapping the heading itself to the current level's own
+                    // title read as confusing copy. The line beneath names
+                    // the current level instead. (No separate eyebrow label
+                    // above this any more — it used to duplicate the same
+                    // "Career Quiz" text twice in a row.)
+                    Text('Career Quiz', style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 26, fontWeight: AppFontWeight.semibold)),
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: Text(
+                        noOrphan(currentMeta != null ? 'Level ${currentMeta.level} · ${currentMeta.title}' : 'All 5 levels complete!'),
+                        style: AppTextStyles.bodyLg.copyWith(color: AppColors.whiteA70, fontSize: 14),
+                      ),
                     ),
-                  ),
-                  // Small trust line — deliberately lighter/smaller than
-                  // the subtitle above (size alone does the differentiation
-                  // here, both share whiteA70) so it reads as secondary
-                  // credibility copy, not competing with the level name.
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(
-                      noOrphan('Approved by 100+ Psychologists, Researchers, PhDs and Business Leaders.'),
-                      style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12),
+                    // Small trust line — deliberately lighter/smaller than
+                    // the subtitle above (size alone does the differentiation
+                    // here, both share whiteA70) so it reads as secondary
+                    // credibility copy, not competing with the level name.
+                    Padding(
+                      padding: const EdgeInsets.only(top: AppSpacing.xs),
+                      child: Text(
+                        noOrphan('Approved by 100+ Psychologists, Researchers, PhDs and Business Leaders.'),
+                        style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70, fontSize: 12),
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-            Expanded(
-              child: ListView(
-                controller: _scrollController,
-                // Generous vertical rhythm between nodes (xxxl, not the old
-                // list's tight md gaps) is what makes this read as "spacious"
-                // rather than a dense list — the zigzag alignment does the rest.
-                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),
+          ),
+          ResponsiveBody(
+            maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+            child: Padding(
+              // Generous vertical rhythm between nodes (xxxl, not the old
+              // list's tight md gaps) is what makes this read as "spacious"
+              // rather than a dense list — the zigzag alignment does the rest.
+              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xl),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // What taking the quiz actually does for the student — the
                   // free test's result rides along with their resume for
@@ -232,7 +253,7 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                                 children: [
                                   Text('See your full results', style: AppTextStyles.bodyLg.copyWith(color: AppColors.white, fontWeight: AppFontWeight.semibold)),
                                   Padding(
-                                    padding: const EdgeInsets.only(top: 2),
+                                    padding: const EdgeInsets.only(top: AppSpacing.xs),
                                     child: Text('Every level, combined into one result.', style: AppTextStyles.caption.copyWith(color: AppColors.whiteA70)),
                                   ),
                                 ],
@@ -246,9 +267,9 @@ class _CareerDnaLandingScreenState extends State<CareerDnaLandingScreen> {
                 ],
               ),
             ),
+            ),
           ],
         ),
-      ),
     );
   }
 }
@@ -315,7 +336,7 @@ class _PathNode extends StatelessWidget {
               if (isCurrent)
                 Container(
                   margin: const EdgeInsets.only(bottom: AppSpacing.xs),
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
                   decoration: BoxDecoration(color: AppColors.yellow, borderRadius: BorderRadius.circular(AppRadius.pill)),
                   child: Text('START', style: AppTextStyles.label.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.bold, letterSpacing: 0.6)),
                 ),
@@ -347,7 +368,7 @@ class _PathNode extends StatelessWidget {
                             'Level ${meta.level}',
                             style: AppTextStyles.caption.copyWith(color: AppColors.ink, fontSize: 12, fontWeight: AppFontWeight.semibold),
                           ),
-                          const SizedBox(width: 3),
+                          const SizedBox(width: AppSpacing.xs),
                           Tooltip(
                             message: meta.whatThisMeasures,
                             triggerMode: TooltipTriggerMode.tap,
@@ -356,7 +377,7 @@ class _PathNode extends StatelessWidget {
                         ],
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(top: 1),
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
                         child: Text(
                           meta.title,
                           textAlign: TextAlign.center,

@@ -110,7 +110,7 @@ class _SplashScreenState extends State<SplashScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: AppSpacing.xl),
                     AnimatedSlide(
                       offset: _wordmarkVisible ? Offset.zero : const Offset(0, 0.2),
                       duration: const Duration(milliseconds: 500),

@@ -13,6 +13,15 @@ class ApplicationOpportunitySummary {
     required this.type,
     required this.image,
   });
+
+  Map<String, dynamic> toJson() => {'title': title, 'company': company, 'type': type, 'image': image};
+
+  factory ApplicationOpportunitySummary.fromJson(Map<String, dynamic> json) => ApplicationOpportunitySummary(
+        title: json['title'] as String,
+        company: json['company'] as String,
+        type: json['type'] as String,
+        image: json['image'] as String,
+      );
 }
 
 /// One milestone in the application's journey, shown as a step in the
@@ -23,6 +32,14 @@ class ApplicationEvent {
   final DateTime at;
 
   const ApplicationEvent({required this.status, required this.title, required this.at});
+
+  Map<String, dynamic> toJson() => {'status': status, 'title': title, 'at': at.toIso8601String()};
+
+  factory ApplicationEvent.fromJson(Map<String, dynamic> json) => ApplicationEvent(
+        status: json['status'] as String,
+        title: json['title'] as String,
+        at: DateTime.parse(json['at'] as String),
+      );
 }
 
 /// Structured interview-scheduling details attached to a bot message —
@@ -41,6 +58,22 @@ class InterviewDetails {
     required this.mode,
     required this.location,
   });
+
+  Map<String, dynamic> toJson() => {
+        'round': round,
+        'dateLabel': dateLabel,
+        'timeLabel': timeLabel,
+        'mode': mode,
+        'location': location,
+      };
+
+  factory InterviewDetails.fromJson(Map<String, dynamic> json) => InterviewDetails(
+        round: json['round'] as String,
+        dateLabel: json['dateLabel'] as String,
+        timeLabel: json['timeLabel'] as String,
+        mode: json['mode'] as String,
+        location: json['location'] as String,
+      );
 }
 
 /// A single message from the company's (simulated) bot in the per-application
@@ -53,6 +86,20 @@ class ApplicationMessage {
   final InterviewDetails? interview;
 
   const ApplicationMessage({required this.id, required this.text, required this.at, this.interview});
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'text': text,
+        'at': at.toIso8601String(),
+        'interview': interview?.toJson(),
+      };
+
+  factory ApplicationMessage.fromJson(Map<String, dynamic> json) => ApplicationMessage(
+        id: json['id'] as String,
+        text: json['text'] as String,
+        at: DateTime.parse(json['at'] as String),
+        interview: json['interview'] != null ? InterviewDetails.fromJson(json['interview'] as Map<String, dynamic>) : null,
+      );
 }
 
 class Application {
@@ -113,4 +160,32 @@ class Application {
       deletedAt: deletedAt,
     );
   }
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'userId': userId,
+        'opportunityId': opportunityId,
+        'opportunity': opportunity.toJson(),
+        'status': status,
+        'createdAt': createdAt,
+        'timeline': timeline.map((e) => e.toJson()).toList(),
+        'messages': messages.map((m) => m.toJson()).toList(),
+        'note': note,
+        'screeningAnswers': screeningAnswers,
+        'deletedAt': deletedAt,
+      };
+
+  factory Application.fromJson(Map<String, dynamic> json) => Application(
+        id: json['id'] as String,
+        userId: json['userId'] as String,
+        opportunityId: json['opportunityId'] as String,
+        opportunity: ApplicationOpportunitySummary.fromJson(json['opportunity'] as Map<String, dynamic>),
+        status: json['status'] as String,
+        createdAt: json['createdAt'] as String,
+        timeline: (json['timeline'] as List?)?.map((e) => ApplicationEvent.fromJson(e as Map<String, dynamic>)).toList() ?? const [],
+        messages: (json['messages'] as List?)?.map((m) => ApplicationMessage.fromJson(m as Map<String, dynamic>)).toList() ?? const [],
+        note: json['note'] as String?,
+        screeningAnswers: (json['screeningAnswers'] as Map?)?.cast<String, String>(),
+        deletedAt: json['deletedAt'] as String?,
+      );
 }

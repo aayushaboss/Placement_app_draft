@@ -1,6 +1,5 @@
 import 'dart:io' show File;
 
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
@@ -11,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../../mockData/mock_profile_options.dart';
 import '../../models/user.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
@@ -18,6 +18,7 @@ import '../../utils/initials.dart';
 import '../../widgets/app_chip.dart';
 import '../../widgets/autocomplete_field.dart';
 import '../../widgets/date_picker_field.dart';
+import '../../widgets/desktop_field_row.dart';
 import '../../widgets/field_label.dart';
 import '../../widgets/not_found_view.dart';
 import '../../widgets/pill_button.dart';
@@ -327,9 +328,6 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
 
   Widget _avatarImage() {
     if (_photoFile != null) {
-      if (kIsWeb) {
-        return Image.network(_photoFile!.path, width: 104, height: 104, fit: BoxFit.cover);
-      }
       return Image.file(File(_photoFile!.path), width: 104, height: 104, fit: BoxFit.cover);
     }
     if (_photoUrl != null && _photoUrl!.isNotEmpty) {
@@ -341,6 +339,16 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
       alignment: Alignment.center,
       color: AppColors.blue,
       child: Text(initialsFor(_nameController.text), style: AppTextStyles.h1.copyWith(color: AppColors.white, fontSize: 34, fontWeight: AppFontWeight.semibold)),
+    );
+  }
+
+  /// A field's existing FieldLabel + input, unchanged, just grouped so it
+  /// can be handed to DesktopFieldRow's left/right slots as one unit.
+  Widget _fieldGroup(Widget label, Widget field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [label, field],
     );
   }
 
@@ -361,32 +369,54 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
     final isWorking = user.segment == Segment.working;
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Column(
+        // A single ListView, not a fixed header + separately-scrolling
+        // Expanded below it — a pinned header here left too little of the
+        // fold visible, especially with TopNavBar also taking space above
+        // it at desktop. The header is still deliberately NOT wrapped in
+        // ResponsiveBody at the Container level — its background is a true
+        // full-bleed banner — but its own content gets the same
+        // ResponsiveBody(800) + horizontal padding as the form below it, so
+        // it aligns with it instead of hugging the true edge. The Save
+        // Changes footer stays a fixed sibling below the ListView (a pinned
+        // bottom action bar is the expected pattern, unlike a pinned header).
+        body: Column(
           children: [
-            Container(
-              color: AppColors.blue,
-              padding: EdgeInsets.only(top: topInset + AppSpacing.sm, left: AppSpacing.lg, right: AppSpacing.lg, bottom: AppSpacing.lg),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  GestureDetector(
-                    onTap: () => context.go(widget.returnTo ?? '/tabs'),
-                    child: const Icon(Ionicons.chevron_back, size: 26, color: AppColors.white),
-                  ),
-                  Text('Edit Profile', style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.semibold)),
-                  const SizedBox(width: AppSpacing.xxl),
-                ],
-              ),
-            ),
             Expanded(
               child: ListView(
                 controller: _scrollController,
-                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
+                padding: EdgeInsets.zero,
+                children: [
+                  Container(
+                    color: AppColors.blue,
+                    child: ResponsiveBody(
+                      maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+                      child: Padding(
+                        padding: EdgeInsets.only(top: topInset + AppSpacing.sm, left: AppSpacing.xl, right: AppSpacing.xl, bottom: AppSpacing.lg),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            GestureDetector(
+                              onTap: () => context.go(widget.returnTo ?? '/tabs'),
+                              child: const Icon(Ionicons.chevron_back, size: 26, color: AppColors.white),
+                            ),
+                            Text('Edit Profile', style: AppTextStyles.h3.copyWith(color: AppColors.white, fontSize: 18, fontWeight: AppFontWeight.semibold)),
+                            const SizedBox(width: AppSpacing.xxl),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  ResponsiveBody(
+                    maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
+                      child: Column(
                 children: [
                   Center(
                     child: Column(
@@ -461,10 +491,23 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                       ],
                     ),
                   ),
-                  const FieldLabel('Full name', tight: true),
-                  PillInput(controller: _nameController, placeholder: 'Your name', icon: Ionicons.person_outline, onChanged: (_) => setState(() {})),
-                  const FieldLabel('City'),
-                  AutocompleteField(value: _city, placeholder: 'e.g. Mumbai', icon: Ionicons.location_outline, options: mockCities, onChanged: (v) => setState(() => _city = v)),
+                  if (isTablet)
+                    DesktopFieldRow(
+                      left: _fieldGroup(
+                        const FieldLabel('Full name', tight: true),
+                        PillInput(controller: _nameController, placeholder: 'Your name', icon: Ionicons.person_outline, onChanged: (_) => setState(() {})),
+                      ),
+                      right: _fieldGroup(
+                        const FieldLabel('City', tight: true),
+                        AutocompleteField(value: _city, placeholder: 'e.g. Mumbai', icon: Ionicons.location_outline, options: mockCities, onChanged: (v) => setState(() => _city = v)),
+                      ),
+                    )
+                  else ...[
+                    const FieldLabel('Full name', tight: true),
+                    PillInput(controller: _nameController, placeholder: 'Your name', icon: Ionicons.person_outline, onChanged: (_) => setState(() {})),
+                    const FieldLabel('City'),
+                    AutocompleteField(value: _city, placeholder: 'e.g. Mumbai', icon: Ionicons.location_outline, options: mockCities, onChanged: (v) => setState(() => _city = v)),
+                  ],
                   const FieldLabel('Phone number'),
                   PillInput(
                     controller: _phoneController,
@@ -475,8 +518,15 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                     onChanged: (_) => setState(() {}),
                   ),
                   if (isSchool) ...[
-                    _chipField('Current class', _classOptions, _currentClass, (v) => setState(() => _currentClass = v)),
-                    _chipField('Board', _boardOptions, _board, (v) => setState(() => _board = v)),
+                    if (isTablet)
+                      DesktopFieldRow(
+                        left: _chipField('Current class', _classOptions, _currentClass, (v) => setState(() => _currentClass = v)),
+                        right: _chipField('Board', _boardOptions, _board, (v) => setState(() => _board = v)),
+                      )
+                    else ...[
+                      _chipField('Current class', _classOptions, _currentClass, (v) => setState(() => _currentClass = v)),
+                      _chipField('Board', _boardOptions, _board, (v) => setState(() => _board = v)),
+                    ],
                   ] else ...[
                     if (isWorking) ...[
                       _chipField('Highest qualification completed', _qualificationOptions, _highestQualification, (v) => setState(() {
@@ -492,23 +542,55 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                             }
                           })),
                       if (_educatedQualifications.contains(_highestQualification)) ...[
-                        const FieldLabel('Which institution did you attend?'),
-                        AutocompleteField(value: _college, placeholder: 'e.g. BITS Goa', icon: Ionicons.business_outline, options: mockColleges, onChanged: (v) => setState(() => _college = v)),
-                        const FieldLabel('What did you specialize in?'),
-                        AutocompleteField(
-                          value: _course,
-                          placeholder: 'e.g. B.Tech, B.Com, Diploma in Mechanical, MBA…',
-                          icon: Ionicons.book_outline,
-                          options: mockCourses,
-                          onChanged: (v) => setState(() => _course = v),
-                        ),
+                        if (isTablet)
+                          DesktopFieldRow(
+                            left: _fieldGroup(
+                              const FieldLabel('Which institution did you attend?'),
+                              AutocompleteField(value: _college, placeholder: 'e.g. BITS Goa', icon: Ionicons.business_outline, options: mockColleges, onChanged: (v) => setState(() => _college = v)),
+                            ),
+                            right: _fieldGroup(
+                              const FieldLabel('What did you specialize in?'),
+                              AutocompleteField(
+                                value: _course,
+                                placeholder: 'e.g. B.Tech, B.Com, Diploma in Mechanical, MBA…',
+                                icon: Ionicons.book_outline,
+                                options: mockCourses,
+                                onChanged: (v) => setState(() => _course = v),
+                              ),
+                            ),
+                          )
+                        else ...[
+                          const FieldLabel('Which institution did you attend?'),
+                          AutocompleteField(value: _college, placeholder: 'e.g. BITS Goa', icon: Ionicons.business_outline, options: mockColleges, onChanged: (v) => setState(() => _college = v)),
+                          const FieldLabel('What did you specialize in?'),
+                          AutocompleteField(
+                            value: _course,
+                            placeholder: 'e.g. B.Tech, B.Com, Diploma in Mechanical, MBA…',
+                            icon: Ionicons.book_outline,
+                            options: mockCourses,
+                            onChanged: (v) => setState(() => _course = v),
+                          ),
+                        ],
                         _priorExperienceField('Total work experience'),
                       ],
                     ] else ...[
-                      const FieldLabel('College / University'),
-                      AutocompleteField(value: _college, placeholder: 'e.g. BITS Goa', icon: Ionicons.business_outline, options: mockColleges, onChanged: (v) => setState(() => _college = v)),
-                      const FieldLabel('Course / Degree'),
-                      AutocompleteField(value: _course, placeholder: 'e.g. B.Tech, MBA, B.Sc…', icon: Ionicons.book_outline, options: mockCourses, onChanged: (v) => setState(() => _course = v)),
+                      if (isTablet)
+                        DesktopFieldRow(
+                          left: _fieldGroup(
+                            const FieldLabel('College / University'),
+                            AutocompleteField(value: _college, placeholder: 'e.g. BITS Goa', icon: Ionicons.business_outline, options: mockColleges, onChanged: (v) => setState(() => _college = v)),
+                          ),
+                          right: _fieldGroup(
+                            const FieldLabel('Course / Degree'),
+                            AutocompleteField(value: _course, placeholder: 'e.g. B.Tech, MBA, B.Sc…', icon: Ionicons.book_outline, options: mockCourses, onChanged: (v) => setState(() => _course = v)),
+                          ),
+                        )
+                      else ...[
+                        const FieldLabel('College / University'),
+                        AutocompleteField(value: _college, placeholder: 'e.g. BITS Goa', icon: Ionicons.business_outline, options: mockColleges, onChanged: (v) => setState(() => _college = v)),
+                        const FieldLabel('Course / Degree'),
+                        AutocompleteField(value: _course, placeholder: 'e.g. B.Tech, MBA, B.Sc…', icon: Ionicons.book_outline, options: mockCourses, onChanged: (v) => setState(() => _course = v)),
+                      ],
                       if (user.segment != Segment.pg) ...[
                         const FieldLabel('Semester'),
                         DatePickerField(
@@ -540,13 +622,20 @@ class _ProfileEditScreenState extends State<ProfileEditScreen> {
                 ],
               ),
             ),
-            Container(
+                  ),
+                ],
+              ),
+            ),
+          ResponsiveBody(
+            maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
+            child: Container(
               padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.md),
               decoration: const BoxDecoration(color: AppColors.white, border: Border(top: BorderSide(color: AppColors.border, width: 1))),
               child: PillButton(label: 'Save changes', onPressed: _save, loading: _loading, disabled: !_canSave),
             ),
-          ],
-        )),
+          ),
+        ],
+      ),
       ),
     );
   }

@@ -9,6 +9,7 @@ import '../../../models/career_dna.dart';
 import '../../../models/user.dart';
 import '../../../services/career_dna_report_pdf.dart';
 import '../../../state/app_state.dart';
+import '../../../theme/breakpoints.dart';
 import '../../../theme/colors.dart';
 import '../../../theme/shadows.dart';
 import '../../../theme/spacing.dart';
@@ -58,10 +59,12 @@ class CareerDnaReportScreen extends StatelessWidget {
 
     final completed = _isLevelComplete(profile, level);
     final meta = careerDnaLevelMeta.firstWhere((m) => m.level == level);
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return Scaffold(
       backgroundColor: AppColors.white,
       body: ResponsiveBody(
+        maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth,
         child: ListView(
           padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.sm, AppSpacing.xl, AppSpacing.xxxl),
           children: [
@@ -144,9 +147,14 @@ class _LevelReportReadyViewState extends State<_LevelReportReadyView> {
     final nextLevel = widget.level + 1; // always <=5 — level 5 redirects before this widget ever builds
     final traitSummary = buildLevelTraitSummary(widget.profile, widget.level);
 
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
+
     return Padding(
       padding: const EdgeInsets.only(top: AppSpacing.xl),
-      child: Column(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: isTablet ? 480 : double.infinity),
+          child: Column(
         children: [
           if (traitSummary != null) ...[
             CareerDnaTraitSummaryCard(data: traitSummary),
@@ -201,7 +209,7 @@ class _LevelReportReadyViewState extends State<_LevelReportReadyView> {
                         style: AppTextStyles.body.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.medium),
                       ),
                       Padding(
-                        padding: const EdgeInsets.only(top: 2),
+                        padding: const EdgeInsets.only(top: AppSpacing.xs),
                         child: Text('PDF · ready to download', style: AppTextStyles.caption.copyWith(color: AppColors.gray500)),
                       ),
                     ],
@@ -228,6 +236,8 @@ class _LevelReportReadyViewState extends State<_LevelReportReadyView> {
             ),
           ),
         ],
+          ),
+        ),
       ),
     );
   }

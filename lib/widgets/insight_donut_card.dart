@@ -87,7 +87,7 @@ class _StatSummary extends StatelessWidget {
           '${percent.round()}%',
           style: AppTextStyles.h2.copyWith(color: color, fontSize: 22, fontWeight: AppFontWeight.bold),
         ),
-        const SizedBox(height: 2),
+        const SizedBox(height: AppSpacing.xs),
         Text(
           description,
           maxLines: 3,
@@ -112,21 +112,21 @@ class _Legend extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: sorted.take(3).map((s) {
         return Padding(
-          padding: const EdgeInsets.only(bottom: 4),
+          padding: const EdgeInsets.only(bottom: AppSpacing.xs),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
                 width: 8,
                 height: 8,
-                margin: const EdgeInsets.only(top: 3),
+                margin: const EdgeInsets.only(top: AppSpacing.xs),
                 decoration: BoxDecoration(color: s.color, shape: BoxShape.circle),
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
                 child: Wrap(
                   crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 4,
+                  spacing: AppSpacing.xs,
                   children: [
                     Text(
                       '${s.label}: ${s.percent.round()}%',
@@ -134,7 +134,7 @@ class _Legend extends StatelessWidget {
                     ),
                     if (s.isYou)
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs, vertical: AppSpacing.xs),
                         decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(4)),
                         child: Text('You', style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.bold)),
                       ),

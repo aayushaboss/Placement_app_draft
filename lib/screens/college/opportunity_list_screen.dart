@@ -1,18 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../../mockData/mock_applications.dart';
-import '../../mockData/mock_opportunities.dart';
+import '../../data/repositories.dart';
 import '../../models/opportunity.dart';
 import '../../models/opportunity_match.dart';
+import '../../models/user.dart';
 import '../../services/apply_flow.dart';
 import '../../state/app_state.dart';
 import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
+import '../../widgets/async_value_view.dart';
 import '../../widgets/back_chevron.dart';
+import '../../widgets/empty_state.dart';
 import '../../widgets/opportunity_row.dart';
 import '../../widgets/responsive_body.dart';
 
@@ -43,30 +46,41 @@ class OpportunityListScreen extends StatefulWidget {
 }
 
 class _OpportunityListScreenState extends State<OpportunityListScreen> {
+  // Already-applied openings stay in the list with a disabled "Applied ✓"
+  // button rather than being filtered out. Loaded once per screen visit —
+  // if the signed-in user's roles/resume change while this screen is still
+  // open, the match-score sort below won't re-run until it's reopened;
+  // an acceptable tradeoff for this pass (see AsyncValueView's own note on
+  // not re-running its loader reactively).
+  Future<List<Opportunity>> _load(User? user) async {
+    final repo = context.read<Repositories>().opportunities;
+    if (widget.ids != null) {
+      return widget.ids!.map(repo.getOpportunityById).whereType<Opportunity>().toList();
+    }
+    final hasQuery = widget.query != null && widget.query!.trim().isNotEmpty;
+    final results = await repo.listOpportunities(
+      query: hasQuery ? widget.query : null,
+      categories: (hasQuery || widget.category == null) ? null : [widget.category!],
+    );
+    results.sort((a, b) => b.matchScoreFor(user).compareTo(a.matchScoreFor(user)));
+    return results;
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppState>();
     final user = appState.user;
-
-    // Already-applied openings stay in the list with a disabled "Applied ✓"
-    // button rather than being filtered out.
     final hasQuery = widget.query != null && widget.query!.trim().isNotEmpty;
-    final results = widget.ids != null
-        ? widget.ids!.map(getOpportunityById).whereType<Opportunity>().toList()
-        : (filterOpportunities(
-            query: hasQuery ? widget.query : null,
-            categories: (hasQuery || widget.category == null) ? null : [widget.category!],
-          ).toList()
-          ..sort((a, b) => b.matchScoreFor(user).compareTo(a.matchScoreFor(user))));
 
-    // 2 columns at tablet width — a plain wider single-column cap (the
+    // 2 columns from tablet width up — a plain wider single-column cap (the
     // ResponsiveBody default) would just leave a card stretched thin down
     // the middle of the screen instead of actually using the extra room.
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
     final columns = MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet ? 2 : 1;
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(maxWidth: 720, child: SafeArea(
+      body: ResponsiveBody(maxWidth: isTablet ? 1200 : 720, child: SafeArea(
         bottom: false,
         child: Column(
           children: [
@@ -89,14 +103,22 @@ class _OpportunityListScreenState extends State<OpportunityListScreen> {
               ),
             ),
             Expanded(
-              child: results.isEmpty
-                  ? Center(
-                      child: Text(
-                        'No openings here right now.',
-                        style: AppTextStyles.body.copyWith(color: AppColors.gray500),
-                      ),
-                    )
-                  : ListView.separated(
+              child: AsyncValueView<List<Opportunity>>(
+                loader: () => _load(user),
+                isEmpty: (results) => results.isEmpty,
+                emptyBuilder: (context) => Center(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
+                    child: EmptyState(
+                      icon: hasQuery ? Ionicons.search_outline : Ionicons.briefcase_outline,
+                      title: hasQuery ? 'No matches found' : 'No openings here right now',
+                      subtitle: hasQuery
+                          ? 'Try a different search term.'
+                          : 'Check back soon — new opportunities are added regularly.',
+                    ),
+                  ),
+                ),
+                builder: (context, results) => ListView.separated(
                       padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.lg, AppSpacing.xl, AppSpacing.xxxl),
                       // One row per `columns` cards, not one row per card —
                       // OpportunityRow sizes to its own content height
@@ -118,7 +140,7 @@ class _OpportunityListScreenState extends State<OpportunityListScreen> {
                               deadlineLabel: o.deadlineLabel,
                               deadlineUrgent: o.deadlineIsUrgent,
                               saved: appState.isOpportunitySaved(o.id),
-                              applied: isOpportunityApplied(o.id),
+                              applied: context.read<Repositories>().applications.isOpportunityApplied(o.id),
                               onToggleSave: () => appState.toggleSavedOpportunity(o.id),
                               onTap: () => context.push('/opportunity/${o.id}'),
                               onApply: () => startApplyFlow(context, o, onApplied: () => setState(() {})),
@@ -137,6 +159,7 @@ class _OpportunityListScreenState extends State<OpportunityListScreen> {
                         );
                       },
                     ),
+              ),
             ),
             // Only for the notification-scoped case: this screen is a dead
             // end otherwise (it's a push, not a tab), so a direct way back

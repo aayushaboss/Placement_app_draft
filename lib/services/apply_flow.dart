@@ -4,8 +4,7 @@ import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
-import '../mockData/mock_applications.dart';
-import '../mockData/mock_opportunities.dart';
+import '../data/repositories.dart';
 import '../models/opportunity.dart';
 import '../models/opportunity_match.dart';
 import '../models/profile_readiness.dart';
@@ -29,7 +28,7 @@ Future<void> startApplyFlow(
   Opportunity opportunity, {
   VoidCallback? onApplied,
 }) async {
-  if (isOpportunityApplied(opportunity.id)) {
+  if (context.read<Repositories>().applications.isOpportunityApplied(opportunity.id)) {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("You've already applied — check Applications for updates.")),
     );
@@ -66,7 +65,8 @@ Future<void> startApplyFlow(
 /// the direct-apply path uses instead, so every application goes through
 /// one consistent flow regardless of which path got the user there.
 void continueApplyAfterResume(BuildContext context, String opportunityId, {VoidCallback? onApplied}) {
-  final opportunity = getOpportunityById(opportunityId);
+  final repositories = context.read<Repositories>();
+  final opportunity = repositories.opportunities.getOpportunityById(opportunityId);
   if (opportunity == null) {
     // A stale/unresolvable id (e.g. a bookmarked deep link) previously
     // made this a silent no-op — the resume screen's "Done" button would
@@ -78,9 +78,9 @@ void continueApplyAfterResume(BuildContext context, String opportunityId, {VoidC
   // startApplyFlow enforces — so finishing a resume for a job you'd
   // already applied to (or whose deadline lapsed while you were building
   // it) would drop you straight into the screening sheet again.
-  final existing = listApplications().where((a) => a.opportunityId == opportunityId);
-  if (existing.isNotEmpty) {
-    context.go('/application/${existing.first.id}');
+  final existing = repositories.applications.getApplicationForOpportunity(opportunityId);
+  if (existing != null) {
+    context.go('/application/${existing.id}');
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text("You've already applied — here's your application.")),
     );
@@ -241,58 +241,110 @@ void _showSuccessSheet(BuildContext context) {
     context: context,
     backgroundColor: AppColors.white,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-    builder: (sheetContext) => Padding(
+    builder: (sheetContext) => const _ApplySuccessContent(),
+  );
+}
+
+/// Applying to a job is arguably the app's single most important
+/// conversion moment, and used to get a completely static icon — while
+/// finishing a Career DNA quiz *level*, a much lower-stakes onboarding
+/// step, got a full elastic-scale celebration
+/// (career_dna_success_screen.dart). Reuses that exact mechanism here so
+/// the app's biggest moment isn't treated as less special than its
+/// smallest one.
+class _ApplySuccessContent extends StatefulWidget {
+  const _ApplySuccessContent();
+
+  @override
+  State<_ApplySuccessContent> createState() => _ApplySuccessContentState();
+}
+
+class _ApplySuccessContentState extends State<_ApplySuccessContent> with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _checkScale;
+  late final Animation<double> _contentOpacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _checkScale = CurvedAnimation(parent: _controller, curve: const Interval(0.0, 0.6, curve: Curves.elasticOut));
+    _contentOpacity = CurvedAnimation(parent: _controller, curve: const Interval(0.4, 1.0, curve: Curves.easeOut));
+    _controller.forward();
+    HapticFeedback.heavyImpact();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final sheetContext = context;
+    return Padding(
       padding: const EdgeInsets.all(AppSpacing.xl),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 80,
-            height: 80,
-            alignment: Alignment.center,
-            decoration: const BoxDecoration(color: AppColors.yellow, shape: BoxShape.circle),
-            child: const Icon(Ionicons.checkmark, size: 40, color: AppColors.blue),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.lg),
-            child: Text('Application submitted!', style: AppTextStyles.h2.copyWith(color: AppColors.ink, fontSize: 22, fontWeight: AppFontWeight.semibold)),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.sm),
-            child: Text(
-              noOrphan("Track every update in the Applications tab."),
-              textAlign: TextAlign.center,
-              style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
+          ScaleTransition(
+            scale: _checkScale,
+            child: Container(
+              width: 80,
+              height: 80,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(color: AppColors.yellow, shape: BoxShape.circle),
+              child: const Icon(Ionicons.checkmark, size: 40, color: AppColors.blue),
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.only(top: AppSpacing.xl),
-            child: PillButton(
-              label: 'View my applications',
-              onPressed: () {
-                // Resolve the router from sheetContext *before* popping,
-                // not the outer `context` — this function is called with
-                // the *screening* sheet's own context, which is already
-                // popped and defunct by the time this success sheet opens,
-                // so go_router can't resolve a route through it at all.
-                // sheetContext belongs to this sheet's own still-live
-                // subtree; resolving the router first (rather than calling
-                // sheetContext.go after popping) sidesteps any question of
-                // whether sheetContext is still valid post-pop.
-                final router = GoRouter.of(sheetContext);
-                Navigator.of(sheetContext).pop();
-                // Route through the Applications tab itself, not straight
-                // to this one application — a user testing this couldn't
-                // find where updates would show up later, because the old
-                // flow skipped past the tab entirely.
-                router.go('/tabs/browse');
-              },
+          FadeTransition(
+            opacity: _contentOpacity,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.lg),
+                  child: Text('Application submitted!', style: AppTextStyles.h2.copyWith(color: AppColors.ink, fontSize: 22, fontWeight: AppFontWeight.semibold)),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Text(
+                    noOrphan("Track every update in the Applications tab."),
+                    textAlign: TextAlign.center,
+                    style: AppTextStyles.body.copyWith(color: AppColors.gray500, fontSize: 14),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xl),
+                  child: PillButton(
+                    label: 'View my applications',
+                    onPressed: () {
+                      // Resolve the router from sheetContext *before* popping,
+                      // not the outer `context` — this function is called with
+                      // the *screening* sheet's own context, which is already
+                      // popped and defunct by the time this success sheet opens,
+                      // so go_router can't resolve a route through it at all.
+                      // sheetContext belongs to this sheet's own still-live
+                      // subtree; resolving the router first (rather than calling
+                      // sheetContext.go after popping) sidesteps any question of
+                      // whether sheetContext is still valid post-pop.
+                      final router = GoRouter.of(sheetContext);
+                      Navigator.of(sheetContext).pop();
+                      // Route through the Applications tab itself, not straight
+                      // to this one application — a user testing this couldn't
+                      // find where updates would show up later, because the old
+                      // flow skipped past the tab entirely.
+                      router.go('/tabs/browse');
+                    },
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
-    ),
-  );
+    );
+  }
 }
 
 /// Pre-apply screening sheet — Naukri's "just a couple minutes" pattern:
@@ -346,11 +398,16 @@ class _ScreeningSheetState extends State<_ScreeningSheet> {
       if (value.isNotEmpty) answers[widget.opportunity.screeningQuestions[i]] = value;
     }
     final note = _noteController.text.trim();
-    final result = createApplication(
+    final repositories = context.read<Repositories>();
+    final result = await repositories.applications.createApplication(
       widget.opportunity.id,
       note: note.isEmpty ? null : note,
       screeningAnswers: answers.isEmpty ? null : answers,
     );
+    // Genuinely async now (the repository call above awaits) — unlike
+    // before, the sheet could have been dismissed while that was in
+    // flight, so every context use below needs this guard.
+    if (!mounted) return;
 
     if (result == null) {
       // The opportunity vanished between the gate and here — nothing was
@@ -358,7 +415,7 @@ class _ScreeningSheetState extends State<_ScreeningSheet> {
       if (!mounted) return;
       setState(() => _sending = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't submit — this opportunity is no longer available.")),
+        const SnackBar(content: Text("This one's no longer taking applications — sorry about that.")),
       );
       return;
     }

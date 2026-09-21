@@ -5,9 +5,9 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../mockData/mock_applications.dart';
+import '../../data/repositories.dart';
+import '../../mockData/mock_applications.dart' show demoShowcaseUserId;
 import '../../mockData/mock_courses.dart';
-import '../../mockData/mock_opportunities.dart';
 import '../../models/application.dart';
 import '../../models/course.dart';
 import '../../state/app_state.dart';
@@ -21,11 +21,15 @@ import '../../utils/no_orphan.dart';
 import '../../utils/relative_time.dart';
 import '../../utils/scroll_to_top_registry.dart';
 import '../../widgets/badges.dart';
+import '../../widgets/category_tab_bar.dart';
 import '../../widgets/company_mark.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/pill_button.dart';
+import '../../widgets/pill_input.dart';
 import '../../widgets/prep_course_card.dart';
 import '../../widgets/responsive_body.dart';
+import '../../widgets/sort_dropdown.dart';
+import '../../widgets/stat_tile.dart';
 
 /// Shared "prep for this" bottom sheet — the momentum banner opens it scoped
 /// to every role applied for, each card's own "Q&A" shortcut opens it scoped
@@ -94,6 +98,12 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
   List<Application> _apps = [];
   int _lastSeenDataVersion = -1;
   final _scrollController = ScrollController();
+  // Desktop-only controls (see _desktopBody) — mobile/tablet never read
+  // these, so they can't affect anything below AppBreakpoints.tablet.
+  String _statusFilter = 'All';
+  String _appsSort = 'newest';
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -112,24 +122,62 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
   void dispose() {
     ScrollToTopRegistry.unregister(1);
     _scrollController.dispose();
+    _searchController.dispose();
     super.dispose();
   }
 
-  void _load() {
-    // TODO: replace with real API call
-    setState(() => _apps = listApplications());
+  // Buckets the 5 real StatusBadge statuses into the 3 groups the
+  // reference's stat tiles/tabs use — real data, just a grouping decision
+  // (not a new status concept; `Application.status` itself is untouched).
+  static bool _isInProgress(Application a) => a.status == 'Applied' || a.status == 'In Review' || a.status == 'Interview';
+  static bool _isOffer(Application a) => a.status == 'Offer';
+  static bool _isNotSelected(Application a) => a.status == 'Rejected';
+
+  List<Application> _bucketFor(String key) {
+    switch (key) {
+      case 'In Progress':
+        return _apps.where(_isInProgress).toList();
+      case 'Offers':
+        return _apps.where(_isOffer).toList();
+      case 'Not Selected':
+        return _apps.where(_isNotSelected).toList();
+      default:
+        return _apps;
+    }
+  }
+
+  List<Application> get _visibleApps {
+    var list = _bucketFor(_statusFilter);
+    final q = _searchQuery.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      list = list.where((a) => a.opportunity.title.toLowerCase().contains(q) || a.opportunity.company.toLowerCase().contains(q)).toList();
+    }
+    final sorted = List<Application>.of(list);
+    sorted.sort((a, b) {
+      final da = DateTime.tryParse(a.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final db = DateTime.tryParse(b.createdAt) ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return _appsSort == 'oldest' ? da.compareTo(db) : db.compareTo(da);
+    });
+    return sorted;
+  }
+
+  Future<void> _load() async {
+    final apps = await context.read<Repositories>().applications.listApplications();
+    if (mounted) setState(() => _apps = apps);
   }
 
   Future<void> _onRefresh() async => _load();
 
-  void _removeApplication(Application a) {
+  Future<void> _removeApplication(Application a) async {
     // Soft delete — the entry moves to Recently Deleted rather than
     // vanishing outright, so this SnackBar's Undo is now just the fast
     // path for the immediate "oops"; the trash icon in the header above is
     // the longer-lived backstop if this toast is missed. Both call the
     // same restoreApplication(id).
-    removeApplication(a.id);
-    setState(() => _apps = listApplications());
+    final repo = context.read<Repositories>().applications;
+    await repo.removeApplication(a.id);
+    await _load();
+    if (!mounted) return;
     // Other kept-alive tabs (Home's Applied badges) only recompute from
     // listApplications() on their own next build — bump so they notice
     // this change instead of showing a stale Applied state.
@@ -147,9 +195,10 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
           action: SnackBarAction(
             label: 'Undo',
             textColor: AppColors.yellow,
-            onPressed: () {
-              restoreApplication(a.id);
-              setState(() => _apps = listApplications());
+            onPressed: () async {
+              await repo.restoreApplication(a.id);
+              await _load();
+              if (!mounted) return;
               context.read<AppState>().bumpDataVersion();
             },
           ),
@@ -175,20 +224,55 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
       });
     }
 
-    // 2 columns at tablet width — same reasoning as opportunity_list_screen:
-    // a plain wider single-column cap would leave a thin card stretched
-    // down the middle instead of actually using the extra room.
-    final columns = MediaQuery.sizeOf(context).width >= AppBreakpoints.tablet ? 2 : 1;
+    // 2 columns at both tablet and desktop — 3 made ApplicationCard's
+    // single-line title truncate hard and read as cramped; 2 matches the
+    // reference mockup's own grid density and gives every card real room.
+    final width = MediaQuery.sizeOf(context).width;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
+    final columns = width >= AppBreakpoints.tablet ? 2 : 1;
+    // Desktop's status/search/sort controls filter+reorder this; mobile/
+    // tablet (no controls rendered) always get the untouched, unfiltered
+    // _apps — same list as before this round.
+    final displayApps = isTablet ? _visibleApps : _apps;
 
-    return Scaffold(
-      backgroundColor: AppColors.white,
-      body: ResponsiveBody(maxWidth: 720, child: SafeArea(
-        bottom: false,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
+    // A single scrollable (RefreshIndicator wrapping one ListView with the
+    // header as its own leading items), not a fixed header Column sibling
+    // above a separately-scrolling Expanded — a pinned header here left too
+    // little of the fold visible, especially with the desktop-only stat
+    // tiles/tabs stacked under it too.
+    // Continue-with-Google always signs into the same fixed showcase
+    // identity, seeded with 4 sample applications (see
+    // demoShowcaseUserId's own doc comment in mock_applications.dart) —
+    // previously shown with zero disclosure, so a genuine tester could
+    // easily mistake it for real history they never generated. A
+    // phone/email signup never sees this banner since it never gets the
+    // seed data in the first place.
+    final isShowcaseAccount = appState.user?.id == demoShowcaseUserId;
+    final headerItems = <Widget>[
+            if (isShowcaseAccount)
+              Padding(
+                padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm + (isTablet ? AppSpacing.xl : 0), AppSpacing.xl, 0),
+                child: Container(
+                  padding: const EdgeInsets.all(AppSpacing.md),
+                  decoration: BoxDecoration(color: AppColors.blueA10, borderRadius: BorderRadius.circular(AppRadius.md)),
+                  child: Row(
+                    children: [
+                      const Icon(Ionicons.eye_outline, size: 16, color: AppColors.blue),
+                      const SizedBox(width: AppSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          noOrphan('Sample data — this shows what your Applications tab looks like once you start applying.'),
+                          style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, height: 1.35),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm, AppSpacing.xl, AppSpacing.md),
+              // isTablet adds AppSpacing.xl on top — sits directly under
+              // TopNavBar's 64px bar with nothing else providing clearance.
+              padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.sm + (isTablet ? AppSpacing.xl : 0), AppSpacing.xl, AppSpacing.md),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -222,78 +306,185 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
                 ],
               ),
             ),
+            // Desktop-only — 4 real stat tiles (bucketed from the actual
+            // statuses below, never fabricated) + status tabs/search/sort.
+            // Mobile/tablet render none of this; the header/list below are
+            // otherwise completely unchanged for them.
+            if (isTablet && _apps.isNotEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
+                child: Row(
+                  children: [
+                    Expanded(child: StatTile(icon: Ionicons.document_text_outline, value: '${_apps.length}', label: 'Total applications')),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: StatTile(
+                        icon: Ionicons.trophy_outline,
+                        iconColor: AppColors.successDark,
+                        iconBg: AppColors.successA10,
+                        value: '${_bucketFor('Offers').length}',
+                        label: 'Offers',
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: StatTile(
+                        icon: Ionicons.time_outline,
+                        iconColor: AppColors.warningDark,
+                        iconBg: AppColors.warningA15,
+                        value: '${_bucketFor('In Progress').length}',
+                        label: 'In progress',
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: StatTile(
+                        icon: Ionicons.close_circle_outline,
+                        iconColor: AppColors.gray500,
+                        iconBg: AppColors.gray500A15,
+                        value: '${_bucketFor('Not Selected').length}',
+                        label: 'Not selected',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    // Expanded, not a bare Row child — CategoryTabBar's
+                    // horizontal ListView needs a bounded width, which a
+                    // plain (non-flex) Row child never gets.
+                    Expanded(
+                      child: CategoryTabBar(
+                        tabs: [
+                          CategoryTab(key: 'All', label: 'All', count: _apps.length),
+                          CategoryTab(key: 'In Progress', label: 'In Progress', count: _bucketFor('In Progress').length),
+                          CategoryTab(key: 'Offers', label: 'Offers', count: _bucketFor('Offers').length),
+                          CategoryTab(key: 'Not Selected', label: 'Not Selected', count: _bucketFor('Not Selected').length),
+                        ],
+                        selected: _statusFilter,
+                        onSelected: (key) => setState(() => _statusFilter = key),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    SizedBox(
+                      width: 220,
+                      child: PillInput(
+                        controller: _searchController,
+                        placeholder: 'Search your applications…',
+                        icon: Ionicons.search_outline,
+                        onChanged: (v) => setState(() => _searchQuery = v),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    SortDropdown(
+                      value: _appsSort,
+                      options: const [('newest', 'Newest applied'), ('oldest', 'Oldest applied')],
+                      onChanged: (v) => setState(() => _appsSort = v),
+                    ),
+                  ],
+                ),
+              ),
+            ],
             // Sits above the list itself, not inside its ListView — a
             // sibling in this outer Column so it stays pinned above both
             // the single-column and grid layouts below without needing to
             // be duplicated into each, and collapses to zero height once
             // shown (no permanently reserved space).
             const _SwipeHintBanner(),
-            Expanded(
-              child: RefreshIndicator(
-                color: AppColors.blue,
-                onRefresh: _onRefresh,
-                child: _apps.isEmpty
-                    ? ListView(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl),
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.xxxl),
-                            child: EmptyState(
-                              icon: Ionicons.paper_plane_outline,
-                              title: 'No applications yet',
-                              subtitle: "Explore opportunities and apply — they'll show up here.",
-                              buttonLabel: 'Explore opportunities',
-                              onButtonTap: () => context.go('/tabs'),
-                            ),
+    ];
+
+    // Same 3-way branch as before (no apps at all / no apps match the
+    // active filter / a real populated grid), just producing one block of
+    // content instead of 3 separate inner ListViews — it's now the last
+    // item of the single outer ListView below instead of RefreshIndicator's
+    // own direct child, so the header above can scroll away with it.
+    final Widget listContent;
+    if (_apps.isEmpty) {
+      listContent = Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxxl, AppSpacing.xl, 0),
+        child: EmptyState(
+          icon: Ionicons.paper_plane_outline,
+          title: 'No applications yet',
+          subtitle: "Explore opportunities and apply — they'll show up here.",
+          buttonLabel: 'Explore opportunities',
+          onButtonTap: () => context.go('/tabs'),
+        ),
+      );
+    } else if ((isTablet ? _visibleApps : _apps).isEmpty) {
+      listContent = Padding(
+        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxxl, AppSpacing.xl, 0),
+        child: const EmptyState(
+          icon: Ionicons.search_outline,
+          title: 'No applications match',
+          subtitle: 'Try a different search or clear the status filter.',
+        ),
+      );
+    } else {
+      listContent = Padding(
+        // Top clearance — was 0, so the first card sat flush against the
+        // "N active applications" subtitle above AND had its own top
+        // shadow clipped (a plain ListView clips to its box regardless of
+        // the Padding above it). AppSpacing.xl comfortably exceeds
+        // AppShadows.cardBuffer (16px), so this both adds breathing room
+        // and stops the clip.
+        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
+        child: Column(
+          children: [
+            if (columns == 1)
+              ...displayApps.asMap().entries.map((entry) => Padding(
+                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    child: _ApplicationCard(app: entry.value, onRemove: () => _removeApplication(entry.value), showBookmark: isTablet),
+                  ))
+            else
+              for (var row = 0; row < (displayApps.length / columns).ceil(); row++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        for (var i = 0; i < columns; i++) ...[
+                          if (i > 0) const SizedBox(width: AppSpacing.md),
+                          Expanded(
+                            child: row * columns + i < displayApps.length
+                                ? _ApplicationCard(
+                                    app: displayApps[row * columns + i],
+                                    onRemove: () => _removeApplication(displayApps[row * columns + i]),
+                                    showBookmark: isTablet,
+                                  )
+                                : const SizedBox(),
                           ),
                         ],
-                      )
-                    : ListView(
-                        controller: _scrollController,
-                        // Top clearance — was 0, so the first card sat flush
-                        // against the "N active applications" subtitle above
-                        // AND had its own top shadow clipped by the
-                        // ListView's bounds (a plain ListView clips to its
-                        // box regardless of the Padding above it in the
-                        // outer Column). AppSpacing.xl comfortably exceeds
-                        // AppShadows.cardBuffer (16px), so this both adds
-                        // breathing room and stops the clip.
-                        padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xl, AppSpacing.xl, AppSpacing.xxxl),
-                        children: [
-                          if (columns == 1)
-                            ..._apps.asMap().entries.map((entry) => Padding(
-                                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                                  child: _ApplicationCard(app: entry.value, onRemove: () => _removeApplication(entry.value)),
-                                ))
-                          else
-                            for (var row = 0; row < (_apps.length / columns).ceil(); row++)
-                              Padding(
-                                padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                                child: IntrinsicHeight(
-                                  child: Row(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      for (var i = 0; i < columns; i++) ...[
-                                        if (i > 0) const SizedBox(width: AppSpacing.lg),
-                                        Expanded(
-                                          child: row * columns + i < _apps.length
-                                              ? _ApplicationCard(
-                                                  app: _apps[row * columns + i],
-                                                  onRemove: () => _removeApplication(_apps[row * columns + i]),
-                                                )
-                                              : const SizedBox(),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              ),
-                        ],
-                      ),
-              ),
-            ),
+                      ],
+                    ),
+                  ),
+                ),
           ],
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.white,
+      // A single ListView, not a fixed header Column sibling above a
+      // separately-scrolling Expanded — a pinned header here left too
+      // little of the fold visible, especially with the desktop-only stat
+      // tiles/tabs stacked under it too. RefreshIndicator now wraps this
+      // one combined scrollable instead of just the list portion.
+      body: ResponsiveBody(maxWidth: isTablet ? 1224 : 720, child: SafeArea(
+        bottom: false,
+        child: RefreshIndicator(
+          color: AppColors.blue,
+          onRefresh: _onRefresh,
+          child: ListView(
+            controller: _scrollController,
+            padding: EdgeInsets.zero,
+            children: [...headerItems, listContent],
+          ),
         ),
       )),
     );
@@ -306,8 +497,8 @@ class _ApplicationsTrackerScreenState extends State<ApplicationsTrackerScreen> {
 /// needing a second swipe-to-dismiss gesture of its own — asking someone to
 /// swipe away a hint *about* swiping is circular, and a timer guarantees it
 /// clears even for someone who never touches the list at all. Shown once
-/// per install via [applicationsSwipeHintShownPrefsKey], mirroring
-/// maybeShowFomoSheet's own SharedPreferences-gated "seen once" pattern.
+/// per install via [applicationsSwipeHintShownPrefsKey], a SharedPreferences-
+/// gated "seen once" flag.
 class _SwipeHintBanner extends StatefulWidget {
   const _SwipeHintBanner();
 
@@ -393,12 +584,19 @@ class _SwipeHintBannerState extends State<_SwipeHintBanner> {
 class _ApplicationCard extends StatelessWidget {
   final Application app;
   final VoidCallback onRemove;
-  const _ApplicationCard({required this.app, required this.onRemove});
+  // Desktop-only addition (see the reference mockup) — reuses AppState's
+  // existing saved-opportunity mechanism (the same one OpportunityRow/
+  // OpportunityCarouselCard already use), just not previously wired into
+  // this card. Off by default so mobile/tablet's card is byte-identical.
+  final bool showBookmark;
+  const _ApplicationCard({required this.app, required this.onRemove, this.showBookmark = false});
 
   @override
   Widget build(BuildContext context) {
     final a = app;
-    final opportunity = getOpportunityById(a.opportunityId);
+    final opportunity = context.read<Repositories>().opportunities.getOpportunityById(a.opportunityId);
+    final appState = showBookmark ? context.watch<AppState>() : null;
+    final saved = appState?.isOpportunitySaved(a.opportunityId) ?? false;
 
     return Dismissible(
       key: ValueKey(a.id),
@@ -439,12 +637,21 @@ class _ApplicationCard extends StatelessWidget {
                         children: [
                           Text(a.opportunity.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.body.copyWith(color: AppColors.ink, fontSize: 14, fontWeight: AppFontWeight.semibold)),
                           Padding(
-                            padding: const EdgeInsets.only(top: 1),
+                            padding: const EdgeInsets.only(top: AppSpacing.xs),
                             child: Text(a.opportunity.company, maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                           ),
                         ],
                       ),
                     ),
+                    if (showBookmark)
+                      GestureDetector(
+                        behavior: HitTestBehavior.opaque,
+                        onTap: () => context.read<AppState>().toggleSavedOpportunity(a.opportunityId),
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: AppSpacing.sm),
+                          child: Icon(saved ? Ionicons.bookmark : Ionicons.bookmark_outline, size: 18, color: saved ? AppColors.blue : AppColors.gray400),
+                        ),
+                      ),
                     const Icon(Ionicons.chevron_forward, size: 18, color: AppColors.gray400),
                   ],
                 ),
@@ -539,7 +746,7 @@ class _ApplicationCard extends StatelessWidget {
                       GestureDetector(
                         onTap: onRemove,
                         child: Padding(
-                          padding: const EdgeInsets.all(4),
+                          padding: const EdgeInsets.all(AppSpacing.xs),
                           child: Icon(Ionicons.trash_outline, size: 18, color: AppColors.gray400),
                         ),
                       ),

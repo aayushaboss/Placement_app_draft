@@ -46,7 +46,7 @@ class CarouselSectionHeading extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.xl,
-                  AppSpacing.xl,
+                  AppSpacing.md,
                   AppSpacing.xl,
                   0,
                 ),
@@ -59,7 +59,7 @@ class CarouselSectionHeading extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.xl,
-                  AppSpacing.lg,
+                  AppSpacing.sm,
                   AppSpacing.xl,
                   0,
                 ),

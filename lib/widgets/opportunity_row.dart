@@ -13,7 +13,7 @@ import 'pill_button.dart';
 /// an icon+text meta row (location, stipend, duration), then a footer with
 /// a "View details" link and an Apply CTA. Each card is its own bordered,
 /// rounded block with a gap to the next one, not a divided list row.
-class OpportunityRow extends StatelessWidget {
+class OpportunityRow extends StatefulWidget {
   final String? tag;
   final String title;
   final String? subtitle;
@@ -31,6 +31,15 @@ class OpportunityRow extends StatelessWidget {
   /// — omitted for compact reuse contexts (e.g. the detail page's Similar
   /// roles strip) where a second Apply CTA would be redundant.
   final VoidCallback? onApply;
+
+  /// Opt-in only — when set, wraps the title in a Hero with this tag so
+  /// tapping into the matching detail screen (which must use the exact
+  /// same tag on its own title) animates as one continuous element
+  /// instead of a hard cut. Left null by default so reuse contexts that
+  /// show the same opportunity twice on one screen at once (e.g. a
+  /// "Similar roles" strip on the detail page itself) can't collide with
+  /// another Hero using the same tag.
+  final Object? heroTag;
 
   const OpportunityRow({
     super.key,
@@ -50,23 +59,48 @@ class OpportunityRow extends StatelessWidget {
     this.deadlineLabel,
     this.deadlineUrgent = false,
     this.onApply,
+    this.heroTag,
   });
 
+  @override
+  State<OpportunityRow> createState() => _OpportunityRowState();
+}
+
+class _OpportunityRowState extends State<OpportunityRow> {
   static const _metaIcons = [Ionicons.location_outline, Ionicons.cash_outline, Ionicons.time_outline];
+  // Same reasoning as ContentCard's identical field — see that file's note.
+  bool _pressed = false;
+
+  Widget _titleText(Object? heroTag) {
+    final text = Text(
+      widget.title,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      // 14px/semibold — matches Internshala's measured job-card title
+      // (14px/600).
+      style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 14),
+    );
+    if (heroTag == null) return text;
+    return Hero(tag: heroTag, child: Material(color: Colors.transparent, child: text));
+  }
 
   @override
   Widget build(BuildContext context) {
-    final deadlineColor = deadlineUrgent ? AppColors.error : AppColors.gray500;
+    final deadlineColor = widget.deadlineUrgent ? AppColors.error : AppColors.gray500;
 
     return Semantics(
-      button: onTap != null,
-      label: subtitle == null || subtitle!.isEmpty ? title : '$title, $subtitle',
-      child: Material(
+      button: widget.onTap != null,
+      label: widget.subtitle == null || widget.subtitle!.isEmpty ? widget.title : '${widget.title}, ${widget.subtitle}',
+      child: AnimatedScale(
+        scale: _pressed ? 0.97 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: Material(
         color: Colors.transparent,
         child: InkWell(
-          key: testKey,
+          key: widget.testKey,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          onTap: onTap,
+          onTap: widget.onTap,
+          onHighlightChanged: (v) => setState(() => _pressed = v),
           // Visible on keyboard focus (InkWell already supports Tab-focus and
           // paints this automatically) — Round V's accessibility bootstrap;
           // no new interaction, just making the built-in behavior visible.
@@ -81,81 +115,74 @@ class OpportunityRow extends StatelessWidget {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (tag != null && tag!.isNotEmpty) AppTag(label: tag!, color: AppColors.blue, bg: AppColors.blueA10),
+                    if (widget.tag != null && widget.tag!.isNotEmpty) AppTag(label: widget.tag!, color: AppColors.blue, bg: AppColors.blueA10),
                     const Spacer(),
-                    if (onToggleSave != null)
+                    if (widget.onToggleSave != null)
                       GestureDetector(
                         behavior: HitTestBehavior.opaque,
-                        onTap: onToggleSave,
+                        onTap: widget.onToggleSave,
                         child: Icon(
-                          saved ? Ionicons.bookmark : Ionicons.bookmark_outline,
+                          widget.saved ? Ionicons.bookmark : Ionicons.bookmark_outline,
                           size: 18,
-                          color: saved ? AppColors.blue : AppColors.gray400,
+                          color: widget.saved ? AppColors.blue : AppColors.gray400,
                         ),
                       ),
                   ],
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: AppSpacing.sm),
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    // 14px/semibold — matches Internshala's measured
-                    // job-card title (14px/600).
-                    style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 14),
-                  ),
+                  child: _titleText(widget.heroTag),
                 ),
-                if (subtitle != null && subtitle!.isNotEmpty)
+                if (widget.subtitle != null && widget.subtitle!.isNotEmpty)
                   Padding(
-                    padding: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.only(top: AppSpacing.xs),
                     child: Text(
-                      subtitle!,
+                      widget.subtitle!,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
                     ),
                   ),
-                if (meta.where((m) => m.trim().isNotEmpty).isNotEmpty)
+                if (widget.meta.where((m) => m.trim().isNotEmpty).isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.sm),
                     child: Wrap(
                       spacing: AppSpacing.md,
-                      runSpacing: 4,
+                      runSpacing: AppSpacing.xs,
                       children: [
-                        for (var i = 0; i < meta.length; i++)
-                          if (meta[i].trim().isNotEmpty)
-                            _MetaItem(icon: i < _metaIcons.length ? _metaIcons[i] : Ionicons.ellipse_outline, label: meta[i]),
+                        for (var i = 0; i < widget.meta.length; i++)
+                          if (widget.meta[i].trim().isNotEmpty)
+                            _MetaItem(icon: i < _metaIcons.length ? _metaIcons[i] : Ionicons.ellipse_outline, label: widget.meta[i]),
                       ],
                     ),
                   ),
-                if (!applied && (matchLabel != null || deadlineLabel != null))
+                if (!widget.applied && (widget.matchLabel != null || widget.deadlineLabel != null))
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.sm),
                     child: Wrap(
                       spacing: AppSpacing.md,
-                      runSpacing: 2,
+                      runSpacing: AppSpacing.xs,
                       children: [
-                        if (matchLabel != null)
+                        if (widget.matchLabel != null)
                           Tooltip(
                             message: matchExplanation,
                             // tap, not the default long-press — see the same
                             // fix on OpportunityCarouselCard.
                             triggerMode: TooltipTriggerMode.tap,
-                            child: _MetaItem(icon: Ionicons.star, label: matchLabel!, color: AppColors.blue),
+                            child: _MetaItem(icon: Ionicons.star, label: widget.matchLabel!, color: AppColors.blue),
                           ),
-                        if (deadlineLabel != null) _MetaItem(icon: Ionicons.time_outline, label: deadlineLabel!, color: deadlineColor),
+                        if (widget.deadlineLabel != null) _MetaItem(icon: Ionicons.time_outline, label: widget.deadlineLabel!, color: deadlineColor),
                       ],
                     ),
                   ),
-                if (onApply != null)
+                if (widget.onApply != null)
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.lg),
                     child: Row(
                       children: [
                         GestureDetector(
                           behavior: HitTestBehavior.opaque,
-                          onTap: onTap,
+                          onTap: widget.onTap,
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -163,13 +190,13 @@ class OpportunityRow extends StatelessWidget {
                                 'View details',
                                 style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
                               ),
-                              const SizedBox(width: 2),
+                              const SizedBox(width: AppSpacing.xs),
                               const Icon(Ionicons.arrow_forward, size: 13, color: AppColors.blue),
                             ],
                           ),
                         ),
                         const Spacer(),
-                        if (applied)
+                        if (widget.applied)
                           PillButton(
                             label: 'Applied',
                             icon: Ionicons.checkmark_circle,
@@ -180,13 +207,14 @@ class OpportunityRow extends StatelessWidget {
                             onPressed: null,
                           )
                         else
-                          PillButton(label: 'Apply', variant: PillVariant.secondary, full: false, compact: true, onPressed: onApply),
+                          PillButton(label: 'Apply', variant: PillVariant.secondary, full: false, compact: true, onPressed: widget.onApply),
                       ],
                     ),
                   ),
               ],
             ),
           ),
+        ),
         ),
       ),
     );

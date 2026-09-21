@@ -70,7 +70,9 @@ class SkeletonCarouselCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 250,
-      height: 222,
+      // Matches OpportunityCarouselCard's own fixed height exactly (see
+      // that widget's comment on why it's fixed, not intrinsic).
+      height: 290,
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
         color: AppColors.white,

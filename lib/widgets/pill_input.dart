@@ -108,10 +108,10 @@ class _PillInputState extends State<PillInput> {
               children: [
                 if (widget.icon != null) ...[
                   Padding(
-                    padding: EdgeInsets.only(top: multiline ? 2 : 0),
+                    padding: EdgeInsets.only(top: multiline ? AppSpacing.xs : 0),
                     child: Icon(widget.icon, size: 18, color: AppColors.gray500),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: AppSpacing.sm),
                 ],
                 Expanded(
                   child: Focus(
@@ -165,7 +165,7 @@ class _PillInputState extends State<PillInput> {
         ),
         if (widget.error != null)
           Padding(
-            padding: const EdgeInsets.only(top: 6, left: AppSpacing.lg),
+            padding: const EdgeInsets.only(top: AppSpacing.sm, left: AppSpacing.lg),
             child: Text(
               widget.error!,
               style: AppTextStyles.caption.copyWith(fontSize: 12, color: AppColors.error),

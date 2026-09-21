@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_vector_icons/flutter_vector_icons.dart';
 
 import '../../mockData/mock_support.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -54,10 +55,11 @@ class _SupportScreenState extends State<SupportScreen> {
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
     final faqs = mockFaqs.where((f) => _activeCategoryId == null || f.categoryId == _activeCategoryId).toList();
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(child: Column(
+      body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // Plain white header, matching this screen's actual peers —
@@ -68,7 +70,7 @@ class _SupportScreenState extends State<SupportScreen> {
           // (resume_screen.dart/results_screen.dart), which read as
           // disproportionately large for what this page actually is.
           Padding(
-            padding: EdgeInsets.fromLTRB(AppSpacing.lg, topInset + AppSpacing.sm, AppSpacing.lg, 0),
+            padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.sm, AppSpacing.xl, 0),
             child: BackChevron(color: AppColors.ink, fallbackRoute: '/tabs/profile'),
           ),
           Padding(
@@ -283,7 +285,7 @@ class _ContactRow extends StatelessWidget {
                 children: [
                   Text(label, style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontSize: 16, fontWeight: AppFontWeight.medium)),
                   Padding(
-                    padding: const EdgeInsets.only(top: 2),
+                    padding: const EdgeInsets.only(top: AppSpacing.xs),
                     child: Text(subtitle, style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12)),
                   ),
                 ],

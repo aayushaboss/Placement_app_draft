@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../../mockData/mock_aptitude.dart';
 import '../../models/aptitude.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -154,12 +155,13 @@ class _AptitudeScreenState extends State<AptitudeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
     if (_calculating) {
       return AnnotatedRegion<SystemUiOverlayStyle>(
         value: SystemUiOverlayStyle.light,
         child: Scaffold(
           backgroundColor: AppColors.blue,
-          body: ResponsiveBody(child: Center(
+          body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Center(
             child: Padding(
               padding: const EdgeInsets.all(AppSpacing.xl),
               child: Column(
@@ -208,8 +210,8 @@ class _AptitudeScreenState extends State<AptitudeScreen> {
       child: AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
-        backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Column(
+        backgroundColor: isTablet ? AppColors.offWhite : AppColors.white,
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
@@ -283,9 +285,8 @@ class _QuestionBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
-      child: Column(
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
+    final content = Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -301,6 +302,25 @@ class _QuestionBody extends StatelessWidget {
           if (question.type == AptitudeQuestionType.forced) _buildForced(),
           if (question.type == AptitudeQuestionType.slider) _buildSlider(),
         ],
+      );
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xxl, AppSpacing.xl, AppSpacing.xl),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: isTablet ? 640 : double.infinity),
+          child: isTablet
+              ? Container(
+                  padding: const EdgeInsets.all(AppSpacing.xl),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(AppRadius.xl),
+                    boxShadow: AppShadows.soft,
+                  ),
+                  child: content,
+                )
+              : content,
+        ),
       ),
     );
   }

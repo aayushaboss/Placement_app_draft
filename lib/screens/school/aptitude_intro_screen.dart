@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
@@ -44,12 +45,13 @@ class AptitudeIntroScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.light,
       child: Scaffold(
         backgroundColor: AppColors.blue,
-        body: ResponsiveBody(child: Column(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(
@@ -131,21 +133,26 @@ class AptitudeIntroScreen extends StatelessWidget {
             ),
             Padding(
               padding: EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.md, AppSpacing.xl, bottomInset + AppSpacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  PillButton(
-                    label: 'Start Test',
-                    icon: Ionicons.play,
-                    onPressed: () => context.push('/school/aptitude'),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: isTablet ? 400 : double.infinity),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      PillButton(
+                        label: 'Start Test',
+                        icon: Ionicons.play,
+                        onPressed: () => context.push('/school/aptitude'),
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      PillButton(
+                        label: 'Skip for now',
+                        variant: PillVariant.outlineWhite,
+                        onPressed: () => _skip(context),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: AppSpacing.md),
-                  PillButton(
-                    label: 'Skip for now',
-                    variant: PillVariant.outlineWhite,
-                    onPressed: () => _skip(context),
-                  ),
-                ],
+                ),
               ),
             ),
           ],

@@ -9,6 +9,7 @@ import '../../mockData/mock_profile_options.dart';
 import '../../mockData/related_roles.dart';
 import '../../models/user.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -88,6 +89,18 @@ class _GoalsScreenState extends State<GoalsScreen> {
     } else if (segment == Segment.ug) {
       _goal = 'internship';
     }
+    // Pre-select roles matching the course/field they just entered on the
+    // previous screen — turns this from a cold "pick from scratch" chip
+    // list into "confirm or adjust," using data the flow already
+    // collected one screen earlier rather than asking again. Only a
+    // starting point (still a single tap each to remove/add), and only
+    // for first-time onboarding — same reasoning as the goal default
+    // above, a post-onboarding edit should never override a choice
+    // someone already made and saved.
+    final suggested = rolesByField[courseFieldFor(user?.course)];
+    if (suggested != null && suggested.isNotEmpty) {
+      _selectedRoles = suggested.take(2).toList();
+    }
   }
 
   @override
@@ -136,7 +149,10 @@ class _GoalsScreenState extends State<GoalsScreen> {
           context.go('/tabs');
         }
       } else {
-        context.go('/tabs');
+        // Goals is the true last onboarding step for this segment — see
+        // onboarding_complete_screen.dart for why this doesn't go
+        // straight to /tabs any more.
+        context.go('/onboarding/complete');
       }
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -147,6 +163,7 @@ class _GoalsScreenState extends State<GoalsScreen> {
   Widget build(BuildContext context) {
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
     final course = context.watch<AppState>().user?.course;
     final suggestedRoles = rolesByField[courseFieldFor(course)] ?? mockAllRoles;
     final query = _searchController.text.trim().toLowerCase();
@@ -164,21 +181,19 @@ class _GoalsScreenState extends State<GoalsScreen> {
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Column(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
           children: [
             Expanded(
               child: ListView(
                 padding: EdgeInsets.fromLTRB(AppSpacing.xl, topInset + AppSpacing.lg, AppSpacing.xl, AppSpacing.xl),
                 children: [
                   BackChevron(color: AppColors.ink, fallbackRoute: _postOnboarding ? '/tabs' : '/onboarding/profile'),
-                  if (!_postOnboarding)
-                    Padding(
-                      padding: const EdgeInsets.only(top: AppSpacing.lg),
-                      child: Text(
-                        'STEP 2 OF 2',
-                        style: AppTextStyles.caption.copyWith(color: AppColors.blue, fontWeight: AppFontWeight.medium, letterSpacing: 1.2),
-                      ),
-                    ),
+                  // No "STEP 2 OF 2" label here any more — it undercounted
+                  // the real flow (Login/OTP/Profile already happened by
+                  // the time someone reaches this screen), which read as
+                  // either a bug or a bait-and-switch. Nothing else in the
+                  // flow has a comparable global step count to be
+                  // consistent with, so removing it beats a misleading one.
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.lg),
                     child: Text(

@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import '../../mockData/mock_profile_options.dart';
 import '../../models/user.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/spacing.dart';
 import '../../theme/text_styles.dart';
@@ -14,6 +15,7 @@ import '../../utils/no_orphan.dart';
 import '../../widgets/app_chip.dart';
 import '../../widgets/autocomplete_field.dart';
 import '../../widgets/date_picker_field.dart';
+import '../../widgets/desktop_field_row.dart';
 import '../../widgets/field_label.dart';
 import '../../widgets/pill_button.dart';
 import '../../widgets/pill_input.dart';
@@ -92,6 +94,15 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
   // check on these three (matching how Name already does) stops a
   // whitespace-only entry from counting as "filled" and slipping into the
   // saved profile.
+  // College/course/semester are still shown on this screen (so filling
+  // them in now is one less trip later), but they no longer gate
+  // Continue or count toward this screen's own progress bar — they're
+  // tracked separately by User.hasBasicInfo (profile_readiness.dart),
+  // which already treats them as their own post-onboarding checklist
+  // item ("Basic info") on the Profile tab, complete with its own nudge
+  // to go fill them in. Onboarding only hard-gates what's needed to
+  // personalize the very first feed: name, city, segment, and — for
+  // Working — the qualification chip (a single tap, not a form field).
   List<bool> get _filled {
     final base = [
       _nameController.text.trim().isNotEmpty,
@@ -101,19 +112,8 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
     ];
     if (_segment == null) return base;
     if (_isSchool) return [...base, _currentClass.isNotEmpty, _board.isNotEmpty];
-    if (_isWorking) {
-      return [
-        ...base,
-        _highestQualification.isNotEmpty,
-        if (_isEducatedWorking) ...[_college.trim().isNotEmpty, _course.trim().isNotEmpty],
-      ];
-    }
-    return [
-      ...base,
-      _college.trim().isNotEmpty,
-      _course.trim().isNotEmpty,
-      if (_segment != Segment.pg) _semester.isNotEmpty,
-    ];
+    if (_isWorking) return [...base, _highestQualification.isNotEmpty];
+    return base;
   }
 
   double get _progress => _filled.where((f) => f).length / _filled.length;
@@ -122,12 +122,8 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
     if (_nameController.text.trim().isEmpty || _city.trim().isEmpty || _segment == null) return false;
     if (_needsPhone && !_isValidPhone) return false;
     if (_isSchool) return _currentClass.isNotEmpty && _board.isNotEmpty;
-    if (_isWorking) {
-      if (_highestQualification.isEmpty) return false;
-      return !_isEducatedWorking || (_college.trim().isNotEmpty && _course.trim().isNotEmpty);
-    }
-    final semesterOk = _segment == Segment.pg || _semester.isNotEmpty;
-    return _college.trim().isNotEmpty && _course.trim().isNotEmpty && semesterOk;
+    if (_isWorking) return _highestQualification.isNotEmpty;
+    return true;
   }
 
   @override
@@ -335,10 +331,23 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                   priorExperience: _segment == Segment.pg && _priorExperience.isNotEmpty ? _effectivePriorExperience : null,
                 ));
       if (!mounted) return;
-      context.go(isSchool ? '/tabs' : '/college/goals');
+      // School's required profile is now the final onboarding step, so it
+      // gets the same completion acknowledgment college/UG/PG/working get
+      // after Goals — see onboarding_complete_screen.dart.
+      context.go(isSchool ? '/onboarding/complete' : '/college/goals');
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  /// A field's existing FieldLabel + input, unchanged, just grouped so it
+  /// can be handed to DesktopFieldRow's left/right slots as one unit.
+  Widget _fieldGroup(Widget label, Widget field) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [label, field],
+    );
   }
 
   @override
@@ -347,12 +356,13 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
     final topInset = MediaQuery.of(context).padding.top;
     final bottomInset = MediaQuery.of(context).padding.bottom;
     final percent = (_progress * 100).round();
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: SystemUiOverlayStyle.dark,
       child: Scaffold(
         backgroundColor: AppColors.white,
-        body: ResponsiveBody(child: Column(
+        body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
@@ -418,16 +428,35 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                       _AutofillBanner(text: 'Pulled from your Google account — edit anytime.')
                     else if (_signInMethod == 'otp' && _nameController.text.trim().isNotEmpty)
                       _AutofillBanner(text: "We've filled in your name from your email — edit anytime."),
-                    const FieldLabel('Full name', tight: true),
-                    PillInput(controller: _nameController, placeholder: 'Your name', icon: Ionicons.person_outline, maxLength: 60, onChanged: (_) => setState(() {})),
-                    const FieldLabel('City'),
-                    AutocompleteField(
-                      value: _city,
-                      placeholder: 'e.g. Mumbai',
-                      icon: Ionicons.location_outline,
-                      options: mockCities,
-                      onChanged: (v) => setState(() => _city = v),
-                    ),
+                    if (isTablet)
+                      DesktopFieldRow(
+                        left: _fieldGroup(
+                          const FieldLabel('Full name', tight: true),
+                          PillInput(controller: _nameController, placeholder: 'Your name', icon: Ionicons.person_outline, maxLength: 60, onChanged: (_) => setState(() {})),
+                        ),
+                        right: _fieldGroup(
+                          const FieldLabel('City', tight: true),
+                          AutocompleteField(
+                            value: _city,
+                            placeholder: 'e.g. Mumbai',
+                            icon: Ionicons.location_outline,
+                            options: mockCities,
+                            onChanged: (v) => setState(() => _city = v),
+                          ),
+                        ),
+                      )
+                    else ...[
+                      const FieldLabel('Full name', tight: true),
+                      PillInput(controller: _nameController, placeholder: 'Your name', icon: Ionicons.person_outline, maxLength: 60, onChanged: (_) => setState(() {})),
+                      const FieldLabel('City'),
+                      AutocompleteField(
+                        value: _city,
+                        placeholder: 'e.g. Mumbai',
+                        icon: Ionicons.location_outline,
+                        options: mockCities,
+                        onChanged: (v) => setState(() => _city = v),
+                      ),
+                    ],
                     // Only Google/email sign-ups reach here — phone sign-up's
                     // identifier already is the phone number (see
                     // AppState._makeNewUser), so asking again there would be
@@ -452,18 +481,39 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                           .toList(),
                     ),
                     if (_isSchool) ...[
-                      const FieldLabel('Which class are you in?'),
-                      Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.sm,
-                        children: _classOptions.map((o) => AppChip(label: o, selected: _currentClass == o, onPressed: () => setState(() => _currentClass = o))).toList(),
-                      ),
-                      const FieldLabel('Which board do you study under?'),
-                      Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.sm,
-                        children: _boardOptions.map((o) => AppChip(label: o, selected: _board == o, onPressed: () => setState(() => _board = o))).toList(),
-                      ),
+                      if (isTablet)
+                        DesktopFieldRow(
+                          left: _fieldGroup(
+                            const FieldLabel('Which class are you in?'),
+                            Wrap(
+                              spacing: AppSpacing.sm,
+                              runSpacing: AppSpacing.sm,
+                              children: _classOptions.map((o) => AppChip(label: o, selected: _currentClass == o, onPressed: () => setState(() => _currentClass = o))).toList(),
+                            ),
+                          ),
+                          right: _fieldGroup(
+                            const FieldLabel('Which board do you study under?'),
+                            Wrap(
+                              spacing: AppSpacing.sm,
+                              runSpacing: AppSpacing.sm,
+                              children: _boardOptions.map((o) => AppChip(label: o, selected: _board == o, onPressed: () => setState(() => _board = o))).toList(),
+                            ),
+                          ),
+                        )
+                      else ...[
+                        const FieldLabel('Which class are you in?'),
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.sm,
+                          children: _classOptions.map((o) => AppChip(label: o, selected: _currentClass == o, onPressed: () => setState(() => _currentClass = o))).toList(),
+                        ),
+                        const FieldLabel('Which board do you study under?'),
+                        Wrap(
+                          spacing: AppSpacing.sm,
+                          runSpacing: AppSpacing.sm,
+                          children: _boardOptions.map((o) => AppChip(label: o, selected: _board == o, onPressed: () => setState(() => _board = o))).toList(),
+                        ),
+                      ],
                     ] else if (_isWorking) ...[
                       const FieldLabel("What's the highest level you've completed?"),
                       Wrap(
@@ -497,6 +547,74 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                         // Institution/Degree) read as inconsistent when a
                         // user moves between onboarding, profile edit, and
                         // the resume builder for the exact same data.
+                        if (isTablet)
+                          DesktopFieldRow(
+                            left: _fieldGroup(
+                              const FieldLabel('College / University'),
+                              AutocompleteField(
+                                value: _college,
+                                placeholder: 'e.g. BITS Goa',
+                                icon: Ionicons.business_outline,
+                                options: mockColleges,
+                                onChanged: (v) => setState(() => _college = v),
+                              ),
+                            ),
+                            right: _fieldGroup(
+                              const FieldLabel('Course / Degree'),
+                              AutocompleteField(
+                                value: _course,
+                                placeholder: 'e.g. B.Tech, B.Com, Diploma in Mechanical, MBA…',
+                                icon: Ionicons.book_outline,
+                                options: mockCourses,
+                                onChanged: (v) => setState(() => _course = v),
+                              ),
+                            ),
+                          )
+                        else ...[
+                          const FieldLabel('College / University'),
+                          AutocompleteField(
+                            value: _college,
+                            placeholder: 'e.g. BITS Goa',
+                            icon: Ionicons.business_outline,
+                            options: mockColleges,
+                            onChanged: (v) => setState(() => _college = v),
+                          ),
+                          const FieldLabel('Course / Degree'),
+                          AutocompleteField(
+                            value: _course,
+                            placeholder: 'e.g. B.Tech, B.Com, Diploma in Mechanical, MBA…',
+                            icon: Ionicons.book_outline,
+                            options: mockCourses,
+                            onChanged: (v) => setState(() => _course = v),
+                          ),
+                        ],
+                        ..._priorExperienceField('Total work experience (optional)'),
+                      ],
+                    ] else if (_segment != null) ...[
+                      if (isTablet)
+                        DesktopFieldRow(
+                          left: _fieldGroup(
+                            const FieldLabel('College / University'),
+                            AutocompleteField(
+                              value: _college,
+                              placeholder: 'e.g. BITS Goa',
+                              icon: Ionicons.business_outline,
+                              options: mockColleges,
+                              onChanged: (v) => setState(() => _college = v),
+                            ),
+                          ),
+                          right: _fieldGroup(
+                            const FieldLabel('Course / Degree'),
+                            AutocompleteField(
+                              value: _course,
+                              placeholder: _segment == Segment.pg ? 'e.g. Finance, Marketing, HR, Data Science…' : 'e.g. B.Tech, MBA, B.Sc…',
+                              icon: Ionicons.book_outline,
+                              options: mockCourses,
+                              onChanged: (v) => setState(() => _course = v),
+                            ),
+                          ),
+                        )
+                      else ...[
                         const FieldLabel('College / University'),
                         AutocompleteField(
                           value: _college,
@@ -508,30 +626,12 @@ class _MicroProfileScreenState extends State<MicroProfileScreen> {
                         const FieldLabel('Course / Degree'),
                         AutocompleteField(
                           value: _course,
-                          placeholder: 'e.g. B.Tech, B.Com, Diploma in Mechanical, MBA…',
+                          placeholder: _segment == Segment.pg ? 'e.g. Finance, Marketing, HR, Data Science…' : 'e.g. B.Tech, MBA, B.Sc…',
                           icon: Ionicons.book_outline,
                           options: mockCourses,
                           onChanged: (v) => setState(() => _course = v),
                         ),
-                        ..._priorExperienceField('Total work experience (optional)'),
                       ],
-                    ] else if (_segment != null) ...[
-                      const FieldLabel('College / University'),
-                      AutocompleteField(
-                        value: _college,
-                        placeholder: 'e.g. BITS Goa',
-                        icon: Ionicons.business_outline,
-                        options: mockColleges,
-                        onChanged: (v) => setState(() => _college = v),
-                      ),
-                      const FieldLabel('Course / Degree'),
-                      AutocompleteField(
-                        value: _course,
-                        placeholder: _segment == Segment.pg ? 'e.g. Finance, Marketing, HR, Data Science…' : 'e.g. B.Tech, MBA, B.Sc…',
-                        icon: Ionicons.book_outline,
-                        options: mockCourses,
-                        onChanged: (v) => setState(() => _course = v),
-                      ),
                       if (_segment != Segment.pg) ...[
                         const FieldLabel('Which semester are you in?'),
                         DatePickerField(

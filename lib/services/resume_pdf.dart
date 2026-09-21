@@ -147,12 +147,11 @@ pw.Widget _educationEntry(ResumeEducation e, pw.Font bold, pw.Font regular) => p
       ),
     );
 
-// The certificate image itself isn't embedded — it's stored as a
-// browser blob: URL (from image_picker on web) that doesn't survive a
-// page reload, so there's nothing reliable to decode here. Instead the
-// PDF now *acknowledges* an attached certificate on its own line rather
-// than silently dropping every trace of it — a reader can then ask for
-// proof. The link, if present, appears as a plain text line.
+// The certificate image itself isn't embedded — image_picker only hands
+// back a path, and nothing here re-reads/decodes it into PDF bytes today.
+// Instead the PDF *acknowledges* an attached certificate on its own line
+// rather than silently dropping every trace of it — a reader can then ask
+// for proof. The link, if present, appears as a plain text line.
 pw.Widget _certificationEntry(ResumeCertification c, pw.Font bold, pw.Font regular) {
   final meta = [
     c.duration,

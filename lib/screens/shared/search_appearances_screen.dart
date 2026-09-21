@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../mockData/mock_profile_activity.dart';
 import '../../state/app_state.dart';
+import '../../theme/breakpoints.dart';
 import '../../theme/colors.dart';
 import '../../theme/shadows.dart';
 import '../../theme/spacing.dart';
@@ -31,10 +32,11 @@ class SearchAppearancesScreen extends StatelessWidget {
     final total = appearances.fold<int>(0, (a, b) => a + b.count);
     final maxCount = appearances.map((a) => a.count).fold<int>(1, (a, b) => a > b ? a : b);
     final topInset = MediaQuery.of(context).padding.top;
+    final isTablet = AppBreakpoints.of(context) == AppBreakpoint.tablet;
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: ResponsiveBody(child: Column(
+      body: ResponsiveBody(maxWidth: isTablet ? 1224 : AppBreakpoints.maxContentWidth, child: Column(
         children: [
           Container(
             color: AppColors.blue,
@@ -164,7 +166,7 @@ class _SearchTrendChart extends StatelessWidget {
               final barHeight = a.count == 0 ? 3.0 : 10 + (a.count / maxCount) * (_barAreaHeight - 10);
               return Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 2.5),
+                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
                   child: Tooltip(
                     message: '${a.count} on ${a.date.day} ${_monthShort[a.date.month - 1]}',
                     child: Column(
@@ -174,7 +176,7 @@ class _SearchTrendChart extends StatelessWidget {
                           height: _calloutHeight,
                           child: isPeak
                               ? Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: AppSpacing.xs),
                                   decoration: BoxDecoration(color: AppColors.ink, borderRadius: BorderRadius.circular(AppRadius.sm)),
                                   child: Text('${a.count}', style: AppTextStyles.caption.copyWith(color: AppColors.white, fontSize: 12, fontWeight: AppFontWeight.bold)),
                                 )

@@ -68,5 +68,18 @@
 		</array>
 		<key>UIStatusBarHidden</key>
 		<false/>
+		<!-- image_picker: profile_edit_screen.dart's avatar photo (camera or
+		     gallery), resume_builder_quiz_screen.dart's certification image
+		     (gallery), video_profile_screen.dart's intro video (camera or
+		     gallery). Missing these crashes the app the instant the picker
+		     is invoked, rather than just failing to prompt. -->
+		<key>NSCameraUsageDescription</key>
+		<string>Aerostar Edge needs camera access so you can take a photo for your profile or record your video introduction.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Aerostar Edge needs photo library access so you can choose a photo or video from your library for your profile.</string>
+		<!-- video_profile_screen.dart's pickVideo(source: camera) records
+		     audio along with video. -->
+		<key>NSMicrophoneUsageDescription</key>
+		<string>Aerostar Edge needs microphone access to record audio for your video introduction.</string>
 	</dict>
 </plist>

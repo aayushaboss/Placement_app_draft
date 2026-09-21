@@ -89,7 +89,7 @@ class OpportunityCarouselSection extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           child: SizedBox(
-            height: 222 + AppShadows.cardBuffer * 2,
+            height: 290 + AppShadows.cardBuffer * 2,
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppShadows.cardBuffer, AppSpacing.lg, AppShadows.cardBuffer),
               scrollDirection: Axis.horizontal,
@@ -142,7 +142,7 @@ class _ViewAllTile extends StatelessWidget {
         focusColor: AppColors.blueA10,
         child: Container(
           width: 140,
-          height: 222,
+          height: 290,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: AppColors.white,
@@ -156,7 +156,7 @@ class _ViewAllTile extends StatelessWidget {
                 'View all',
                 style: AppTextStyles.bodyLg.copyWith(color: AppColors.blue, fontSize: 12, fontWeight: AppFontWeight.medium),
               ),
-              const SizedBox(width: 4),
+              const SizedBox(width: AppSpacing.xs),
               const Icon(Ionicons.arrow_forward, size: 15, color: AppColors.blue),
             ],
           ),
