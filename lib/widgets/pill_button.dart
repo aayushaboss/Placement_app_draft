@@ -17,7 +17,7 @@ import '../theme/text_styles.dart';
 /// equally prominent, not clearly secondary. [outlineWhite] is transparent
 /// with a white border and white text/icon — recedes against a colored
 /// background the way [secondary] already recedes against a white one.
-enum PillVariant { primary, secondary, ghost, dark, outlineWhite }
+enum PillVariant { primary, secondary, ghost, dark, outlineWhite, tonal }
 
 class PillButton extends StatefulWidget {
   final String label;
@@ -69,6 +69,8 @@ class _PillButtonState extends State<PillButton> {
         return AppColors.white;
       case PillVariant.dark:
         return AppColors.blue;
+      case PillVariant.tonal:
+        return AppColors.blueA10;
       case PillVariant.ghost:
       case PillVariant.outlineWhite:
         return Colors.transparent;
@@ -83,6 +85,8 @@ class _PillButtonState extends State<PillButton> {
         return AppColors.blue;
       case PillVariant.dark:
         return AppColors.white;
+      case PillVariant.tonal:
+        return AppColors.blueDark;
       case PillVariant.ghost:
         return AppColors.blue;
       case PillVariant.outlineWhite:

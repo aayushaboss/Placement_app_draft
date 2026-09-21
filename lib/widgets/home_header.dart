@@ -41,13 +41,12 @@ class HomeHeader extends StatelessWidget {
         top: topInset + AppSpacing.md + (isTablet ? AppSpacing.xl : 0),
         left: AppSpacing.xl,
         right: AppSpacing.xl,
-        // xl (20), not the old sm (6) — this header sits directly above an
-        // Expanded scrollable with nothing else providing clearance, so its
-        // own bottom inset is the only thing standing between it and
-        // whatever scrolls up underneath (see college_feed_screen.dart /
-        // school_home_screen.dart, which no longer add their own spacer for
-        // this — one shared fix instead of two inconsistent ones).
-        bottom: AppSpacing.xl,
+        // Tightened from xl (32) — this header sits directly above the
+        // search bar row on both college_feed_screen.dart and
+        // school_home_screen.dart, and the two stacked side by side at 32
+        // each read as a lot of dead space above the fold. md keeps clear
+        // separation without the extra gap.
+        bottom: AppSpacing.md,
       ),
       // A flat Row, not two nested ones — the greeting block used to be its
       // own Row sized to its own intrinsic (unbounded) text width, sitting

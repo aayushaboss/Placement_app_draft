@@ -5,12 +5,15 @@ import '../theme/spacing.dart';
 import '../theme/text_styles.dart';
 
 /// Heading for a horizontal carousel row on the feeds — plain black title,
-/// 16px, an optional grey count following it. Carries its own top divider +
-/// clearance (Swiggy-style "what's on your mind?" section break) so every
-/// carousel on the feed reads as a clearly separate block from the one
+/// 16px, an optional grey count following it. Carries its own top clearance
+/// so every carousel on the feed reads as a separate block from the one
 /// above it, not just a heading floating directly above a card row. This is
-/// the single place that gap/divider lives — callers should NOT also add
-/// their own inter-section SizedBox before a carousel, or the gap doubles.
+/// the single place that gap lives — callers should NOT also add their own
+/// inter-section SizedBox before a carousel, or the gap doubles.
+///
+/// No divider — a previous version had one above the title, but paired with
+/// a heading immediately underneath it read as two competing section
+/// markers for the same break. The top padding alone is the separation now.
 class CarouselSectionHeading extends StatelessWidget {
   final String title;
   final int? count;
@@ -47,19 +50,6 @@ class CarouselSectionHeading extends StatelessWidget {
                 padding: const EdgeInsets.fromLTRB(
                   AppSpacing.xl,
                   AppSpacing.md,
-                  AppSpacing.xl,
-                  0,
-                ),
-                child: Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: AppColors.border,
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  AppSpacing.xl,
-                  AppSpacing.sm,
                   AppSpacing.xl,
                   0,
                 ),

@@ -89,7 +89,7 @@ class OpportunityCarouselSection extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
           child: SizedBox(
-            height: 290 + AppShadows.cardBuffer * 2,
+            height: OpportunityCarouselCard.height + AppShadows.cardBuffer * 2,
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(AppSpacing.lg, AppShadows.cardBuffer, AppSpacing.lg, AppShadows.cardBuffer),
               scrollDirection: Axis.horizontal,
@@ -106,6 +106,7 @@ class OpportunityCarouselSection extends StatelessWidget {
                   company: o.company,
                   location: o.location,
                   stipend: o.stipend,
+                  tag: o.type,
                   matchLabel: applied ? null : matchLabel(o),
                   deadlineLabel: applied ? null : o.deadlineLabel,
                   deadlineUrgent: o.deadlineIsUrgent,
@@ -135,18 +136,19 @@ class _ViewAllTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.white,
-      borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
+      borderRadius: BorderRadius.circular(AppRadius.lg),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         focusColor: AppColors.blueA10,
         child: Container(
           width: 140,
-          height: 290,
+          height: OpportunityCarouselCard.height,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.border, width: 1),
             boxShadow: AppShadows.card,
           ),
           child: Row(

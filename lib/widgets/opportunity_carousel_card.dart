@@ -13,13 +13,19 @@ import 'pill_button.dart';
 /// Fixed-width job card for a horizontal carousel row — the same
 /// information as [OpportunityRow] (role, company, location, stipend,
 /// urgency), just reflowed for a Naukri-style "scroll sideways within a
-/// topic" browse pattern instead of one long vertical feed. Deliberately
-/// reuses the same card shell (AppShadows.card) and the same AppTag/
-/// PillButton components as the rest of the app, not a bespoke look. The
-/// outer corner radius is AppRadius.md + AppSpacing.lg — concentric with
-/// CompanyMark's own AppRadius.md corner sitting AppSpacing.lg inside it,
-/// not an unrelated token.
+/// topic" browse pattern instead of one long vertical feed.
+///
+/// [height] is fixed (carousel cards in one row need to line up), but
+/// unlike the old design this no longer uses a `Spacer` to push the button
+/// to the bottom — every card always renders the same four blocks (header /
+/// meta / one status chip / CTA), so natural content height is already
+/// consistent card to card. The one status chip is exactly one of: the
+/// applied badge, the match/deadline chips, or (when neither applies) the
+/// opportunity's own type as a neutral fallback — never blank space.
 class OpportunityCarouselCard extends StatelessWidget {
+  static const double width = 250;
+  static const double height = 210;
+
   final String title;
   final String company;
   final String location;
@@ -29,6 +35,11 @@ class OpportunityCarouselCard extends StatelessWidget {
   final bool deadlineUrgent;
   final bool applied;
   final bool saved;
+
+  /// Fallback status-chip text (e.g. "Internship") shown when there's no
+  /// match score, no deadline, and it isn't applied.
+  final String? tag;
+
   final VoidCallback? onTap;
   final VoidCallback? onApply;
   final VoidCallback? onToggleSave;
@@ -44,185 +55,152 @@ class OpportunityCarouselCard extends StatelessWidget {
     this.deadlineUrgent = false,
     this.applied = false,
     this.saved = false,
+    this.tag,
     this.onTap,
     this.onApply,
     this.onToggleSave,
   });
 
+  Widget _statusChip() {
+    if (applied) {
+      return const AppTag(label: 'Applied', icon: Ionicons.checkmark_circle, color: AppColors.blue, bg: AppColors.blueA10);
+    }
+    final chips = <Widget>[
+      if (matchLabel != null)
+        Tooltip(
+          message: matchExplanation,
+          triggerMode: TooltipTriggerMode.tap,
+          child: AppTag(label: matchLabel!, color: AppColors.blue, bg: AppColors.blueA10, icon: Ionicons.information_circle_outline),
+        ),
+      if (deadlineLabel != null)
+        AppTag(
+          label: deadlineLabel!,
+          color: deadlineUrgent ? AppColors.error : AppColors.gray500,
+          bg: deadlineUrgent ? AppColors.errorA10 : AppColors.gray500A15,
+        ),
+    ];
+    if (chips.isEmpty && tag != null && tag!.isNotEmpty) {
+      chips.add(AppTag(label: tag!, color: AppColors.gray500, bg: AppColors.gray500A15));
+    }
+    if (chips.isEmpty) return const SizedBox.shrink();
+    return Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.xs, children: chips);
+  }
+
   @override
   Widget build(BuildContext context) {
-    final deadlineColor = deadlineUrgent ? AppColors.error : AppColors.gray500;
-
     return Semantics(
       button: onTap != null,
       label: '$title, $company',
       child: Material(
         color: AppColors.white,
-        borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
+          borderRadius: BorderRadius.circular(AppRadius.lg),
           // Visible on keyboard focus — see opportunity_row.dart's own note.
           focusColor: AppColors.blueA10,
           child: Container(
-            width: 250,
-            // Fixed, not intrinsic — cards in the same row need to line up
-            // (same size, Apply at the same y-position across the row), which
-            // intrinsic per-card sizing broke. Went briefly intrinsic to kill
-            // the dead space the old 250 left above Apply on shorter cards,
-            // but the fix for that is a *shorter* fixed height sized to the
-            // realistic content (title+tags case), not dropping the shared
-            // height altogether. 262 (bumped from 222 for the 8pt
-            // spacing-grid pass) turned out to still be a few px short of
-            // the real worst case (2-line title + match/deadline tags) —
-            // confirmed live: the button silently overflowed past the
-            // card's bottom edge for that combination, which is exactly
-            // what made "Applied" (no tags row, fits easily) and "Apply"
-            // (tags row present, was overflowing) cards line up their
-            // buttons at visibly different heights in the same carousel
-            // row. Bumped again to 290, with real headroom this time
-            // instead of a razor-thin margin.
-            height: 290,
-            padding: const EdgeInsets.all(AppSpacing.lg),
+            width: width,
+            height: height,
+            padding: const EdgeInsets.all(AppSpacing.md),
             decoration: BoxDecoration(
               color: AppColors.white,
-              borderRadius: BorderRadius.circular(AppRadius.md + AppSpacing.lg),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: AppColors.border, width: 1),
               boxShadow: AppShadows.card,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    CompanyMark(company: company, size: 44),
+                    CompanyMark(company: company, size: 40),
                     const SizedBox(width: AppSpacing.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
                             title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            // 14px/semibold — matches Internshala's own
-                            // measured job-card title (14px/600). The company
-                            // line below stays smaller + lighter (12px/
-                            // medium), so the two are now differentiated by
-                            // both size and weight, not size alone.
-                            style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 14, height: 1.2),
+                            style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 15, height: 1.25),
                           ),
                           Padding(
-                            padding: const EdgeInsets.only(top: AppSpacing.xs),
+                            padding: const EdgeInsets.only(top: 2),
                             child: Text(
                               company,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
+                              style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13),
                             ),
                           ),
                         ],
                       ),
                     ),
-                    // The default, unfiltered view (this card) had no way to
-                    // save a job at all — only the flat filtered-list view
-                    // (OpportunityRow, same underlying data) had one, so
-                    // saving was only reachable after actively filtering.
                     if (onToggleSave != null)
-                      GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: onToggleSave,
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: AppSpacing.sm),
+                      Padding(
+                        padding: const EdgeInsets.only(left: AppSpacing.sm),
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: onToggleSave,
                           child: Icon(
                             saved ? Ionicons.bookmark : Ionicons.bookmark_outline,
-                            size: 18,
+                            size: 20,
                             color: saved ? AppColors.blue : AppColors.gray400,
                           ),
                         ),
                       ),
                   ],
                 ),
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.md),
-                  child: Divider(height: 1, color: AppColors.border),
-                ),
-                _MetaLine(icon: Ionicons.location_outline, label: location),
-                const SizedBox(height: AppSpacing.sm),
-                _MetaLine(icon: Ionicons.cash_outline, label: stipend),
-                if (matchLabel != null || deadlineLabel != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: AppSpacing.sm),
-                    child: Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.xs,
-                      children: [
-                        if (matchLabel != null)
-                          Tooltip(
-                            message: matchExplanation,
-                            // tap, not the default long-press — a long-press
-                            // trigger with zero visual cue meant almost no
-                            // one would ever discover this was interactive.
-                            // The leading info icon is the visual cue.
-                            triggerMode: TooltipTriggerMode.tap,
-                            child: AppTag(
-                              label: matchLabel!,
-                              color: AppColors.blue,
-                              bg: AppColors.blueA10,
-                              icon: Ionicons.information_circle_outline,
-                            ),
-                          ),
-                        if (deadlineLabel != null) AppTag(label: deadlineLabel!, color: deadlineColor, bg: deadlineColor.withValues(alpha: 0.1)),
-                      ],
-                    ),
-                  ),
-                // Pushes Apply to the card's bottom edge regardless of how
-                // much the content above it takes up — same fixed baseline
-                // across every card in the row, not just the ones with the
-                // most content.
-                const Spacer(),
                 Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.md),
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: Row(
+                    children: [
+                      const Icon(Ionicons.location_outline, size: 14, color: AppColors.gray500),
+                      const SizedBox(width: AppSpacing.xs),
+                      Flexible(
+                        child: Text(
+                          location,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 13),
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.md),
+                      Text(
+                        stipend,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppTextStyles.caption.copyWith(color: AppColors.ink, fontSize: 13, fontWeight: AppFontWeight.semibold),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
+                  child: _statusChip(),
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.sm),
                   child: applied
                       ? const PillButton(
                           label: 'Applied',
                           icon: Ionicons.checkmark_circle,
-                          variant: PillVariant.secondary,
-                          compact: true,
+                          variant: PillVariant.tonal,
                           disabled: true,
                           onPressed: null,
                         )
-                      : PillButton(label: 'Apply', variant: PillVariant.secondary, compact: true, onPressed: onApply),
+                      : PillButton(label: 'Apply', variant: PillVariant.dark, onPressed: onApply),
                 ),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-}
-
-class _MetaLine extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _MetaLine({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Icon(icon, size: 13, color: AppColors.gray500),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: AppTextStyles.caption.copyWith(color: AppColors.gray500, fontSize: 12, fontWeight: AppFontWeight.medium),
-          ),
-        ),
-      ],
     );
   }
 }

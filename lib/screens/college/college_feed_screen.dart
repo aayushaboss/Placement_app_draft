@@ -574,7 +574,11 @@ class _CollegeFeedScreenState extends State<CollegeFeedScreen> {
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xs, AppSpacing.xl, AppSpacing.xl),
+              // Bottom tightened from xl (32) — stacked under HomeHeader's
+              // own (also-tightened) bottom inset, 32+32 read as a lot of
+              // dead space between the header and the first real content
+              // (the promo carousel) above the fold.
+              padding: const EdgeInsets.fromLTRB(AppSpacing.xl, AppSpacing.xs, AppSpacing.xl, AppSpacing.md),
               child: Row(
                 children: [
                   const Expanded(child: HomeSearchBar()),
