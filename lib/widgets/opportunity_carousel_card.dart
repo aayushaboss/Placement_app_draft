@@ -22,9 +22,32 @@ import 'pill_button.dart';
 /// consistent card to card. The one status chip is exactly one of: the
 /// applied badge, the match/deadline chips, or (when neither applies) the
 /// opportunity's own type as a neutral fallback — never blank space.
+///
+/// What actually keeps every card's button at the same y-position isn't the
+/// fixed [height] alone — it's [_titleHeight] reserving identical space for
+/// a 1-line and a 2-line title, so everything below it (divider, meta,
+/// chip, button) starts at the same offset regardless of title length. A
+/// `Spacer` would "fix" alignment too, but it's exactly the mechanism the
+/// previous version of this card used to hide the real bug (an applied
+/// card with no chips just grew empty space instead of shrinking) — not
+/// bringing that back.
 class OpportunityCarouselCard extends StatelessWidget {
   static const double width = 250;
-  static const double height = 210;
+
+  // Real headroom, not a tight fit — this card's own history already
+  // learned this lesson once (height bumped 222 → 262 → 290 after the
+  // 2-line-title + tags-row combination kept overflowing a "just barely
+  // fits" budget). Computed baseline is ~206 (padding 16×2 + header 56 +
+  // divider 17 + meta 18 + chip row ~23 + button 44, with 8dp gaps between
+  // blocks); this leaves comfortable slack above that instead of repeating
+  // the same near-miss.
+  static const double height = 240;
+
+  // 2 lines at the title's own 15px/1.25 line-height (≈18.75px/line) —
+  // reserved unconditionally so a 1-line title leaves identical space
+  // below it as a 2-line one, which is what actually aligns every card's
+  // button in the same row (see the class doc comment above).
+  static const double _titleHeight = 38;
 
   final String title;
   final String company;
@@ -63,24 +86,25 @@ class OpportunityCarouselCard extends StatelessWidget {
 
   Widget _statusChip() {
     if (applied) {
-      return const AppTag(label: 'Applied', icon: Ionicons.checkmark_circle, color: AppColors.blue, bg: AppColors.blueA10);
+      return const AppTag(label: 'Applied', icon: Ionicons.checkmark_circle, color: AppColors.blue, bg: AppColors.blueA10, compact: true);
     }
     final chips = <Widget>[
       if (matchLabel != null)
         Tooltip(
           message: matchExplanation,
           triggerMode: TooltipTriggerMode.tap,
-          child: AppTag(label: matchLabel!, color: AppColors.blue, bg: AppColors.blueA10, icon: Ionicons.information_circle_outline),
+          child: AppTag(label: matchLabel!, color: AppColors.blue, bg: AppColors.blueA10, icon: Ionicons.information_circle_outline, compact: true),
         ),
       if (deadlineLabel != null)
         AppTag(
           label: deadlineLabel!,
           color: deadlineUrgent ? AppColors.error : AppColors.gray500,
           bg: deadlineUrgent ? AppColors.errorA10 : AppColors.gray500A15,
+          compact: true,
         ),
     ];
     if (chips.isEmpty && tag != null && tag!.isNotEmpty) {
-      chips.add(AppTag(label: tag!, color: AppColors.gray500, bg: AppColors.gray500A15));
+      chips.add(AppTag(label: tag!, color: AppColors.gray500, bg: AppColors.gray500A15, compact: true));
     }
     if (chips.isEmpty) return const SizedBox.shrink();
     return Wrap(spacing: AppSpacing.sm, runSpacing: AppSpacing.xs, children: chips);
@@ -123,11 +147,14 @@ class OpportunityCarouselCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text(
-                            title,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 15, height: 1.25),
+                          SizedBox(
+                            height: _titleHeight,
+                            child: Text(
+                              title,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.bodyLg.copyWith(color: AppColors.ink, fontWeight: AppFontWeight.semibold, fontSize: 15, height: 1.25),
+                            ),
                           ),
                           Padding(
                             padding: const EdgeInsets.only(top: 2),

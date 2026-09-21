@@ -179,12 +179,19 @@ class AppTag extends StatelessWidget {
   /// renders exactly as before.
   final IconData? icon;
 
+  /// Tighter horizontal padding (sm instead of md) for smaller contexts
+  /// (e.g. a compact carousel card) where the default size reads as
+  /// oversized against a smaller surrounding type scale. Off by default so
+  /// every existing call site renders exactly as before.
+  final bool compact;
+
   const AppTag({
     super.key,
     required this.label,
     this.color = AppColors.blue,
     this.bg = AppColors.blueA10,
     this.icon,
+    this.compact = false,
   });
 
   @override
@@ -199,7 +206,7 @@ class AppTag extends StatelessWidget {
       ),
     );
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: AppSpacing.xs),
+      padding: EdgeInsets.symmetric(horizontal: compact ? AppSpacing.sm : AppSpacing.md, vertical: AppSpacing.xs),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(AppRadius.pill),
